@@ -39,6 +39,79 @@ const camada = (id: string, x: number, y: number, when?: Partial<Choices>): Stac
 });
 const ARTE: StackLayer = { id: 'arte', role: 'art', opacity: 1, blend: 'normal', offset: [0, 0] };
 
+describe('compose: variantes e círculos de zoom', () => {
+  const comVariante = (variant: string, id: string, x: number): StackLayer => ({ ...camada(id, x, 0), variant });
+  const ponto1 = () => new Map<string, Raster>([['a.png', ponto(255, 0, 0)], ['b.png', ponto(0, 0, 255)], ['mascara.png', solido(4, 4, 255, 255, 255)]]);
+
+  test('camada com variante só aparece na variante pedida', () => {
+    const pack = packDeTeste([camada('fundo', 0, 0), comVariante('vt', 'a', 0), comVariante('sem-canguru', 'b', 1)]);
+    const layers = ponto1();
+    layers.set('fundo.png', solido(4, 4, 255, 255, 255));
+    const art = solido(4, 4, 0, 255, 0);
+    const vt = compose(pack, layers, art, ESCOLHAS, null, 'vt');
+    expect(px(vt, 0, 0)).toEqual([255, 0, 0, 255]);
+    expect(px(vt, 1, 0)).toEqual([255, 255, 255, 255]);
+    const sc = compose(pack, layers, art, ESCOLHAS, null, 'sem-canguru');
+    expect(px(sc, 0, 0)).toEqual([255, 255, 255, 255]);
+    expect(px(sc, 1, 0)).toEqual([0, 0, 255, 255]);
+  });
+
+  test('sem pedir variante, as camadas de variante ficam de fora (mockup da frente)', () => {
+    const pack = packDeTeste([camada('fundo', 0, 0), comVariante('vt', 'a', 0)]);
+    const layers = ponto1();
+    layers.set('fundo.png', solido(4, 4, 255, 255, 255));
+    const out = compose(pack, layers, solido(4, 4, 0, 255, 0), ESCOLHAS);
+    expect(px(out, 0, 0)).toEqual([255, 255, 255, 255]);
+  });
+
+  const zoom = (extra: Partial<StackLayer> = {}): StackLayer => ({
+    id: 'zoom', role: 'zoom', file: 'm.png', opacity: 1, blend: 'normal', offset: [6, 6], source: { x: 0, y: 0, width: 4, height: 4 }, ...extra,
+  });
+  const fundoMeioMeio = () => {
+    const f = solido(8, 8, 255, 0, 0); // esquerda vermelha, direita azul
+    for (let y = 0; y < 8; y++) for (let x = 4; x < 8; x++) f.data.set([0, 0, 255, 255], (y * 8 + x) * 4);
+    return f;
+  };
+  const packZoom = (stack: StackLayer[]) =>
+    packDeTeste(stack, { canvas: { width: 8, height: 8 }, artCorners: [[0, 0], [8, 0], [8, 8], [0, 8]], artSize: { width: 8, height: 8 } });
+
+  test('zoom copia um pedaço do que já foi desenhado para o lugar do círculo', () => {
+    const mascara = solido(2, 2, 255, 255, 255);
+    const layers = new Map<string, Raster>([['fundo.png', fundoMeioMeio()], ['m.png', mascara], ['mascara.png', solido(8, 8, 255, 255, 255)]]);
+    const out = compose(packZoom([camada('fundo', 0, 0), zoom()]), layers, solido(8, 8, 0, 255, 0), ESCOLHAS);
+    expect(px(out, 6, 6)).toEqual([255, 0, 0, 255]); // o recorte (0..4, 0..4) é todo vermelho
+    expect(px(out, 7, 7)).toEqual([255, 0, 0, 255]);
+    expect(px(out, 4, 4)).toEqual([0, 0, 255, 255]); // fora do círculo nada muda
+  });
+
+  test('o recorte do zoom pega a mistura certa quando atravessa duas cores', () => {
+    const layers = new Map<string, Raster>([['fundo.png', fundoMeioMeio()], ['m.png', solido(2, 2, 255, 255, 255)], ['mascara.png', solido(8, 8, 255, 255, 255)]]);
+    const out = compose(packZoom([camada('fundo', 0, 0), zoom({ source: { x: 3, y: 0, width: 4, height: 4 } })]), layers, solido(8, 8, 0, 255, 0), ESCOLHAS);
+    expect(px(out, 6, 6)[0]).toBeGreaterThan(100); // metade vermelho...
+    expect(px(out, 6, 6)[2]).toBeGreaterThan(100); // ...metade azul
+    const [r = 0, , b = 0] = px(out, 6, 6);
+    expect(r + b).toBeGreaterThan(240);
+  });
+
+  test('a máscara do zoom recorta o círculo (alfa zero fica transparente por cima do fundo)', () => {
+    const mascara = solido(2, 2, 255, 255, 255);
+    mascara.data.set([255, 255, 255, 0], 3 * 4); // pixel (1,1) fora do círculo
+    const layers = new Map<string, Raster>([['fundo.png', fundoMeioMeio()], ['m.png', mascara], ['mascara.png', solido(8, 8, 255, 255, 255)]]);
+    const out = compose(packZoom([camada('fundo', 0, 0), zoom({ offset: [4, 4] })]), layers, solido(8, 8, 0, 255, 0), ESCOLHAS);
+    expect(px(out, 5, 5)).toEqual([0, 0, 255, 255]); // continua o fundo (azul)
+    expect(px(out, 4, 4)).toEqual([255, 0, 0, 255]); // dentro do círculo: o recorte vermelho
+  });
+
+  test('zoom respeita a variante', () => {
+    const layers = new Map<string, Raster>([['fundo.png', fundoMeioMeio()], ['m.png', solido(2, 2, 255, 255, 255)], ['mascara.png', solido(8, 8, 255, 255, 255)]]);
+    const pack = packZoom([camada('fundo', 0, 0), zoom({ variant: 'vt' })]);
+    const sem = compose(pack, layers, solido(8, 8, 0, 255, 0), ESCOLHAS);
+    expect(px(sem, 6, 6)).toEqual([0, 0, 255, 255]);
+    const com = compose(pack, layers, solido(8, 8, 0, 255, 0), ESCOLHAS, null, 'vt');
+    expect(px(com, 6, 6)).toEqual([255, 0, 0, 255]);
+  });
+});
+
 describe('compose: arte do verso na contra capa', () => {
   const VERSO: StackLayer = { id: 'arte-verso', role: 'back-art', opacity: 1, blend: 'multiply', offset: [0, 0] };
   const pacoteComVerso = () =>

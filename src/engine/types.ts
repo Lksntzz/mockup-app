@@ -14,7 +14,7 @@ export type Choices = Record<Accessory, string>;
 export interface StackLayer {
   id: string;
   /** 'art' = frente (arte da página ímpar); 'back-art' = contra capa (arte da página par, só se houver). */
-  role: 'fixed' | 'art' | 'back-art';
+  role: 'fixed' | 'art' | 'back-art' | 'zoom';
   /** PNG em pack/layers; ausente quando role === 'art'. */
   file?: string;
   /** 0 a 1. */
@@ -24,6 +24,10 @@ export interface StackLayer {
   offset: Pt;
   /** A camada só aparece quando todas as escolhas citadas aqui batem. */
   when?: Partial<Choices>;
+  /** Mockup de especificação: a camada só entra na variante citada ('vt', 'sem-canguru'); sem variante pedida, fica de fora. */
+  variant?: string;
+  /** role 'zoom': trecho do que já foi desenhado que vira o círculo. `file` é a máscara (alfa) do círculo, em `offset`. */
+  source?: { x: number; y: number; width: number; height: number };
 }
 
 export interface ColorOption {
