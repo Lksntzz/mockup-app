@@ -47,6 +47,13 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git tag "v${{ steps.versao.outputs.versao }}"
           git push origin "v${{ steps.versao.outputs.versao }}"
+      # a release é criada UMA vez, aqui; sem isso o instalador cria uma por arquivo enviado e a atualização quebra
+      - name: Criar a release (uma só)
+        if: steps.versao.outputs.publicar == 'sim'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "v${{ steps.versao.outputs.versao }}" --title "v${{ steps.versao.outputs.versao }}" --notes "Versão ${{ steps.versao.outputs.versao }}"
       - if: steps.versao.outputs.publicar == 'sim'
         run: npm run dist:publicar
         env:
