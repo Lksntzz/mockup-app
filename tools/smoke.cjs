@@ -319,6 +319,24 @@ app.on('browser-window-created', (_e, win) => {
       await foto('8c-alerta.png');
       await js("document.getElementById('alerta-arte-fechar').click()");
       fs.rmSync(novo, { recursive: true, force: true });
+      // segundo plano: com o Modo designer ligado, fechar a janela só esconde; o alerta continua chegando
+      const janela = require('electron').BrowserWindow.fromWebContents(wc);
+      janela.close();
+      await espera(500);
+      conferir(!janela.isDestroyed() && !janela.isVisible(), 'com o Modo designer ligado, fechar a janela esconde o app em vez de encerrar');
+      const segundoPlano = path.join(p1, 'CLIENTE EM SEGUNDO PLANO');
+      fs.mkdirSync(segundoPlano);
+      fs.writeFileSync(path.join(segundoPlano, 'arte.jpg'), 'x');
+      fs.writeFileSync(path.join(segundoPlano, 'capa.cdr'), 'x');
+      conferir(await ate("!document.getElementById('alerta-arte').hidden && document.getElementById('alerta-arte-nomes').textContent.includes('SEGUNDO PLANO')", 'alerta em segundo plano', 30000), 'com a janela escondida o alerta "Arte para fazer" continua chegando');
+      janela.show();
+      await js("document.getElementById('alerta-arte-fechar').click()");
+      await js("document.getElementById('tab-pasta1').click()");
+      await ate("[...document.querySelectorAll('#pasta1-lista .cliente-linha')].some(l => l.textContent.includes('SEGUNDO PLANO'))", 'cliente em segundo plano na lista');
+      conferir(await js("[...document.querySelectorAll('#pasta1-lista .cliente-linha')].find(l => l.textContent.includes('SEGUNDO PLANO')).textContent.includes('Abrir no Corel')"), 'o cliente com .cdr mostra o botão "Abrir no Corel"');
+      const recusaAbrir = await js("window.mockupApi.abrirArquivoCliente('/etc/passwd').then((r) => r.motivo || 'abriu')");
+      conferir(recusaAbrir !== 'abriu', `o app recusa abrir arquivo fora das pastas de cliente (${recusaAbrir.slice(0, 40)}…)`);
+      fs.rmSync(segundoPlano, { recursive: true, force: true });
       await js("document.getElementById('tab-pasta1').click()");
       await ate("document.querySelectorAll('#pasta1-lista .cliente-linha').length === 2", 'lista sem o cliente de teste');
       await foto('8-pasta1.png');

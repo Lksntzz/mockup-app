@@ -14,6 +14,7 @@ files:
   - package.json
   - dist/**
   - pack/**
+  - build/icon.png
   - "!**/*.map"
 asar: true
 win:

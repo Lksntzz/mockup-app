@@ -32,6 +32,9 @@ export interface MockupApi {
   designerEstado(): Promise<ConfigDesigner>;
   designerLigar(ligado: boolean): Promise<ConfigDesigner>;
   designerEscolherPasta(qual: 'pasta1' | 'pasta2' | 'pasta3' | 'pasta4'): Promise<ConfigDesigner>;
+  iniciarComWindowsEstado(): Promise<boolean>;
+  iniciarComWindows(ligado: boolean): Promise<boolean>;
+  abrirArquivoCliente(caminho: string): Promise<{ ok: true } | { ok: false; motivo: string }>;
   clientesListar(): Promise<{ clientes: Cliente[]; avisos: string[] }>;
   clientesBuscar(termo: string): Promise<Cliente[]>;
   aoArteParaFazer(cb: (nomes: string[]) => void): void;

@@ -712,6 +712,7 @@ const nomeDoCaminho = (p: string) => p.slice(Math.max(p.lastIndexOf('\\'), p.las
 
 function aplicarDesigner(c: ConfigDesigner): void {
   designer = c;
+  if (c.designer) void api.iniciarComWindowsEstado().then((v) => ($<HTMLInputElement>('iniciar-windows').checked = v), () => undefined);
   $('tab-pasta1').hidden = !c.designer;
   if (!c.designer && $('pasta1').hidden === false) mostrarAba('novo');
   desenharQualidade();
@@ -836,6 +837,28 @@ function linhaDoCliente(c: Cliente): HTMLElement {
     topo.append(b);
   }
   linha.append(topo);
+  const abrivel = c.arquivos.filter((n) => /\.(cdr|pdf)$/i.test(n));
+  if (abrivel.length > 0) {
+    const acoes = document.createElement('div');
+    acoes.className = 'topo-linha';
+    for (const nomeArq of abrivel) {
+      const ehCdr = /\.cdr$/i.test(nomeArq);
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'secundario';
+      b.textContent = abrivel.length <= 2 && abrivel.filter((n) => /\.cdr$/i.test(n) === ehCdr).length === 1 ? (ehCdr ? 'Abrir no Corel' : 'Abrir PDF') : `${ehCdr ? 'Corel' : 'PDF'}: ${nomeArq}`;
+      b.title = nomeArq;
+      b.addEventListener('click', () => {
+        const sep = c.caminho.includes('\\') ? '\\' : '/';
+        void api.abrirArquivoCliente(`${c.caminho}${sep}${nomeArq}`).then(
+          (r) => mensagem(r.ok ? `Abrindo ${nomeArq}…` : r.motivo, !r.ok),
+          (e) => mensagem(textoDoErro(e), true),
+        );
+      });
+      acoes.append(b);
+    }
+    linha.append(acoes);
+  }
   const barra = document.createElement('div');
   barra.className = 'etapas';
   barra.setAttribute('aria-label', `Etapa ${c.etapa} de 4: ${ROTULOS_ETAPAS[c.etapa - 1]}`);
@@ -943,6 +966,16 @@ for (const qual of ['pasta1', 'pasta2', 'pasta3', 'pasta4'] as const) {
     }, (e) => mensagem(textoDoErro(e), true));
   });
 }
+$('iniciar-windows').addEventListener('change', () => {
+  const caixaIniciar = $<HTMLInputElement>('iniciar-windows');
+  void api.iniciarComWindows(caixaIniciar.checked).then(
+    (v) => {
+      caixaIniciar.checked = v;
+      mensagem(v ? 'O app vai abrir escondido junto com o Windows.' : 'O app não abre mais junto com o Windows.');
+    },
+    (e) => mensagem(textoDoErro(e), true),
+  );
+});
 $('atualizar-pasta1').addEventListener('click', () => void desenharPasta1());
 // a lista se atualiza sozinha enquanto a aba está aberta
 window.setInterval(() => {

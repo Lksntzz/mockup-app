@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Notification } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, Notification, shell, Tray } from 'electron';
 import { EventEmitter } from 'node:events';
 import { mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import { userInfo } from 'node:os';
@@ -11,6 +11,8 @@ import { criarRascunhos } from './rascunhos';
 import { criarConfigDesigner } from './config-designer';
 import { moverParaAprovar } from './pasta-fluxo';
 import { atualizarVistos, buscarFinalizados, listarClientes } from './clientes';
+import { arquivoAbrivel } from './abrir-arquivo';
+import { deveEsconderAoFechar, iniciaOculto } from './segundo-plano';
 import { caminhoPermitido, pastaMkp } from './paths';
 import { criarAtualizador, type AtualizadorLike } from './updater';
 
@@ -154,9 +156,72 @@ async function exigirDesigner() {
 }
 const normalizar = (p: string) => (process.platform === 'win32' ? resolve(p).toLowerCase() : resolve(p));
 ipcMain.handle('designer-estado', () => configDoDesigner().ler());
-ipcMain.handle('designer-ligar', (_e, ligado: unknown) => {
+// o fechar da janela não pode esperar uma leitura de arquivo: guarda o estado do Modo designer na memória
+let designerLigado = false;
+let saindo = false;
+let bandeja: Tray | null = null;
+let avisouBandeja = false;
+app.on('before-quit', () => {
+  saindo = true;
+});
+
+function mostrarJanela(): void {
+  const w = BrowserWindow.getAllWindows()[0];
+  if (!w) return;
+  if (w.isMinimized()) w.restore();
+  w.show();
+  w.focus();
+}
+
+/** Ícone perto do relógio: com o Modo designer ligado o app continua rodando (e alertando) com a janela fechada. */
+function garantirBandeja(): void {
+  if (bandeja) return;
+  try {
+    const icone = nativeImage.createFromPath(join(__dirname, '..', '..', 'build', 'icon.png')).resize({ width: 16, height: 16 });
+    bandeja = new Tray(icone);
+    bandeja.setToolTip('Mockup da Agenda: vigiando a Pasta 1');
+    bandeja.setContextMenu(
+      Menu.buildFromTemplate([
+        { label: 'Abrir o Mockup da Agenda', click: mostrarJanela },
+        { label: 'Sair de vez', click: () => app.quit() },
+      ]),
+    );
+    bandeja.on('click', mostrarJanela);
+  } catch (e) {
+    console.warn('não consegui criar o ícone da bandeja', e);
+  }
+}
+
+ipcMain.handle('designer-ligar', async (_e, ligado: unknown) => {
   if (typeof ligado !== 'boolean') throw new Error('Valor inválido.');
-  return configDoDesigner().salvar({ designer: ligado });
+  const c = await configDoDesigner().salvar({ designer: ligado });
+  designerLigado = c.designer;
+  if (designerLigado) garantirBandeja();
+  else {
+    bandeja?.destroy();
+    bandeja = null;
+    app.setLoginItemSettings({ openAtLogin: false });
+  }
+  return c;
+});
+ipcMain.handle('iniciar-windows-estado', async () => {
+  await exigirDesigner();
+  return app.getLoginItemSettings().openAtLogin;
+});
+ipcMain.handle('iniciar-windows-definir', async (_e, ligado: unknown) => {
+  await exigirDesigner();
+  if (typeof ligado !== 'boolean') throw new Error('Valor inválido.');
+  app.setLoginItemSettings({ openAtLogin: ligado, args: ['--oculto'] });
+  return app.getLoginItemSettings().openAtLogin;
+});
+ipcMain.handle('abrir-arquivo-cliente', async (_e, caminho: unknown) => {
+  const c = await exigirDesigner();
+  if (typeof caminho !== 'string') throw new Error('Arquivo inválido.');
+  if (!arquivoAbrivel([c.pasta1 ?? '', c.pasta2 ?? '', c.pasta3 ?? ''], caminho)) {
+    return { ok: false, motivo: 'Esse arquivo não está numa pasta de cliente (Pastas 1, 2 ou 3) ou não é um tipo que o app abre.' };
+  }
+  const erro = await shell.openPath(caminho);
+  return erro ? { ok: false, motivo: `O Windows não conseguiu abrir o arquivo: ${erro}` } : { ok: true };
 });
 ipcMain.handle('designer-escolher-pasta', async (_e, qual: unknown) => {
   await exigirDesigner();
@@ -217,11 +282,8 @@ async function vigiarPasta1(): Promise<void> {
       if (Notification.isSupported()) {
         const n = new Notification({ title: 'Arte para fazer', body: r.alertar.join(', ') });
         n.on('click', () => {
-          const w = BrowserWindow.getAllWindows()[0];
-          if (!w) return;
-          if (w.isMinimized()) w.restore();
-          w.focus();
-          w.webContents.send('abrir-cliente');
+          mostrarJanela();
+          BrowserWindow.getAllWindows()[0]?.webContents.send('abrir-cliente');
         });
         n.show();
       }
@@ -234,8 +296,9 @@ async function vigiarPasta1(): Promise<void> {
   }
 }
 
-function criarJanela(): BrowserWindow {
+function criarJanela(oculta = false): BrowserWindow {
   const win = new BrowserWindow({
+    show: !oculta,
     width: 1280,
     height: 820,
     minWidth: 1000,
@@ -256,11 +319,40 @@ function criarJanela(): BrowserWindow {
   win.webContents.once('did-finish-load', () => void atualizador.verificar(false));
   const timer = setInterval(() => void atualizador.verificar(false), QUATRO_HORAS);
   win.on('closed', () => clearInterval(timer));
+  win.on('close', (e) => {
+    if (!deveEsconderAoFechar({ designer: designerLigado }, saindo)) return;
+    e.preventDefault();
+    win.hide();
+    garantirBandeja();
+    if (!avisouBandeja) {
+      avisouBandeja = true;
+      try {
+        if (Notification.isSupported()) {
+          new Notification({ title: 'Mockup da Agenda continua aberto', body: 'Ele segue vigiando a Pasta 1. Para fechar de vez: botão direito no ícone perto do relógio > Sair de vez.' }).show();
+        }
+      } catch {
+        // sem notificação do sistema: tudo bem
+      }
+    }
+  });
   return win;
 }
 
-app.whenReady().then(() => {
-  criarJanela();
+// uma instância só: dois apps abertos (ex.: iniciado com o Windows + aberto à mão) alertariam em dobro
+const primeiraInstancia = app.requestSingleInstanceLock();
+if (!primeiraInstancia) {
+  app.quit();
+} else {
+  app.on('second-instance', () => mostrarJanela());
+}
+if (process.platform === 'win32') app.setAppUserModelId('br.com.agenda.mockup'); // notificações do Windows precisam disso
+
+app.whenReady().then(async () => {
+  if (!primeiraInstancia) return;
+  designerLigado = (await configDoDesigner().ler()).designer;
+  const oculta = iniciaOculto(process.argv, { designer: designerLigado });
+  if (designerLigado) garantirBandeja();
+  criarJanela(oculta);
   const periodo = Number(process.env.MOCKUP_VIGIA_MS) || 60_000;
   setTimeout(() => void vigiarPasta1(), Math.min(periodo, 8000));
   setInterval(() => void vigiarPasta1(), periodo);
@@ -268,4 +360,6 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) criarJanela();
   });
 });
-app.on('window-all-closed', () => app.quit());
+app.on('window-all-closed', () => {
+  if (saindo || !designerLigado) app.quit();
+});
