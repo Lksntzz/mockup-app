@@ -555,6 +555,36 @@
       }
     },
     {
+      "id": "tassel-laranja-sem-aneis-preto",
+      "role": "fixed",
+      "file": "tassel-laranja-02.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        90,
+        121
+      ],
+      "when": {
+        "tassel": "laranja",
+        "wireo": "preto"
+      }
+    },
+    {
+      "id": "tassel-laranja-sem-aneis-branco",
+      "role": "fixed",
+      "file": "tassel-laranja-02.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        90,
+        121
+      ],
+      "when": {
+        "tassel": "laranja",
+        "wireo": "branco"
+      }
+    },
+    {
       "id": "tassel-laranja-01",
       "role": "fixed",
       "file": "tassel-laranja-01.png",
@@ -876,16 +906,7 @@
       }
     ]
   },
-  "unavailable": [
-    {
-      "tassel": "laranja",
-      "wireo": "preto"
-    },
-    {
-      "tassel": "laranja",
-      "wireo": "branco"
-    }
-  ],
+  "unavailable": [],
   "defaults": {
     "wireo": "preto",
     "elastico": "preto",

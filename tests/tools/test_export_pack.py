@@ -121,13 +121,37 @@ def test_contra_capa_tem_cantos_e_camada_de_arte_do_verso(pack):
     assert (d["stack"][i - 1].get("file") or "") == verso["mask"]["file"]
 
 
-def test_tassel_laranja_so_existe_com_wireo_rose_gold(pack):
-    """No PSD o tassel laranja é a camada desligada do grupo "ATIVAR COM WIREO ROSE": já vem com os anéis rose gold."""
-    _, d = pack
-    laranja = [c for c in d["stack"] if c.get("when", {}).get("tassel") == "laranja"]
-    assert laranja, "faltou a camada do tassel laranja"
-    for c in laranja:
-        assert c["when"] == {"tassel": "laranja", "wireo": "rose-gold"}
-    for wireo in ("preto", "branco"):
-        assert {"tassel": "laranja", "wireo": wireo} in d["unavailable"]
-    assert {"tassel": "laranja", "wireo": "rose-gold"} not in d["unavailable"]
+def test_tassel_laranja_existe_com_qualquer_wireo(pack):
+    """No PSD o laranja só vem junto dos anéis rose gold; para os outros wire-o o fio é separado dos anéis."""
+    pasta, d = pack
+    assert d["unavailable"] == []
+    por_wireo = {}
+    for c in d["stack"]:
+        w = c.get("when", {})
+        if w.get("tassel") == "laranja":
+            por_wireo.setdefault(w["wireo"], []).append(c)
+    assert sorted(por_wireo) == ["branco", "preto", "rose-gold"]
+    assert por_wireo["rose-gold"][0]["file"] == "tassel-laranja-01.png"
+    assert por_wireo["preto"][0]["file"] == por_wireo["branco"][0]["file"] != "tassel-laranja-01.png"
+
+
+def test_fio_laranja_sem_aneis_nao_tem_pixel_onde_ha_aneis_rose(pack):
+    import numpy as np
+
+    pasta, d = pack
+    W, H = d["canvas"]["width"], d["canvas"]["height"]
+
+    def alfa(camada):
+        im = Image.open(pasta / "layers" / camada["file"]).convert("RGBA")
+        tela = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        tela.paste(im, tuple(camada["offset"]))
+        return np.array(tela)[..., 3]
+
+    solo = next(c for c in d["stack"] if c.get("when") == {"tassel": "laranja", "wireo": "preto"})
+    aneis = np.zeros((H, W), dtype=bool)
+    for c in d["stack"]:
+        if c["id"].startswith("rose-extra"):
+            aneis |= alfa(c) == 255
+    a = alfa(solo)
+    assert a[aneis].max() == 0, "sobrou pixel do fio em cima de um anel"
+    assert (a > 0).sum() > 10000, "o fio laranja sumiu"

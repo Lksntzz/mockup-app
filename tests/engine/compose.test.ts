@@ -186,28 +186,25 @@ describe.skipIf(!temArquivos)('compose (pack real)', () => {
     expect(aEsquerda / mudados).toBeLessThan(0.02); // quase tudo à direita da frente
   }, 60_000);
 
-  test('tassel laranja só combina com wire-o rose gold e aparece diferente do branco', async () => {
+  test('tassel laranja aparece com qualquer wire-o', async () => {
     const { pack, layers } = await loadPackNode(PACK_DIR);
     const art = await lerPng(ARTE_REAL);
-    const rose = { wireo: 'rose-gold', elastico: 'preto', tassel: 'laranja' };
-    expect(isAvailable(pack, rose)).toBe(true);
-    expect(isAvailable(pack, { ...rose, wireo: 'preto' })).toBe(false);
-    expect(isAvailable(pack, { ...rose, wireo: 'branco' })).toBe(false);
-    const laranja = compose(pack, layers, art, rose);
-    const branco = compose(pack, layers, art, { ...rose, tassel: 'branco' });
-    let laranjas = 0;
-    for (let i = 0; i < laranja.data.length; i += 4) {
-      const [r, g, b] = [laranja.data[i]!, laranja.data[i + 1]!, laranja.data[i + 2]!];
-      if (r > 200 && g > 100 && g < 190 && b < 110) laranjas++; // pixels bem alaranjados
+    const alaranjados = (r: Raster) => {
+      let n = 0;
+      for (let i = 0; i < r.data.length; i += 4) {
+        const [rr, g, b] = [r.data[i]!, r.data[i + 1]!, r.data[i + 2]!];
+        if (rr > 200 && g > 100 && g < 190 && b < 110) n++;
+      }
+      return n;
+    };
+    for (const wireo of ['rose-gold', 'preto', 'branco']) {
+      const escolha = { wireo, elastico: 'preto', tassel: 'laranja' };
+      expect(isAvailable(pack, escolha)).toBe(true);
+      const laranja = compose(pack, layers, art, escolha);
+      const branco = compose(pack, layers, art, { ...escolha, tassel: 'branco' });
+      expect(alaranjados(laranja)).toBeGreaterThan(alaranjados(branco) + 1500);
     }
-    expect(laranjas).toBeGreaterThan(1500);
-    let brancos = 0;
-    for (let i = 0; i < branco.data.length; i += 4) {
-      const [r, g, b] = [branco.data[i]!, branco.data[i + 1]!, branco.data[i + 2]!];
-      if (r > 200 && g > 100 && g < 190 && b < 110) brancos++;
-    }
-    expect(laranjas).toBeGreaterThan(brancos + 1500);
-  }, 60_000);
+  }, 120_000);
 
   test('sem elástico e sem tassel a capa aparece onde eles ficavam', async () => {
     const { pack, layers } = await loadPackNode(PACK_DIR);

@@ -157,7 +157,7 @@ function desenharPainel(): void {
       b.dataset.acc = acc;
       b.dataset.id = opcao.id;
       b.disabled = !isAvailable(pacote.pack, { ...capa.choices, [acc]: opcao.id });
-      if (b.disabled) b.title = `${opcao.label}: não combina com as outras escolhas desta capa (ex.: tassel laranja só com wire-o Rose Gold)`;
+      if (b.disabled) b.title = `${opcao.label}: não combina com as outras escolhas desta capa`;
       b.addEventListener('click', () => {
         if (!estado) return;
         estado = setColor(estado, estado.selecionada, acc, opcao.id);

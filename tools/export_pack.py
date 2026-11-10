@@ -10,6 +10,9 @@ import sys
 import warnings
 from pathlib import Path
 
+import numpy as np
+from PIL import Image
+
 from psd_tools import PSDImage
 
 sys_path_tools = Path(__file__).resolve().parent
@@ -120,6 +123,46 @@ def _renderizar(camada, largura: int, altura: int):
     return img, (x + caixa[0], y + caixa[1])
 
 
+def _fio_laranja_sem_aneis(stack, camadas_dir: Path, largura: int, altura: int) -> None:
+    """No PSD o tassel laranja só existe fundido com os anéis rose gold. Para os outros wire-o tira da camada
+    o que pertence aos anéis rose (as camadas "rose-extra"), sobrando só o fio; o wire-o escolhido aparece no lugar."""
+    laranja = next((c for c in stack if c["id"] == "tassel-laranja-01"), None)
+    extras = [c for c in stack if c["id"].startswith("rose-extra")]
+    if laranja is None or not extras:
+        return
+
+    def na_tela(entrada) -> np.ndarray:
+        im = Image.open(camadas_dir / entrada["file"]).convert("RGBA")
+        tela = Image.new("RGBA", (largura, altura), (0, 0, 0, 0))
+        tela.paste(im, tuple(entrada["offset"]))
+        return np.array(tela).astype(float)
+
+    aneis = np.zeros((altura, largura))
+    for e in extras:
+        aneis = np.maximum(aneis, na_tela(e)[..., 3] / 255.0)
+    fio = na_tela(laranja)
+    fio[..., 3] *= 1.0 - aneis
+    img = Image.fromarray(fio.round().astype("uint8"), "RGBA")
+    caixa = img.getbbox()
+    if caixa is None:
+        return
+    img.crop(caixa).save(camadas_dir / "tassel-laranja-02.png", optimize=True)
+    posicao = stack.index(laranja)
+    for k, wireo in enumerate(("preto", "branco")):
+        stack.insert(
+            posicao + k,
+            {
+                "id": f"tassel-laranja-sem-aneis-{wireo}",
+                "role": "fixed",
+                "file": "tassel-laranja-02.png",
+                "opacity": 1.0,
+                "blend": "normal",
+                "offset": [caixa[0], caixa[1]],
+                "when": {"tassel": "laranja", "wireo": wireo},
+            },
+        )
+
+
 def export_pack(psd_path, out_dir) -> dict:
     psd = PSDImage.open(str(psd_path))
     out = Path(out_dir)
@@ -217,6 +260,8 @@ def export_pack(psd_path, out_dir) -> dict:
         else:
             raise ValueError(f"grupo de nível superior desconhecido: '{grupo.name}'")
 
+    _fio_laranja_sem_aneis(stack, camadas_dir, largura, altura)
+
     if estado["arte"] is None:
         raise ValueError("camada da capa não encontrada")
 
@@ -230,8 +275,7 @@ def export_pack(psd_path, out_dir) -> dict:
         "options": {
             acc: [{"id": i, "label": l, "swatch": s} for i, l, s in lista] for acc, lista in OPCOES.items()
         },
-        # o tassel laranja só existe com os anéis rose gold (camada do PSD que já os traz)
-        "unavailable": [{"tassel": "laranja", "wireo": w} for w in ("preto", "branco")],
+        "unavailable": [],
         "defaults": DEFAULTS,
     }
     (out / "mockup.json").write_text(json.dumps(pack, indent=2, ensure_ascii=False), encoding="utf-8")
