@@ -34,12 +34,14 @@ OPCOES = {
         ("verde", "Verde", "#43a047"),
         ("laranja", "Laranja", "#fb8c00"),
         ("preto", "Preto", "#1a1a1a"),
+        ("nenhum", "Nenhum", "#ffffff"),  # peça removida: nenhuma camada liga a esta escolha
     ],
     "tassel": [
         ("verde", "Verde", "#43a047"),
         ("azul", "Azul", "#2196f3"),
         ("rosa", "Rosa", "#f48fb1"),
         ("branco", "Branco", "#f5f5f5"),
+        ("nenhum", "Nenhum", "#ffffff"),
     ],
 }
 DEFAULTS = {"wireo": "preto", "elastico": "preto", "tassel": "branco"}

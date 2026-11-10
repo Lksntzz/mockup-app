@@ -69,6 +69,16 @@ app.on('browser-window-created', (_e, win) => {
       const cor2 = await js("document.querySelector('[data-acc=elastico][aria-pressed=true]').dataset.id");
       conferir(cor2 === 'preto', `a capa 2 mantém as cores iniciais (elástico ${cor2})`);
 
+      // tirar o elástico e o tassel da capa 1
+      await js("document.querySelectorAll('#lista .item')[0].click()");
+      await espera(500);
+      const antesNenhum = Number(await js('document.body.dataset.previa'));
+      await js("document.querySelector('[data-acc=elastico][data-id=nenhum]').click()");
+      await js("document.querySelector('[data-acc=tassel][data-id=nenhum]').click()");
+      conferir(await ate(`Number(document.body.dataset.previa) > ${antesNenhum}`, 'prévia sem peças'), 'a prévia atualizou ao tirar elástico e tassel');
+      await espera(500);
+      await foto('3b-sem-elastico-sem-tassel.png');
+      conferir((await js("document.querySelector('[data-acc=elastico][aria-pressed=true]').dataset.id")) === 'nenhum', 'o elástico ficou em "Nenhum"');
       await js("document.querySelectorAll('#lista .item')[0].click()");
       await js("document.getElementById('copiar').click()");
 
@@ -85,7 +95,7 @@ app.on('browser-window-created', (_e, win) => {
       await js("document.querySelectorAll('#lista .item')[3].click()");
       await espera(500);
       const cor4 = await js("document.querySelector('[data-acc=elastico][aria-pressed=true]').dataset.id");
-      conferir(cor4 === 'rosa', `ao continuar, as cores escolhidas continuam salvas (elástico da capa 4: ${cor4})`);
+      conferir(cor4 === 'nenhum', `ao continuar, as escolhas (inclusive sem elástico) continuam salvas (elástico da capa 4: ${cor4})`);
       conferir((await js("document.querySelectorAll('#lista .item').length")) === 5, 'ao continuar, as 5 capas continuam lá');
 
       // arquivo que não é PDF, escolhido na tela inicial
@@ -109,8 +119,12 @@ app.on('browser-window-created', (_e, win) => {
       await js("document.querySelector('#trabalhos .continuar').click()");
       await ate("document.body.dataset.estado === 'pronto'", 'retomar para concluir');
       await js("document.getElementById('exportar').click()");
-      await ate("document.body.dataset.estado === 'vazio' && /MKP/.test(document.getElementById('mensagem').textContent)", 'conclusão');
+      await ate("document.body.dataset.estado === 'vazio' && !document.getElementById('salvo').hidden", 'conclusão');
       await foto('5-concluido.png');
+      const cartao = await js("document.getElementById('salvo').textContent");
+      conferir(cartao.includes('Salvo') && cartao.includes('5 mockups'), `aparece o card "Salvo" com a quantidade ("${cartao.replace(/\s+/g, ' ').trim()}")`);
+      conferir((await js("document.getElementById('mensagem').textContent")) === '', 'a mensagem do topo é limpa depois de salvar');
+      conferir(!/MKP|[\\\\/]/.test(cartao + (await js("document.getElementById('mensagem').textContent"))), 'nenhum caminho de pasta aparece na tela');
       const pastaMkp = path.join(path.dirname(pdfDoTrabalho), 'MKP');
       const nomes = fs.existsSync(pastaMkp) ? fs.readdirSync(pastaMkp).sort() : [];
       conferir(nomes.length === 5 && nomes[0] === 'CAPAS_capa-01.png' && nomes[4] === 'CAPAS_capa-05.png', `criou a pasta MKP ao lado do PDF com os 5 PNGs (${nomes.join(', ')})`);

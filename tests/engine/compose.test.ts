@@ -103,7 +103,7 @@ const ARTE_REAL = fileURLToPath(new URL('../../fixtures/capa01.png', import.meta
 const temArquivos = existsSync(PACK_DIR + '/mockup.json') && existsSync(ARTE_REAL);
 
 describe.skipIf(!temArquivos)('compose (pack real)', () => {
-  test('todas as 72 combinações de options compõem sem erro', async () => {
+  test('todas as 105 combinações de options compõem sem erro', async () => {
     const { pack, layers } = await loadPackNode(PACK_DIR);
     const art = await lerPng(ARTE_REAL);
     let feitas = 0;
@@ -122,9 +122,27 @@ describe.skipIf(!temArquivos)('compose (pack real)', () => {
         }
       }
     }
-    expect(feitas + puladas).toBe(72);
+    expect(feitas + puladas).toBe(105);
     expect(feitas).toBeGreaterThan(0);
-  }, 180_000); // 72 composições de 1200×1200: com a máquina ocupada o limite padrão de 30 s estourava
+  }, 180_000); // 105 composições de 1200×1200: com a máquina ocupada o limite padrão de 30 s estourava
+
+  test('sem elástico e sem tassel a capa aparece onde eles ficavam', async () => {
+    const { pack, layers } = await loadPackNode(PACK_DIR);
+    const art = await lerPng(ARTE_REAL);
+    const base = { wireo: 'preto', elastico: 'preto', tassel: 'branco' };
+    const com = compose(pack, layers, art, base);
+    const semElastico = compose(pack, layers, art, { ...base, elastico: 'nenhum' });
+    const semTassel = compose(pack, layers, art, { ...base, tassel: 'nenhum' });
+    const diferentes = (a: Raster, b: Raster) => {
+      let n = 0;
+      for (let i = 0; i < a.data.length; i += 4) if (a.data[i] !== b.data[i] || a.data[i + 1] !== b.data[i + 1] || a.data[i + 2] !== b.data[i + 2]) n++;
+      return n;
+    };
+    expect(diferentes(com, semElastico)).toBeGreaterThan(5000); // a faixa do elástico sumiu
+    expect(diferentes(com, semTassel)).toBeGreaterThan(1000); // o tassel sumiu
+    // trocar uma peça não mexe nos pixels longe dela: tassel e elástico são independentes
+    expect(diferentes(semElastico, semTassel)).toBeGreaterThan(0);
+  }, 60_000);
 
   test('compose de 1200×1200 leva menos de 400 ms (sem cache da arte)', async () => {
     const { pack, layers } = await loadPackNode(PACK_DIR);

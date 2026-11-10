@@ -91,3 +91,10 @@ body:not([data-estado="pronto"]) #coluna-capas { display: none; }
 .trabalho .qtd { color: var(--suave); font-size: 12px; }
 .centro { overflow-y: auto; }
 .trabalho .nome { color: var(--texto); }
+
+.bolinha.nenhum { background: #fff; position: relative; overflow: hidden; }
+.bolinha.nenhum::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 2px; background: #c4153a; transform: rotate(45deg); }
+.salvo { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 10; min-width: 260px; padding: 26px 34px; text-align: center; background: var(--superficie); border-radius: 16px; box-shadow: 0 12px 48px rgba(20, 24, 50, .28); display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.salvo-icone { width: 52px; height: 52px; border-radius: 50%; background: #e3f6e8; color: #1f9d4c; font-size: 28px; font-weight: 700; display: grid; place-items: center; }
+.salvo-titulo { font-size: 20px; font-weight: 700; margin-top: 4px; }
+.salvo-detalhe { color: var(--suave); margin-bottom: 10px; }

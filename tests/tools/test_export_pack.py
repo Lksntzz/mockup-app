@@ -25,8 +25,8 @@ def test_opcoes_por_acessorio(pack):
     _, d = pack
     ids = {acc: [o["id"] for o in ops] for acc, ops in d["options"].items()}
     assert sorted(ids["wireo"]) == ["branco", "preto", "rose-gold"]
-    assert sorted(ids["elastico"]) == ["azul", "branco", "laranja", "preto", "rosa", "verde"]
-    assert sorted(ids["tassel"]) == ["azul", "branco", "rosa", "verde"]
+    assert sorted(ids["elastico"]) == ["azul", "branco", "laranja", "nenhum", "preto", "rosa", "verde"]
+    assert sorted(ids["tassel"]) == ["azul", "branco", "nenhum", "rosa", "verde"]
     assert d["defaults"] == {"wireo": "preto", "elastico": "preto", "tassel": "branco"}
 
 
@@ -82,6 +82,10 @@ def test_camadas_de_cor_so_aparecem_com_a_escolha_certa(pack):
     _, d = pack
     for acc in ("wireo", "elastico", "tassel"):
         for opcao in d["options"][acc]:
+            if opcao["id"] == "nenhum":
+                # "Nenhum" = peça removida: nenhuma camada pode depender dessa escolha
+                assert not [c for c in d["stack"] if c.get("when", {}).get(acc) == "nenhum"]
+                continue
             camadas = [c for c in d["stack"] if c.get("when", {}).get(acc) == opcao["id"]]
             assert camadas, f"{acc}/{opcao['id']} sem camada"
 

@@ -149,7 +149,7 @@ function desenharPainel(): void {
     for (const opcao of pacote.pack.options[acc]) {
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'bolinha';
+      b.className = opcao.id === 'nenhum' ? 'bolinha nenhum' : 'bolinha';
       b.style.background = opcao.swatch;
       b.title = opcao.label;
       b.setAttribute('aria-label', `${NOMES[acc]} ${opcao.label}`);
@@ -230,6 +230,19 @@ async function abrirPdf(arquivo: ArquivoPdf): Promise<void> {
     definirEstado(antes);
   }
 }
+
+let timerDoSalvo: ReturnType<typeof setTimeout> | undefined;
+/** Card de confirmação: diz que salvou e quantos, sem mostrar caminho de pasta. */
+function mostrarSalvo(quantos: number): void {
+  $('salvo-detalhe').textContent = quantos === 1 ? '1 mockup' : `${quantos} mockups`;
+  $('salvo').hidden = false;
+  clearTimeout(timerDoSalvo);
+  timerDoSalvo = setTimeout(() => ($('salvo').hidden = true), 5000);
+}
+$('salvo-ok').addEventListener('click', () => {
+  clearTimeout(timerDoSalvo);
+  $('salvo').hidden = true;
+});
 
 function guardarAtual(): void {
   if (estado && caminhoDoPdf) trabalhos.guardar({ caminho: caminhoDoPdf, nome: nomeDoPdf, estado, info });
@@ -374,7 +387,8 @@ $('exportar').addEventListener('click', async () => {
     } else {
       trabalhos.remover(caminhoDoPdf);
       irParaInicio();
-      mensagem(`${r.written.length} ${r.written.length === 1 ? 'mockup salvo' : 'mockups salvos'} em ${pasta}`);
+      mensagem('');
+      mostrarSalvo(r.written.length);
     }
   } catch (e) {
     progresso(null);
