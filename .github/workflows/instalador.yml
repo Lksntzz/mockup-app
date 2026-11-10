@@ -1,0 +1,22 @@
+name: Instalador Windows
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  instalador:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx vitest run --exclude "tests/engine/fidelity.test.ts"
+        # a fidelidade usa fixtures/ (PSD/PDF da empresa), que não vão para o repositório
+      - run: npm run dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Mockup-da-Agenda-Setup
+          path: release/*.exe
+          if-no-files-found: error
