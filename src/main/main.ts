@@ -1,8 +1,10 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { EventEmitter } from 'node:events';
 import { readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { PNG } from 'pngjs';
 import { caminhoPermitido } from './paths';
+import { criarAtualizador, type AtualizadorLike } from './updater';
 
 export interface CamadaBruta {
   width: number;
@@ -89,6 +91,26 @@ ipcMain.handle('confirmar-sobrescrever', async (_e, arquivos: string[]) => {
   return r.response === 0;
 });
 
+/** No app instalado usa o electron-updater; no desenvolvimento um atualizador vazio (nunca é usado: `ativo` é falso). */
+function obterAtualizador(): AtualizadorLike {
+  if (!app.isPackaged) return new EventEmitter() as AtualizadorLike;
+  // carregado só quando instalado; fica fora do pacote do esbuild (vai em node_modules dentro do app)
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require('electron-updater').autoUpdater as AtualizadorLike;
+}
+
+const atualizador = criarAtualizador({
+  updater: obterAtualizador(),
+  ativo: app.isPackaged,
+  enviar: (estado) => BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('atualizacao', estado)),
+});
+ipcMain.handle('versao', () => app.getVersion());
+ipcMain.handle('estado-atualizacao', () => atualizador.estado());
+ipcMain.handle('verificar-atualizacao', () => atualizador.verificar(true));
+ipcMain.handle('instalar-atualizacao', () => atualizador.instalar());
+
+const QUATRO_HORAS = 4 * 60 * 60 * 1000;
+
 function criarJanela(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1280,
@@ -107,6 +129,10 @@ function criarJanela(): BrowserWindow {
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', (e) => e.preventDefault());
   void win.loadFile(join(__dirname, '..', 'renderer', 'index.html'));
+  // verifica ao abrir (em silêncio: sem internet não aparece nada) e de tempos em tempos enquanto o app fica aberto
+  win.webContents.once('did-finish-load', () => void atualizador.verificar(false));
+  const timer = setInterval(() => void atualizador.verificar(false), QUATRO_HORAS);
+  win.on('closed', () => clearInterval(timer));
   return win;
 }
 

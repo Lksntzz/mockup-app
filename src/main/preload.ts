@@ -4,6 +4,13 @@ contextBridge.exposeInMainWorld('mockupApi', {
   carregarPacote: () => ipcRenderer.invoke('carregar-pacote'),
   escolherPdf: () => ipcRenderer.invoke('escolher-pdf'),
   escolherPasta: () => ipcRenderer.invoke('escolher-pasta'),
+  versao: () => ipcRenderer.invoke('versao'),
+  estadoAtualizacao: () => ipcRenderer.invoke('estado-atualizacao'),
+  verificarAtualizacao: () => ipcRenderer.invoke('verificar-atualizacao'),
+  instalarAtualizacao: () => ipcRenderer.invoke('instalar-atualizacao'),
+  aoMudarAtualizacao: (cb: (estado: unknown) => void) => {
+    ipcRenderer.on('atualizacao', (_e, estado) => cb(estado));
+  },
   existe: (c: string) => ipcRenderer.invoke('existe', c),
   gravarArquivo: (c: string, b: Uint8Array) => ipcRenderer.invoke('gravar-arquivo', c, b),
   renomearArquivo: (de: string, para: string) => ipcRenderer.invoke('renomear-arquivo', de, para),

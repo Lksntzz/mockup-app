@@ -1,0 +1,27 @@
+name: Publicar versão
+# Para lançar: aumente "version" no package.json, faça commit e crie a tag, por exemplo v0.3.0.
+# Os apps já instalados baixam sozinhos o que for publicado aqui.
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  publicar:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: A tag precisa ser igual à versão do package.json
+        shell: bash
+        run: |
+          V=$(node -p "require('./package.json').version")
+          if [ "v$V" != "$GITHUB_REF_NAME" ]; then echo "Tag $GITHUB_REF_NAME diferente de v$V no package.json"; exit 1; fi
+      - run: npm ci
+      - run: npx vitest run --exclude "tests/engine/fidelity.test.ts"
+      - run: npm run dist:publicar
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -5,7 +5,7 @@ import { cpSync, mkdirSync, rmSync } from 'node:fs';
 rmSync('dist', { recursive: true, force: true });
 mkdirSync('dist/renderer', { recursive: true });
 
-const node = { bundle: true, platform: 'node', format: 'cjs', target: 'node22', external: ['electron'], logLevel: 'warning' };
+const node = { bundle: true, platform: 'node', format: 'cjs', target: 'node22', external: ['electron', 'electron-updater'], logLevel: 'warning' };
 await build({ ...node, entryPoints: ['src/main/main.ts'], outfile: 'dist/main/main.js' });
 await build({ ...node, entryPoints: ['src/main/preload.ts'], outfile: 'dist/main/preload.js' });
 await build({

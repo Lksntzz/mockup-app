@@ -1,6 +1,6 @@
 {
   "name": "mockup-agenda",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Gera o mockup padrão da agenda a partir de um PDF de capas",
   "main": "dist/main/main.js",
@@ -10,6 +10,7 @@
     "build": "node tools/build.mjs",
     "start": "node tools/build.mjs && electron .",
     "smoke": "xvfb-run -a -s \"-screen 0 1400x900x24\" electron --no-sandbox tools/smoke.cjs fixtures/CAPAS.pdf /tmp/smoke",
+    "dist:publicar": "node tools/build.mjs && electron-builder --win nsis --x64 --publish always",
     "dist": "node tools/build.mjs && electron-builder --win nsis --x64 --publish never"
   },
   "devDependencies": {
@@ -25,5 +26,8 @@
     "typescript": "^7.0.2",
     "vitest": "^5.1.0"
   },
-  "author": "Lucas"
+  "author": "Lucas",
+  "dependencies": {
+    "electron-updater": "^6.8.11"
+  }
 }

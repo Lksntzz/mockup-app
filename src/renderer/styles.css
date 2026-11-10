@@ -1,31 +1,78 @@
+:root {
+  --fundo: #eef0f5;
+  --superficie: #ffffff;
+  --borda: #e1e4ec;
+  --texto: #1c2033;
+  --suave: #6a7088;
+  --acento: #4f46e5;
+  --acento-escuro: #4038c9;
+  --acento-claro: #eceafd;
+  --erro: #c4153a;
+  --sombra: 0 1px 2px rgba(20, 24, 50, .06), 0 4px 14px rgba(20, 24, 50, .06);
+}
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
-body { font: 14px/1.4 "Segoe UI", system-ui, sans-serif; color: #222; background: #f4f4f6; display: flex; flex-direction: column; }
-button { font: inherit; padding: 8px 14px; border: 1px solid #b9b9c2; border-radius: 6px; background: #fff; cursor: pointer; }
-button:hover:not(:disabled) { background: #eef; }
+body { font: 14px/1.45 "Segoe UI", system-ui, sans-serif; color: var(--texto); background: var(--fundo); display: flex; flex-direction: column; }
+h2, h3 { margin: 0; }
+
+button { font: inherit; padding: 8px 14px; border: 1px solid var(--borda); border-radius: 8px; background: var(--superficie); color: var(--texto); cursor: pointer; transition: background .12s, border-color .12s, box-shadow .12s; }
+button:hover:not(:disabled) { background: #f5f6fb; border-color: #cfd3e1; }
+button:focus-visible { outline: 3px solid rgba(79, 70, 229, .35); outline-offset: 1px; }
 button:disabled { opacity: .5; cursor: not-allowed; }
-.topo { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #fff; border-bottom: 1px solid #ddd; }
-.nome-pdf { font-weight: 600; }
-.mensagem { color: #555; flex: 1; }
-.mensagem.erro { color: #b00020; font-weight: 600; }
-.area { flex: 1; min-height: 0; display: grid; grid-template-columns: 210px 1fr 280px; }
-.lista { overflow-y: auto; padding: 10px; background: #fafafa; border-right: 1px solid #ddd; display: flex; flex-direction: column; gap: 10px; }
-.item { border: 2px solid transparent; border-radius: 8px; background: #fff; padding: 8px; text-align: left; display: block; width: 100%; }
-.item[aria-current="true"] { border-color: #5b5bd6; }
-.item canvas { width: 100%; height: auto; display: block; border-radius: 4px; background: #eee; }
-.item .rotulo { display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; }
-.item .aviso { font-size: 11px; margin-top: 4px; padding: 2px 6px; border-radius: 4px; background: #fff3c4; color: #6b5200; }
-.centro { display: flex; align-items: center; justify-content: center; padding: 16px; min-width: 0; min-height: 0; }
-.vazio { text-align: center; color: #666; max-width: 420px; }
+button.primario { background: var(--acento); border-color: var(--acento); color: #fff; font-weight: 600; }
+button.primario:hover:not(:disabled) { background: var(--acento-escuro); border-color: var(--acento-escuro); }
+button.secundario { background: var(--acento-claro); border-color: transparent; color: var(--acento-escuro); font-weight: 600; }
+button.secundario:hover:not(:disabled) { background: #e1defb; border-color: transparent; }
+button.discreto { border-color: transparent; background: transparent; color: var(--suave); padding: 6px 10px; font-size: 12px; }
+button.grande { padding: 11px 14px; font-size: 15px; }
+
+.topo { display: flex; align-items: center; gap: 14px; padding: 10px 18px; background: var(--superficie); border-bottom: 1px solid var(--borda); box-shadow: var(--sombra); position: relative; z-index: 1; }
+.marca { display: flex; align-items: center; gap: 9px; padding-right: 14px; border-right: 1px solid var(--borda); }
+.marca-icone { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, #6d63f5, #4338ca); color: #fff; font-weight: 700; display: grid; place-items: center; }
+.marca-nome { font-weight: 700; letter-spacing: .2px; }
+.nome-pdf { font-weight: 600; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mensagem { color: var(--suave); flex: 1; min-width: 0; }
+.mensagem.erro { color: var(--erro); font-weight: 600; }
+.versao { color: var(--suave); font-size: 12px; }
+progress { width: 150px; height: 8px; accent-color: var(--acento); }
+
+.faixa-atualizacao { display: flex; align-items: center; gap: 12px; padding: 8px 18px; background: var(--acento-claro); color: var(--acento-escuro); border-bottom: 1px solid #d9d5fa; font-weight: 600; }
+.faixa-atualizacao.erro { background: #fde8ed; color: var(--erro); border-color: #f6c6d1; }
+.faixa-atualizacao button { padding: 5px 12px; }
+
+.area { flex: 1; min-height: 0; display: grid; grid-template-columns: 230px 1fr 300px; }
+.coluna { background: var(--superficie); display: flex; flex-direction: column; min-height: 0; }
+.lista-coluna { border-right: 1px solid var(--borda); }
+.painel { border-left: 1px solid var(--borda); padding: 16px; gap: 18px; overflow-y: auto; }
+.titulo-coluna { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--suave); padding: 14px 14px 8px; }
+.painel .titulo-coluna { padding: 0; font-size: 15px; text-transform: none; letter-spacing: 0; color: var(--texto); }
+
+.lista { overflow-y: auto; padding: 4px 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.item { border: 2px solid transparent; border-radius: 10px; background: var(--fundo); padding: 8px; text-align: left; display: block; width: 100%; }
+.item:hover:not(:disabled) { background: #e6e9f2; border-color: transparent; }
+.item[aria-current="true"] { border-color: var(--acento); background: var(--acento-claro); }
+.item canvas { width: 100%; height: auto; display: block; border-radius: 6px; background: #dfe2ec; }
+.item .rotulo { display: flex; justify-content: space-between; margin-top: 7px; font-size: 12px; color: var(--suave); }
+.item .rotulo strong { color: var(--texto); }
+.item .aviso { font-size: 11px; margin-top: 5px; padding: 3px 7px; border-radius: 5px; background: #fff3c4; color: #6b5200; }
+
+.centro { display: flex; align-items: center; justify-content: center; padding: 22px; min-width: 0; min-height: 0; }
+.vazio { text-align: center; color: var(--suave); max-width: 420px; padding: 34px 28px; background: var(--superficie); border: 2px dashed #ccd0e0; border-radius: 16px; }
+.vazio strong { color: var(--texto); }
+.vazio-icone { width: 56px; height: 56px; margin: 0 auto 12px; border-radius: 14px; background: var(--acento-claro); color: var(--acento); font-weight: 700; display: grid; place-items: center; }
 .vazio .dica { font-size: 13px; }
-.arrastando .centro { outline: 3px dashed #5b5bd6; outline-offset: -10px; }
-.previa { max-width: 100%; max-height: 100%; aspect-ratio: 1 / 1; background: #fff; box-shadow: 0 2px 14px rgba(0,0,0,.15); }
-.painel { padding: 14px; background: #fff; border-left: 1px solid #ddd; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
-.painel h2 { margin: 0; font-size: 16px; }
-.grupo h3 { margin: 0 0 6px; font-size: 13px; color: #555; }
-.bolinhas { display: flex; flex-wrap: wrap; gap: 8px; }
-.bolinha { width: 34px; height: 34px; padding: 0; border-radius: 50%; border: 2px solid #b9b9c2; }
-.bolinha[aria-pressed="true"] { border: 3px solid #5b5bd6; box-shadow: 0 0 0 2px #fff inset; }
+.arrastando .centro { background: rgba(79, 70, 229, .06); }
+.arrastando .vazio { border-color: var(--acento); }
+.previa { max-width: 100%; max-height: 100%; aspect-ratio: 1 / 1; background: #fff; border-radius: 10px; box-shadow: 0 6px 30px rgba(20, 24, 50, .18); }
+
+.grupo { margin-bottom: 16px; }
+.grupo h3 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--suave); margin-bottom: 8px; }
+.bolinhas { display: flex; flex-wrap: wrap; gap: 9px; }
+.bolinha { width: 36px; height: 36px; padding: 0; border-radius: 50%; border: 2px solid var(--borda); box-shadow: inset 0 0 0 3px #fff; }
+.bolinha:hover:not(:disabled) { transform: scale(1.08); border-color: #b9bdd0; }
+.bolinha[aria-pressed="true"] { border: 3px solid var(--acento); box-shadow: inset 0 0 0 2px #fff; }
 .bolinha:disabled { opacity: .25; }
-.escolhida { margin-top: 4px; font-size: 12px; color: #555; }
+.escolhida { margin-top: 6px; font-size: 12px; color: var(--suave); }
+.acoes { margin-top: auto; display: flex; flex-direction: column; gap: 10px; padding-top: 6px; border-top: 1px solid var(--borda); }
+.acoes { padding-top: 16px; }
 [hidden] { display: none !important; }

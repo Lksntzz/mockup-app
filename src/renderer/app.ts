@@ -8,7 +8,7 @@ import { cropMargins, cropToBox, widthForArt } from '../pdf/crop';
 import { coverCrop } from '../pdf/fit';
 import { capaPageNumbers } from '../pdf/pages';
 import { openPdf, PdfError } from '../pdf/reader';
-import type { MockupApi } from './global';
+import type { EstadoAtualizacao, MockupApi } from './global';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('./pdf.worker.mjs', document.baseURI).href;
 
@@ -300,4 +300,50 @@ document.addEventListener('drop', async (e) => {
   if (arquivo) await abrirPdfDeBytes(arquivo.name, new Uint8Array(await arquivo.arrayBuffer()));
 });
 
+function mostrarAtualizacao(e: EstadoAtualizacao): void {
+  const faixa = $('atualizacao');
+  const texto = $('texto-atualizacao');
+  const reiniciar = $('reiniciar');
+  const verificar = $<HTMLButtonElement>('verificar');
+  faixa.classList.remove('erro');
+  reiniciar.hidden = true;
+  verificar.disabled = e.tipo === 'verificando' || e.tipo === 'baixando';
+  switch (e.tipo) {
+    case 'ocioso':
+      faixa.hidden = true;
+      break;
+    case 'verificando':
+      faixa.hidden = !e.manual;
+      texto.textContent = 'Procurando atualizações…';
+      break;
+    case 'baixando':
+      faixa.hidden = false;
+      texto.textContent = `Baixando a versão ${e.versao}… ${Math.round(e.percent)}%`;
+      break;
+    case 'pronta':
+      faixa.hidden = false;
+      texto.textContent = `A versão ${e.versao} está pronta.`;
+      reiniciar.hidden = false;
+      break;
+    case 'atualizado':
+      faixa.hidden = !e.manual;
+      texto.textContent = 'Você já está com a versão mais recente.';
+      break;
+    case 'erro':
+      faixa.hidden = !e.manual; // erro automático (ex.: sem internet) fica em silêncio
+      faixa.classList.add('erro');
+      texto.textContent = e.mensagem;
+      break;
+  }
+}
+
+async function iniciarAtualizacoes(): Promise<void> {
+  $('versao').textContent = `v${await api.versao()}`;
+  api.aoMudarAtualizacao(mostrarAtualizacao);
+  $('verificar').addEventListener('click', () => void api.verificarAtualizacao());
+  $('reiniciar').addEventListener('click', () => void api.instalarAtualizacao());
+  mostrarAtualizacao(await api.estadoAtualizacao());
+}
+
+void iniciarAtualizacoes();
 void iniciar();
