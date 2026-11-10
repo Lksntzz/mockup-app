@@ -104,3 +104,18 @@ def test_inclui_contra_capa_com_sombra_interna_e_nao_inclui_marca_dagua(pack):
     y = 600 - oy
     borda = next(x for x in range(img.width - 1, 0, -1) if img.getpixel((x, y))[3] > 200)
     assert img.getpixel((borda - 1, y))[0] < 245
+
+
+def test_contra_capa_tem_cantos_e_camada_de_arte_do_verso(pack):
+    """A arte da página par entra na contra capa: o pacote guarda os 4 cantos dela e uma camada logo depois da contra capa."""
+    _, d = pack
+    verso = d["backArt"]
+    assert verso["size"] == {"width": 1246, "height": 1849}
+    esperado = [[281.3, 89.4], [977.2, 34.9], [991.7, 1162.0], [315.0, 1139.1]]
+    for obtido, certo in zip(verso["corners"], esperado):
+        assert obtido == pytest.approx(certo, abs=0.2)
+    assert verso["mask"]["file"].startswith("contracapa")
+    ids = [c["id"] for c in d["stack"]]
+    i = ids.index("arte-verso")
+    assert d["stack"][i]["role"] == "back-art" and d["stack"][i]["blend"] == "multiply"
+    assert (d["stack"][i - 1].get("file") or "") == verso["mask"]["file"]

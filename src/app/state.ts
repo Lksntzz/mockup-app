@@ -3,6 +3,8 @@ import type { Accessory, Choices, Pack, Raster } from '../engine/types';
 
 export interface CapaState {
   art: Raster;
+  /** Arte da página par (verso) desta capa; ausente quando o PDF não tem essa página. */
+  back?: Raster;
   choices: Choices;
 }
 
@@ -14,10 +16,13 @@ export interface AppState {
   lastError?: string;
 }
 
-export function createState(pack: Pack, artes: Raster[]): AppState {
+export function createState(pack: Pack, artes: Raster[], versos: (Raster | null)[] = []): AppState {
   return {
     pack,
-    capas: artes.map((art) => ({ art, choices: { ...pack.defaults } })),
+    capas: artes.map((art, i) => {
+      const back = versos[i];
+      return { art, ...(back ? { back } : {}), choices: { ...pack.defaults } };
+    }),
     selecionada: 0,
   };
 }

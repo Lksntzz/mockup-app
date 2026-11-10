@@ -128,7 +128,7 @@ def export_pack(psd_path, out_dir) -> dict:
 
     stack = []
     contador = {}
-    estado = {"arte": None}
+    estado = {"arte": None, "verso": None}
 
     def adicionar(camada, prefixo: str, when=None, id_fixo=None):
         if not camada.visible:
@@ -193,6 +193,17 @@ def export_pack(psd_path, out_dir) -> dict:
         elif nome == "CONTRA CAPA":
             for c in grupo:
                 adicionar(c, "contracapa")
+            so = next(c for c in grupo if c.kind == "smartobject")
+            caixa = so.smart_object.transform_box
+            interno = PSDImage.open(io.BytesIO(so.smart_object.data))
+            camada_contra = next(c for c in reversed(stack) if (c.get("file") or "").startswith("contracapa"))
+            estado["verso"] = {
+                "corners": [[caixa[i], caixa[i + 1]] for i in range(0, 8, 2)],
+                "size": {"width": interno.width, "height": interno.height},
+                "mask": {"file": camada_contra["file"], "offset": camada_contra["offset"]},
+            }
+            # a arte do verso (página par) vem logo depois da contra capa, multiplicando sobre a sombra dela
+            stack.append({"id": "arte-verso", "role": "back-art", "opacity": 1.0, "blend": "multiply", "offset": [0, 0]})
         elif nome == "ATIVAR COM WIREO ROSE":
             for c in grupo:
                 adicionar(c, "rose-extra", when={"wireo": "rose-gold"})
@@ -209,6 +220,7 @@ def export_pack(psd_path, out_dir) -> dict:
         "artCorners": estado["arte"]["corners"],
         "artSize": estado["arte"]["size"],
         "artMask": estado["arte"]["mask"],
+        **({"backArt": estado["verso"]} if estado["verso"] else {}),
         "stack": stack,
         "options": {
             acc: [{"id": i, "label": l, "swatch": s} for i, l, s in lista] for acc, lista in OPCOES.items()

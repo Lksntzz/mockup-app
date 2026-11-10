@@ -3,6 +3,7 @@ import type { Choices, Pack, Raster } from '../engine/types';
 
 export interface ExportCapa {
   art: Raster;
+  back?: Raster;
   choices: Choices;
 }
 
@@ -53,7 +54,7 @@ export async function exportAll(opts: ExportOptions): Promise<{ written: string[
     const capa = opts.capas[i] as ExportCapa;
     const tmp = destino.replace(/\.png$/i, '.parcial.png');
     try {
-      const raster = compose(opts.pack, opts.layers, capa.art, capa.choices);
+      const raster = compose(opts.pack, opts.layers, capa.art, capa.choices, capa.back);
       const bytes = await opts.encodePng(raster);
       await opts.write(tmp, bytes);
       await opts.rename(tmp, destino);

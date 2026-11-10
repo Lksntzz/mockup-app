@@ -27,6 +27,21 @@ describe('estado das capas', () => {
     expect(s.selecionada).toBe(0);
   });
 
+  test('guarda a arte do verso de cada capa; capa sem verso fica sem', () => {
+    const verso = newRaster(2, 2);
+    const s = createState(pack, capas(), [verso, null, verso]);
+    expect(s.capas[0]!.back).toBe(verso);
+    expect(s.capas[1]!.back).toBeUndefined();
+    expect(s.capas[2]!.back).toBe(verso);
+  });
+
+  test('copiar as cores para todas não troca o verso de ninguém', () => {
+    const verso = newRaster(2, 2);
+    const s = copyToAll(createState(pack, capas(), [verso, null, verso]), 0);
+    expect(s.capas[0]!.back).toBe(verso);
+    expect(s.capas[1]!.back).toBeUndefined();
+  });
+
   test('setColor muda só a capa pedida e não altera o estado anterior', () => {
     const s0 = createState(pack, capas());
     const s1 = setColor(s0, 1, 'elastico', 'rosa');

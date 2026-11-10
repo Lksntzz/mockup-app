@@ -13,7 +13,8 @@ export type Choices = Record<Accessory, string>;
 
 export interface StackLayer {
   id: string;
-  role: 'fixed' | 'art';
+  /** 'art' = frente (arte da página ímpar); 'back-art' = contra capa (arte da página par, só se houver). */
+  role: 'fixed' | 'art' | 'back-art';
   /** PNG em pack/layers; ausente quando role === 'art'. */
   file?: string;
   /** 0 a 1. */
@@ -39,6 +40,8 @@ export interface Pack {
   artCorners: [Pt, Pt, Pt, Pt];
   artSize: { width: number; height: number };
   artMask: { file: string; offset: Pt };
+  /** Contra capa: onde a arte da página par entra. O recorte usa o canal alfa da camada indicada em `mask`. */
+  backArt?: { corners: [Pt, Pt, Pt, Pt]; size: { width: number; height: number }; mask: { file: string; offset: Pt } };
   stack: StackLayer[];
   options: Record<Accessory, ColorOption[]>;
   unavailable: Partial<Choices>[];

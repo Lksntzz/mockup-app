@@ -80,7 +80,7 @@ const agendador = createPreviewScheduler(
     await proximoQuadro();
     const capa = estado?.capas[req.capa];
     if (!pacote || !capa) throw new Error('capa não encontrada');
-    return compose(pacote.pack, pacote.layers, capa.art, req.choices);
+    return compose(pacote.pack, pacote.layers, capa.art, req.choices, capa.back);
   },
   (capa, resultado) => {
     if (!estado || capa !== estado.selecionada) return;
@@ -175,6 +175,15 @@ function desenharPainel(): void {
   }
 }
 
+type PdfAberto = Awaited<ReturnType<typeof openPdf>>;
+
+/** Renderiza a página e fica só com a arte (sem margens nem o fundo esticado de alguns PDFs). */
+async function lerArteDaPagina(doc: PdfAberto, n: number): Promise<Raster> {
+  const caixa = await doc.artBox(n);
+  const pagina = await doc.renderPage(n, widthForArt(1200, caixa));
+  return cropMargins(caixa ? cropToBox(pagina, caixa) : pagina);
+}
+
 async function abrirPdf(arquivo: ArquivoPdf): Promise<void> {
   if (!pacote) return;
   const { nome, bytes, caminho } = arquivo;
@@ -194,15 +203,15 @@ async function abrirPdf(arquivo: ArquivoPdf): Promise<void> {
     const paginas = capaPageNumbers(doc.pageCount);
     if (paginas.length === 0) throw new PdfError('corrupt', 'O PDF não tem páginas.');
     const artes: Raster[] = [];
+    const versos: (Raster | null)[] = [];
+    const razaoDoVerso = pacote.pack.backArt ? pacote.pack.backArt.size.width / pacote.pack.backArt.size.height : null;
     const novaInfo: InfoDaCapa[] = [];
     for (const [i, n] of paginas.entries()) {
       mensagem(`Lendo a capa ${i + 1} de ${paginas.length}…`);
       progresso(i / paginas.length);
       await proximoQuadro();
       // a arte é a imagem de cima da página (em PDFs com fundo esticado + arte menor, é só a menor)
-      const caixa = await doc.artBox(n);
-      const pagina = await doc.renderPage(n, widthForArt(1200, caixa));
-      const recortada = cropMargins(caixa ? cropToBox(pagina, caixa) : pagina);
+      const recortada = await lerArteDaPagina(doc, n);
       const proporcao = recortada.width / recortada.height;
       novaInfo.push({
         pagina: n,
@@ -210,9 +219,15 @@ async function abrirPdf(arquivo: ArquivoPdf): Promise<void> {
         avisoProporcao: Math.abs(proporcao / razaoDaCapa - 1) > TOLERANCIA_DE_PROPORCAO,
       });
       artes.push(coverCrop(recortada, razaoDaCapa));
+      // a página par seguinte é o verso: vai para a contra capa
+      if (razaoDoVerso !== null && n + 1 <= doc.pageCount) {
+        versos.push(coverCrop(await lerArteDaPagina(doc, n + 1), razaoDoVerso));
+      } else {
+        versos.push(null);
+      }
     }
     await doc.close();
-    estado = createState(pacote.pack, artes);
+    estado = createState(pacote.pack, artes, versos);
     info = novaInfo;
     nomeDoPdf = nome;
     caminhoDoPdf = caminho;

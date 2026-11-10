@@ -39,6 +39,43 @@ const camada = (id: string, x: number, y: number, when?: Partial<Choices>): Stac
 });
 const ARTE: StackLayer = { id: 'arte', role: 'art', opacity: 1, blend: 'normal', offset: [0, 0] };
 
+describe('compose: arte do verso na contra capa', () => {
+  const VERSO: StackLayer = { id: 'arte-verso', role: 'back-art', opacity: 1, blend: 'multiply', offset: [0, 0] };
+  const pacoteComVerso = () =>
+    packDeTeste([camada('contra', 0, 0), VERSO], {
+      backArt: { corners: [[0, 0], [4, 0], [4, 4], [0, 4]], size: { width: 4, height: 4 }, mask: { file: 'contra.png', offset: [0, 0] } },
+    });
+  const contra = () => {
+    const c = solido(4, 4, 255, 255, 255);
+    c.data.set([128, 128, 128, 255], (1 * 4 + 1) * 4); // pixel sombreado
+    c.data.set([255, 255, 255, 0], (3 * 4 + 3) * 4); // pixel fora da contra capa
+    return c;
+  };
+  const camadas = () => new Map<string, Raster>([['contra.png', contra()], ['mascara.png', solido(4, 4, 255, 255, 255)]]);
+
+  test('sem verso a contra capa fica como sempre (branca com a sombra)', () => {
+    const out = compose(pacoteComVerso(), camadas(), solido(4, 4, 0, 255, 0), ESCOLHAS);
+    expect(px(out, 0, 0)).toEqual([255, 255, 255, 255]);
+    expect(px(out, 1, 1)).toEqual([128, 128, 128, 255]);
+  });
+  test('com verso a arte aparece na contra capa, escurecida pela sombra dela', () => {
+    const out = compose(pacoteComVerso(), camadas(), solido(4, 4, 0, 255, 0), ESCOLHAS, solido(4, 4, 255, 0, 0));
+    expect(px(out, 0, 0)).toEqual([255, 0, 0, 255]);
+    expect(px(out, 1, 1)[0]).toBeGreaterThan(120);
+    expect(px(out, 1, 1)[0]).toBeLessThan(136);
+    expect(px(out, 1, 1)[1]).toBe(0);
+  });
+  test('o verso não aparece fora da contra capa', () => {
+    const out = compose(pacoteComVerso(), camadas(), solido(4, 4, 0, 255, 0), ESCOLHAS, solido(4, 4, 255, 0, 0));
+    expect(px(out, 3, 3)[3]).toBe(0);
+  });
+  test('pacote sem backArt ignora o verso', () => {
+    const pack = packDeTeste([camada('contra', 0, 0)]);
+    const out = compose(pack, camadas(), solido(4, 4, 0, 255, 0), ESCOLHAS, solido(4, 4, 255, 0, 0));
+    expect(px(out, 0, 0)).toEqual([255, 255, 255, 255]);
+  });
+});
+
 describe('compose (pack sintético)', () => {
   test('usa só as camadas do stack cujo when bate com as escolhas', () => {
     const pack = packDeTeste([
@@ -125,6 +162,29 @@ describe.skipIf(!temArquivos)('compose (pack real)', () => {
     expect(feitas + puladas).toBe(105);
     expect(feitas).toBeGreaterThan(0);
   }, 180_000); // 105 composições de 1200×1200: com a máquina ocupada o limite padrão de 30 s estourava
+
+  test('a arte do verso só muda a faixa da contra capa à direita da frente', async () => {
+    const { pack, layers } = await loadPackNode(PACK_DIR);
+    const art = await lerPng(ARTE_REAL);
+    const escolha = { wireo: 'preto', elastico: 'preto', tassel: 'branco' };
+    const verso = solido(8, 8, 220, 30, 60);
+    const sem = compose(pack, layers, art, escolha);
+    const com = compose(pack, layers, art, escolha, verso);
+    let mudados = 0;
+    let aEsquerda = 0;
+    for (let y = 0; y < sem.height; y++) {
+      for (let x = 0; x < sem.width; x++) {
+        const i = (y * sem.width + x) * 4;
+        if (sem.data[i] !== com.data[i] || sem.data[i + 1] !== com.data[i + 1] || sem.data[i + 2] !== com.data[i + 2]) {
+          mudados++;
+          if (x < 800) aEsquerda++;
+        }
+      }
+    }
+    expect(mudados).toBeGreaterThan(300); // a faixa aparece
+    expect(mudados).toBeLessThan(60_000); // e é só uma faixa, não a imagem inteira
+    expect(aEsquerda / mudados).toBeLessThan(0.02); // quase tudo à direita da frente
+  }, 60_000);
 
   test('sem elástico e sem tassel a capa aparece onde eles ficavam', async () => {
     const { pack, layers } = await loadPackNode(PACK_DIR);
