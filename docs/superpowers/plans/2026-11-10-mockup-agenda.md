@@ -18,7 +18,7 @@
 - Cores iniciais de cada capa: wire-o `preto`, elástico `preto`, tassel `branco`.
 - Saída: um PNG 1200×1200 por capa, com o fundo do PSD; nome `NOMEDOPDF_capa-01.png`, `NOMEDOPDF_capa-02.png`, ...
 - Cantos da capa (x, y no mockup): TL (214.8, 75.7), TR (934.7, 16.1), BR (952.2, 1180.0), BL (221.8, 1131.8).
-- Modos de mistura usados: normal, multiply, color-burn. Sombra do PSD: multiply 50%; brilho: normal 31%; camada do elástico preto: color-burn 97%.
+- Modos de mistura usados: normal, multiply, color-burn. Sombra do PSD: multiply 128/255 (cerca de 50%); brilho: normal 31/255 (cerca de 12%); camada do elástico preto: color-burn 97/255 (cerca de 38%). O PSD guarda opacidade de 0 a 255, e o `mockup.json` grava de 0 a 1. A capa tem máscara (`artMask`), aplicada depois da perspectiva.
 - Opções: wire-o 3 (rose-gold, branco, preto), elástico 6 (branco, rosa, azul, verde, laranja, preto), tassel 4 (verde, azul, rosa, branco).
 - Fora do escopo: contra capa, vários modelos, vista de trás, marca d'água automática, editar a arte, lembrar escolhas entre sessões, saída maior que 1200 px.
 - Commits são locais. Nada vai para o GitHub sem autorização explícita do usuário. Nenhuma tarefa é dada como pronta sem os testes dela passando.
@@ -63,7 +63,7 @@
 **Interfaces:**
 - Produces: `pack/mockup.json` com este formato (consumido por Tasks 2–4 e 6):
   - `canvas: {width, height}` (1200×1200)
-  - `artCorners: [[x,y] ×4]` na ordem TL, TR, BR, BL
+  - `artCorners: [[x,y] ×4]` na ordem TL, TR, BR, BL; `artSize: {width, height}` (1772×2480); `artMask: {file, offset: [x,y]}` (máscara em tons de cinza, 704×1159 em 231,21)
   - `stack: [{id, role: "fixed"|"art", file?, opacity (0–1), blend, offset: [x,y], when?: {wireo?, elastico?, tassel?}}]`, de baixo para cima
   - `options: {wireo|elastico|tassel: [{id, label, swatch}]}`
   - `unavailable: [{wireo?, elastico?, tassel?}]`
@@ -74,7 +74,7 @@
   - `test_opcoes_por_acessorio`: wireo = {rose-gold, branco, preto}, elastico = 6 ids da spec, tassel = 4 ids da spec.
   - `test_cantos_da_capa`: `artCorners` bate com os 4 cantos da spec, tolerância 0.1.
   - `test_todo_arquivo_do_stack_existe`: cada `file` do stack existe em `pack/layers/` e tem o tamanho esperado.
-  - `test_sombra_e_brilho`: camada `shadow` com blend `multiply` e opacidade 0.5 (±0.01); `light` com `normal` e 0.31 (±0.01).
+  - `test_sombra_e_brilho`: camada `shadow` com blend `multiply` e opacidade 128/255 (±0.005); `light` com `normal` e 31/255 (±0.005).
   - `test_nao_inclui_contra_capa_nem_marca_dagua`: nenhum id do stack contém `contra` nem `marca`.
 
 - [ ] **Step 2: Rodar e ver falhar** — `pytest tests/tools -v` → FAIL (script não existe).
@@ -146,6 +146,7 @@
 - [ ] **Step 1: Testes que falham em `compose.test.ts`:**
   - `usa só as camadas do stack cujo when bate com as escolhas`.
   - `a arte entra na posição do role "art" do stack` (a ordem de empilhamento vem do pack).
+  - `a máscara da capa (artMask) zera o alfa da arte fora da máscara e mantém dentro`.
   - `isAvailable respeita a lista unavailable`.
   - `compose recusa combinação indisponível`.
   - `todas as 72 combinações de options compõem sem erro` (as marcadas como indisponíveis são puladas e contadas).

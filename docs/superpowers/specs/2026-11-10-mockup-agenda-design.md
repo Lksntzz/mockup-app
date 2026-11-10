@@ -20,8 +20,9 @@ Critério de sucesso: o mockup exportado fica visualmente igual ao que o Photosh
   - Elástico: Branco, Rosa, Azul, Verde, Laranja, Preto (6 opções).
   - Tassel: Verde, Azul, Rosa, Branco (4 opções).
 - A capa é um objeto inteligente ("TROCA A CAPA", 1772×2480 px) colocado com **perspectiva de 4 cantos**. Cantos lidos do PSD (x, y em pixels do mockup): superior esquerdo (214,8; 75,7), superior direito (934,7; 16,1), inferior direito (952,2; 1180,0), inferior esquerdo (221,8; 1131,8).
-- A camada "NÃO MEXER 01" tem sombra (modo Multiplicar, 50%) e brilho (31%) que ficam por cima da arte.
-- O elástico preto usa uma camada extra no modo Color Burn (97%).
+- A camada "NÃO MEXER 01" tem sombra (modo Multiplicar, cerca de 50%) e brilho (cerca de 12%) que ficam por cima da arte. O PSD guarda opacidade de 0 a 255: sombra 128, brilho 31.
+- O elástico preto usa uma camada extra no modo Color Burn (cerca de 38%; valor 97 de 255).
+- A capa tem uma máscara de camada (704×1159 px na posição 231, 21) que recorta a arte depois de deformada. Algumas camadas de elástico e de wire-o têm sombra e relevo (efeitos de camada), que o pacote traz já aplicados.
 - Os grupos "CONTRA CAPA" (objeto inteligente de 1246×1849 px), "MARCA D'ÁGUA" e "ATIVAR COM WIREO ROSE" existem no PSD. Os dois primeiros não entram no app; o terceiro é uma regra a verificar (ver seção 7).
 
 **PDF de exemplo (`CAPAS.pdf`):** 10 páginas A4, uma imagem de 1055×1491 px (cerca de 180 ppi) por página, com borda preta fina e margem branca. Páginas ímpares são as frentes (capas); páginas pares são os versos e são **ignoradas** pelo app.

@@ -1,0 +1,803 @@
+{
+  "canvas": {
+    "width": 1200,
+    "height": 1200
+  },
+  "artCorners": [
+    [
+      214.81668168501557,
+      75.6782576554786
+    ],
+    [
+      934.7394193647312,
+      16.06160541551087
+    ],
+    [
+      952.2402811134541,
+      1180.0404299917566
+    ],
+    [
+      221.83672224574343,
+      1131.789011797003
+    ]
+  ],
+  "artSize": {
+    "width": 1772,
+    "height": 2480
+  },
+  "artMask": {
+    "file": "mascara-arte.png",
+    "offset": [
+      231,
+      21
+    ]
+  },
+  "stack": [
+    {
+      "id": "fundo-01",
+      "role": "fixed",
+      "file": "fundo-01.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "wireo-rose-gold-01",
+      "role": "fixed",
+      "file": "wireo-rose-gold-01.png",
+      "opacity": 0.549,
+      "blend": "normal",
+      "offset": [
+        0,
+        0
+      ],
+      "when": {
+        "wireo": "rose-gold"
+      }
+    },
+    {
+      "id": "wireo-rose-gold-02",
+      "role": "fixed",
+      "file": "wireo-rose-gold-02.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        0,
+        0
+      ],
+      "when": {
+        "wireo": "rose-gold"
+      }
+    },
+    {
+      "id": "wireo-rose-gold-03",
+      "role": "fixed",
+      "file": "wireo-rose-gold-03.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        175,
+        22
+      ],
+      "when": {
+        "wireo": "rose-gold"
+      }
+    },
+    {
+      "id": "wireo-rose-gold-04",
+      "role": "fixed",
+      "file": "wireo-rose-gold-04.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        267,
+        187
+      ],
+      "when": {
+        "wireo": "rose-gold"
+      }
+    },
+    {
+      "id": "wireo-rose-gold-05",
+      "role": "fixed",
+      "file": "wireo-rose-gold-05.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        873,
+        26
+      ],
+      "when": {
+        "wireo": "rose-gold"
+      }
+    },
+    {
+      "id": "wireo-rose-gold-06",
+      "role": "fixed",
+      "file": "wireo-rose-gold-06.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        873,
+        26
+      ],
+      "when": {
+        "wireo": "rose-gold"
+      }
+    },
+    {
+      "id": "wireo-rose-gold-07",
+      "role": "fixed",
+      "file": "wireo-rose-gold-07.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        913,
+        47
+      ],
+      "when": {
+        "wireo": "rose-gold"
+      }
+    },
+    {
+      "id": "wireo-rose-gold-08",
+      "role": "fixed",
+      "file": "wireo-rose-gold-08.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        913,
+        42
+      ],
+      "when": {
+        "wireo": "rose-gold"
+      }
+    },
+    {
+      "id": "wireo-rose-gold-09",
+      "role": "fixed",
+      "file": "wireo-rose-gold-09.png",
+      "opacity": 0.702,
+      "blend": "normal",
+      "offset": [
+        962,
+        37
+      ],
+      "when": {
+        "wireo": "rose-gold"
+      }
+    },
+    {
+      "id": "wireo-rose-gold-10",
+      "role": "fixed",
+      "file": "wireo-rose-gold-10.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        261,
+        38
+      ],
+      "when": {
+        "wireo": "rose-gold"
+      }
+    },
+    {
+      "id": "wireo-branco-01",
+      "role": "fixed",
+      "file": "wireo-branco-01.png",
+      "opacity": 0.549,
+      "blend": "normal",
+      "offset": [
+        0,
+        0
+      ],
+      "when": {
+        "wireo": "branco"
+      }
+    },
+    {
+      "id": "wireo-branco-02",
+      "role": "fixed",
+      "file": "wireo-branco-02.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        0,
+        0
+      ],
+      "when": {
+        "wireo": "branco"
+      }
+    },
+    {
+      "id": "wireo-branco-03",
+      "role": "fixed",
+      "file": "wireo-branco-03.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        175,
+        22
+      ],
+      "when": {
+        "wireo": "branco"
+      }
+    },
+    {
+      "id": "wireo-branco-04",
+      "role": "fixed",
+      "file": "wireo-branco-04.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        267,
+        187
+      ],
+      "when": {
+        "wireo": "branco"
+      }
+    },
+    {
+      "id": "wireo-branco-05",
+      "role": "fixed",
+      "file": "wireo-branco-05.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        873,
+        26
+      ],
+      "when": {
+        "wireo": "branco"
+      }
+    },
+    {
+      "id": "wireo-branco-06",
+      "role": "fixed",
+      "file": "wireo-branco-06.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        873,
+        26
+      ],
+      "when": {
+        "wireo": "branco"
+      }
+    },
+    {
+      "id": "wireo-branco-07",
+      "role": "fixed",
+      "file": "wireo-branco-07.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        913,
+        47
+      ],
+      "when": {
+        "wireo": "branco"
+      }
+    },
+    {
+      "id": "wireo-branco-08",
+      "role": "fixed",
+      "file": "wireo-branco-08.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        913,
+        42
+      ],
+      "when": {
+        "wireo": "branco"
+      }
+    },
+    {
+      "id": "wireo-branco-09",
+      "role": "fixed",
+      "file": "wireo-branco-09.png",
+      "opacity": 0.702,
+      "blend": "normal",
+      "offset": [
+        962,
+        37
+      ],
+      "when": {
+        "wireo": "branco"
+      }
+    },
+    {
+      "id": "wireo-branco-10",
+      "role": "fixed",
+      "file": "wireo-branco-10.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        920,
+        38
+      ],
+      "when": {
+        "wireo": "branco"
+      }
+    },
+    {
+      "id": "wireo-preto-01",
+      "role": "fixed",
+      "file": "wireo-preto-01.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        0,
+        0
+      ],
+      "when": {
+        "wireo": "preto"
+      }
+    },
+    {
+      "id": "wireo-preto-02",
+      "role": "fixed",
+      "file": "wireo-preto-02.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        267,
+        187
+      ],
+      "when": {
+        "wireo": "preto"
+      }
+    },
+    {
+      "id": "wireo-preto-03",
+      "role": "fixed",
+      "file": "wireo-preto-03.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        873,
+        26
+      ],
+      "when": {
+        "wireo": "preto"
+      }
+    },
+    {
+      "id": "wireo-preto-04",
+      "role": "fixed",
+      "file": "wireo-preto-04.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        873,
+        26
+      ],
+      "when": {
+        "wireo": "preto"
+      }
+    },
+    {
+      "id": "wireo-preto-05",
+      "role": "fixed",
+      "file": "wireo-preto-05.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        913,
+        47
+      ],
+      "when": {
+        "wireo": "preto"
+      }
+    },
+    {
+      "id": "wireo-preto-06",
+      "role": "fixed",
+      "file": "wireo-preto-06.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        913,
+        42
+      ],
+      "when": {
+        "wireo": "preto"
+      }
+    },
+    {
+      "id": "wireo-preto-07",
+      "role": "fixed",
+      "file": "wireo-preto-07.png",
+      "opacity": 0.702,
+      "blend": "normal",
+      "offset": [
+        962,
+        37
+      ],
+      "when": {
+        "wireo": "preto"
+      }
+    },
+    {
+      "id": "wireo-preto-08",
+      "role": "fixed",
+      "file": "wireo-preto-08.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        261,
+        38
+      ],
+      "when": {
+        "wireo": "preto"
+      }
+    },
+    {
+      "id": "arte",
+      "role": "art",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "tassel-verde-01",
+      "role": "fixed",
+      "file": "tassel-verde-01.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        116,
+        129
+      ],
+      "when": {
+        "tassel": "verde"
+      }
+    },
+    {
+      "id": "tassel-azul-01",
+      "role": "fixed",
+      "file": "tassel-azul-01.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        116,
+        129
+      ],
+      "when": {
+        "tassel": "azul"
+      }
+    },
+    {
+      "id": "tassel-rosa-01",
+      "role": "fixed",
+      "file": "tassel-rosa-01.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        116,
+        129
+      ],
+      "when": {
+        "tassel": "rosa"
+      }
+    },
+    {
+      "id": "tassel-branco-01",
+      "role": "fixed",
+      "file": "tassel-branco-01.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        116,
+        129
+      ],
+      "when": {
+        "tassel": "branco"
+      }
+    },
+    {
+      "id": "rose-extra-01",
+      "role": "fixed",
+      "file": "rose-extra-01.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        99,
+        121
+      ],
+      "when": {
+        "wireo": "rose-gold"
+      }
+    },
+    {
+      "id": "rose-extra-02",
+      "role": "fixed",
+      "file": "rose-extra-02.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        175,
+        797
+      ],
+      "when": {
+        "wireo": "rose-gold"
+      }
+    },
+    {
+      "id": "rose-extra-03",
+      "role": "fixed",
+      "file": "rose-extra-03.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        176,
+        921
+      ],
+      "when": {
+        "wireo": "rose-gold"
+      }
+    },
+    {
+      "id": "rose-extra-04",
+      "role": "fixed",
+      "file": "rose-extra-04.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        180,
+        818
+      ],
+      "when": {
+        "wireo": "rose-gold"
+      }
+    },
+    {
+      "id": "shadow",
+      "role": "fixed",
+      "file": "shadow.png",
+      "opacity": 0.502,
+      "blend": "multiply",
+      "offset": [
+        226,
+        18
+      ]
+    },
+    {
+      "id": "light",
+      "role": "fixed",
+      "file": "light.png",
+      "opacity": 0.1216,
+      "blend": "normal",
+      "offset": [
+        226,
+        19
+      ]
+    },
+    {
+      "id": "elastico-branco-01",
+      "role": "fixed",
+      "file": "elastico-branco-01.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        816,
+        19
+      ],
+      "when": {
+        "elastico": "branco"
+      }
+    },
+    {
+      "id": "elastico-branco-02",
+      "role": "fixed",
+      "file": "elastico-branco-02.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        818,
+        22
+      ],
+      "when": {
+        "elastico": "branco"
+      }
+    },
+    {
+      "id": "elastico-rosa-01",
+      "role": "fixed",
+      "file": "elastico-rosa-01.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        809,
+        21
+      ],
+      "when": {
+        "elastico": "rosa"
+      }
+    },
+    {
+      "id": "elastico-azul-01",
+      "role": "fixed",
+      "file": "elastico-azul-01.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        809,
+        21
+      ],
+      "when": {
+        "elastico": "azul"
+      }
+    },
+    {
+      "id": "elastico-verde-01",
+      "role": "fixed",
+      "file": "elastico-verde-01.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        809,
+        21
+      ],
+      "when": {
+        "elastico": "verde"
+      }
+    },
+    {
+      "id": "elastico-laranja-01",
+      "role": "fixed",
+      "file": "elastico-laranja-01.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        816,
+        21
+      ],
+      "when": {
+        "elastico": "laranja"
+      }
+    },
+    {
+      "id": "elastico-laranja-02",
+      "role": "fixed",
+      "file": "elastico-laranja-02.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        816,
+        21
+      ],
+      "when": {
+        "elastico": "laranja"
+      }
+    },
+    {
+      "id": "elastico-laranja-03",
+      "role": "fixed",
+      "file": "elastico-laranja-03.png",
+      "opacity": 0.251,
+      "blend": "normal",
+      "offset": [
+        816,
+        21
+      ],
+      "when": {
+        "elastico": "laranja"
+      }
+    },
+    {
+      "id": "elastico-preto-01",
+      "role": "fixed",
+      "file": "elastico-preto-01.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        809,
+        21
+      ],
+      "when": {
+        "elastico": "preto"
+      }
+    },
+    {
+      "id": "elastico-preto-02",
+      "role": "fixed",
+      "file": "elastico-preto-02.png",
+      "opacity": 0.3804,
+      "blend": "color-burn",
+      "offset": [
+        819,
+        28
+      ],
+      "when": {
+        "elastico": "preto"
+      }
+    }
+  ],
+  "options": {
+    "wireo": [
+      {
+        "id": "rose-gold",
+        "label": "Rose Gold",
+        "swatch": "#b76e79"
+      },
+      {
+        "id": "branco",
+        "label": "Branco",
+        "swatch": "#f5f5f5"
+      },
+      {
+        "id": "preto",
+        "label": "Preto",
+        "swatch": "#1a1a1a"
+      }
+    ],
+    "elastico": [
+      {
+        "id": "branco",
+        "label": "Branco",
+        "swatch": "#f5f5f5"
+      },
+      {
+        "id": "rosa",
+        "label": "Rosa",
+        "swatch": "#f48fb1"
+      },
+      {
+        "id": "azul",
+        "label": "Azul",
+        "swatch": "#2196f3"
+      },
+      {
+        "id": "verde",
+        "label": "Verde",
+        "swatch": "#43a047"
+      },
+      {
+        "id": "laranja",
+        "label": "Laranja",
+        "swatch": "#fb8c00"
+      },
+      {
+        "id": "preto",
+        "label": "Preto",
+        "swatch": "#1a1a1a"
+      }
+    ],
+    "tassel": [
+      {
+        "id": "verde",
+        "label": "Verde",
+        "swatch": "#43a047"
+      },
+      {
+        "id": "azul",
+        "label": "Azul",
+        "swatch": "#2196f3"
+      },
+      {
+        "id": "rosa",
+        "label": "Rosa",
+        "swatch": "#f48fb1"
+      },
+      {
+        "id": "branco",
+        "label": "Branco",
+        "swatch": "#f5f5f5"
+      }
+    ]
+  },
+  "unavailable": [],
+  "defaults": {
+    "wireo": "preto",
+    "elastico": "preto",
+    "tassel": "branco"
+  }
+}
