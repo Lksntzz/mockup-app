@@ -855,6 +855,23 @@ function linhaDoCliente(c: Cliente): HTMLElement {
     topo.append(e);
   };
   if (c.duplicado) nota('mesmo nome em mais de uma etapa');
+  if (c.alteradoDepoisDoEnvio) {
+    const aviso = document.createElement('span');
+    aviso.className = 'alterado';
+    aviso.textContent = 'Alterado depois do envio: confira com a admin';
+    topo.append(aviso);
+    const ok = document.createElement('button');
+    ok.type = 'button';
+    ok.className = 'secundario';
+    ok.textContent = 'Já avisei a admin';
+    ok.addEventListener('click', () => {
+      void api.fluxoConferido(c.caminho).then(
+        () => desenharPasta1(),
+        (e) => mensagem(textoDoErro(e), true),
+      );
+    });
+    topo.append(ok);
+  }
   if (c.chegando) nota('chegando… (arquivos ainda sendo enviados)');
   if (c.etapa === 1 && c.artes.length === 0) nota('sem PDF/JPG/PNG na pasta');
   for (const arte of c.artes) {

@@ -377,6 +377,17 @@ app.on('browser-window-created', (_e, win) => {
       await js("document.getElementById('salvo-aprovar').click()");
       await ate("document.body.dataset.estado === 'vazio'", 'voltar ao início depois de mover');
       conferir(!fs.existsSync(cliente) && fs.existsSync(path.join(p2, 'CLIENTE A', 'MKP')), 'completa, a pasta do cliente foi para a Pasta 2 com o MKP dentro');
+      // alteração depois do envio
+      await js("document.getElementById('tab-pasta1').click()");
+      await js("document.getElementById('atualizar-pasta1').click()");
+      await ate("[...document.querySelectorAll('#pasta1-lista .cliente-linha')].some(l => l.textContent.includes('CLIENTE A'))", 'CLIENTE A na lista da Pasta 2');
+      conferir(!(await js("[...document.querySelectorAll('#pasta1-lista .cliente-linha')].find(l => l.textContent.includes('CLIENTE A')).textContent.includes('Alterado depois do envio')")), 'logo depois do envio o cliente NÃO aparece como alterado');
+      const futuro = new Date(Date.now() + 10 * 60 * 1000);
+      fs.utimesSync(path.join(p2, 'CLIENTE A', 'capa.cdr'), futuro, futuro);
+      await js("document.getElementById('atualizar-pasta1').click()");
+      conferir(await ate("[...document.querySelectorAll('#pasta1-lista .cliente-linha')].find(l => l.textContent.includes('CLIENTE A'))?.textContent.includes('Alterado depois do envio')", 'aviso de alteração'), 'arquivo mexido depois do envio mostra "Alterado depois do envio"');
+      await js("[...document.querySelectorAll('#pasta1-lista .cliente-linha button')].find(b => b.textContent === 'Já avisei a admin')?.click()");
+      conferir(await ate("!document.getElementById('pasta1-lista').textContent.includes('Alterado depois do envio')", 'aviso some'), '"Já avisei a admin" tira o aviso');
     } catch (e) {
       conferir(false, `exceção no roteiro: ${e}`);
     }

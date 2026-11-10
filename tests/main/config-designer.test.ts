@@ -53,3 +53,13 @@ describe('criarConfigDesigner', () => {
     expect(JSON.parse(await readFile(arquivo, 'utf-8'))).toEqual({ designer: true });
   });
 });
+
+describe('enviados', () => {
+  test('guarda quando cada cliente foi enviado e descarta valores que não são número', async () => {
+    const c = criarConfigDesigner(arquivo);
+    await c.salvar({ designer: true, enviados: { 'SHOPEE / A': 1000, B: 2000 } });
+    expect((await c.ler()).enviados).toEqual({ 'SHOPEE / A': 1000, B: 2000 });
+    await writeFile(arquivo, JSON.stringify({ designer: true, enviados: { A: 5, B: 'x', C: null } }), 'utf-8');
+    expect((await c.ler()).enviados).toEqual({ A: 5 });
+  });
+});

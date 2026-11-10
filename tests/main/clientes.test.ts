@@ -1,8 +1,8 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { atualizarVistos, buscarFinalizados, listarClientes, novasArtesParaFazer } from '../../src/main/clientes';
+import { atualizarVistos, buscarFinalizados, listarClientes, novasArtesParaFazer, ultimaAlteracao } from '../../src/main/clientes';
 
 let base = '';
 const p = (n: number) => join(base, `${n}`);
@@ -131,5 +131,46 @@ describe('pasta de grupo SHOPEE', () => {
     const { clientes } = await listarClientes(pastas(), agoraLonge(), 0);
     const r = atualizarVistos(clientes, ['LOJA X']);
     expect(r.alertar).toEqual(['SHOPEE / LOJA X']);
+  });
+});
+
+describe('alterado depois do envio', () => {
+  const T = 1_700_000_000_000;
+  const em = (ms: number) => new Date(ms);
+  const marcar = async (caminho: string, ms: number) => utimes(caminho, em(ms), em(ms));
+
+  test('Pasta 2: arquivo mexido bem depois do envio marca o cliente; antes ou logo depois não marca', async () => {
+    for (const n of ['MEXIDO', 'QUIETO', 'LOGO']) { await pasta('2', n); await arq('2', n, 'capa.cdr'); }
+    await marcar(join(p(2), 'MEXIDO', 'capa.cdr'), T + 600_000);
+    await marcar(join(p(2), 'QUIETO', 'capa.cdr'), T - 5_000);
+    await marcar(join(p(2), 'LOGO', 'capa.cdr'), T + 30_000);
+    const enviados = { MEXIDO: T, QUIETO: T, LOGO: T };
+    const { clientes } = await listarClientes(pastas(), agoraLonge(), 0, enviados);
+    const por = Object.fromEntries(clientes.map((c) => [c.nome, c.alteradoDepoisDoEnvio]));
+    expect(por).toEqual({ MEXIDO: true, QUIETO: false, LOGO: false });
+  });
+  test('conta também arquivo novo dentro da subpasta MKP e vale para a Pasta 3', async () => {
+    await pasta('3', 'SHOPEE', 'X', 'MKP'); await arq('3', 'SHOPEE', 'X', 'MKP', 'x-01.png');
+    for (const f of [join(p(3), 'SHOPEE', 'X'), join(p(3), 'SHOPEE', 'X', 'MKP')]) await marcar(f, T - 9_000);
+    await marcar(join(p(3), 'SHOPEE', 'X', 'MKP', 'x-01.png'), T + 900_000);
+    const { clientes } = await listarClientes(pastas(), agoraLonge(), 0, { 'SHOPEE / X': T });
+    expect(clientes[0]?.alteradoDepoisDoEnvio).toBe(true);
+  });
+  test('sem registro de envio (pasta que não foi enviada pelo app) e na Pasta 1 não marca nada', async () => {
+    await pasta('2', 'SEM'); await arq('2', 'SEM', 'a.cdr'); await marcar(join(p(2), 'SEM', 'a.cdr'), T + 999_999);
+    await pasta('1', 'UM'); await arq('1', 'UM', 'a.png'); await marcar(join(p(1), 'UM', 'a.png'), T + 999_999);
+    const { clientes } = await listarClientes(pastas(), agoraLonge(), 0, { UM: T });
+    expect(clientes.map((c) => c.alteradoDepoisDoEnvio)).toEqual([undefined, undefined]);
+  });
+});
+
+describe('ultimaAlteracao', () => {
+  test('é a data do arquivo mais novo da pasta do cliente ou da subpasta MKP; pasta vazia dá 0', async () => {
+    await pasta('2', 'X', 'MKP'); await arq('2', 'X', 'a.cdr'); await arq('2', 'X', 'MKP', 'x-01.png');
+    await utimes(join(p(2), 'X', 'a.cdr'), new Date(5000), new Date(5000));
+    await utimes(join(p(2), 'X', 'MKP', 'x-01.png'), new Date(9000), new Date(9000));
+    expect(await ultimaAlteracao(join(p(2), 'X'))).toBe(9000);
+    await pasta('2', 'VAZIA');
+    expect(await ultimaAlteracao(join(p(2), 'VAZIA'))).toBe(0);
   });
 });

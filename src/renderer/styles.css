@@ -175,3 +175,4 @@ body:not([data-estado="pronto"]) #coluna-capas { display: none; }
 .pin-form { display: flex; gap: 8px; align-items: center; }
 .pin-form input { width: 120px; padding: 8px 10px; font-size: 18px; text-align: center; letter-spacing: 4px; border-radius: 6px; border: 0; }
 .pin-erro { min-height: 20px; color: #ffd6d6; font-size: 14px; }
+.alterado { color: #b42318; font-weight: 700; font-size: 13px; }

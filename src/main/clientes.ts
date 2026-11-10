@@ -22,6 +22,8 @@ export interface Cliente {
   chegando: boolean;
   /** O mesmo nome existe em mais de uma etapa. */
   duplicado?: boolean;
+  /** Etapas 2 e 3: algum arquivo foi mexido depois de a pasta ser enviada pelo app. */
+  alteradoDepoisDoEnvio?: boolean;
 }
 
 export interface Pastas {
@@ -34,6 +36,17 @@ export interface Pastas {
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
 /** Nome único do cliente para alertas e duplicados: com o grupo na frente, se houver. */
+/** Drive e antivírus mexem nos arquivos logo depois do envio; só conta alteração acima desta folga. */
+export const TOLERANCIA_ENVIO_MS = 120_000;
+
+/** Data (ms) do arquivo mais novo da pasta do cliente ou da subpasta MKP. Pasta sem arquivos dá 0. */
+export async function ultimaAlteracao(pastaCliente: string): Promise<number> {
+  const itens = await nomesEm(pastaCliente);
+  const mkp = itens.find((i) => i.pasta && i.nome.toLowerCase() === 'mkp');
+  const dentro = mkp ? await nomesEm(mkp.caminho) : [];
+  return Math.max(0, ...[...itens, ...dentro].filter((i) => !i.pasta).map((i) => i.mtimeMs));
+}
+
 export const chaveDe = (c: { nome: string; grupo?: string }) => (c.grupo ? `${c.grupo} / ${c.nome}` : c.nome);
 
 /** Clientes das etapas 1, 2 e 3 (a Pasta 4 tem anos de pastas e só é consultada por busca). */
@@ -41,9 +54,11 @@ export async function listarClientes(
   pastas: Pastas,
   agora = Date.now(),
   esperaMs = 30_000,
+  enviados: Record<string, number> = {},
 ): Promise<{ clientes: Cliente[]; avisos: string[] }> {
   const clientes: Cliente[] = [];
   const avisos: string[] = [];
+  const envios = new Map(Object.entries(enviados).map(([k, v]) => [norm(k), v]));
   const etapas: [Etapa, string | undefined][] = [[1, pastas.pasta1], [2, pastas.pasta2], [3, pastas.pasta3]];
   for (const [etapa, raiz] of etapas) {
     if (!raiz) {
@@ -71,6 +86,11 @@ export async function listarClientes(
         situacao = r.faltando.includes('imagens do MKP') ? 'arte-a-fazer' : r.pronta ? 'pronta-para-aprovar' : 'em-andamento';
       }
       const maisRecente = Math.max(c.mtimeMs, ...itens.map((i) => i.mtimeMs));
+      let alterado: boolean | undefined;
+      const enviadoEm = envios.get(norm(chaveDe({ nome: c.nome, ...(c.grupo ? { grupo: c.grupo } : {}) })));
+      if ((etapa === 2 || etapa === 3) && enviadoEm !== undefined) {
+        alterado = (await ultimaAlteracao(c.caminho)) > enviadoEm + TOLERANCIA_ENVIO_MS;
+      }
       clientes.push({
         nome: c.nome,
         ...(c.grupo ? { grupo: c.grupo } : {}),
@@ -81,6 +101,7 @@ export async function listarClientes(
         artes: arquivos.filter((i) => EXT_ARTE.has(extname(i.nome).toLowerCase())).map((i) => i.caminho),
         arquivos: arquivos.map((i) => i.nome),
         chegando: agora - maisRecente < esperaMs,
+        ...(alterado === undefined ? {} : { alteradoDepoisDoEnvio: alterado }),
       });
     }
   }

@@ -10,7 +10,7 @@ import { rascunhoValido } from '../app/rascunhos';
 import { criarRascunhos } from './rascunhos';
 import { criarConfigDesigner } from './config-designer';
 import { moverParaAprovar, origemDoCliente } from './pasta-fluxo';
-import { atualizarVistos, buscarFinalizados, listarClientes } from './clientes';
+import { atualizarVistos, buscarFinalizados, chaveDe, listarClientes, ultimaAlteracao } from './clientes';
 import { criarPortaoDePin } from './pin';
 import { arquivoAbrivel } from './abrir-arquivo';
 import { deveEsconderAoFechar, iniciaOculto } from './segundo-plano';
@@ -243,13 +243,32 @@ ipcMain.handle('designer-escolher-pasta', async (_e, qual: unknown) => {
 });
 ipcMain.handle('clientes-listar', async () => {
   const c = await exigirDesigner();
-  return listarClientes(c);
+  return listarClientes(c, Date.now(), 30_000, c.enviados);
 });
 ipcMain.handle('clientes-buscar', async (_e, termo: unknown) => {
   const c = await exigirDesigner();
   if (typeof termo !== 'string') throw new Error('Busca inválida.');
   if (!c.pasta4) throw new Error('Escolha a Pasta 4 (Finalizados) para buscar.');
   return buscarFinalizados(c.pasta4, termo);
+});
+/** Anota quando o cliente foi enviado (ou conferido de novo); guarda só os 300 mais recentes. */
+async function registrarEnvio(chave: string, minimo = 0): Promise<void> {
+  const c = await configDoDesigner().ler();
+  const todos = Object.entries({ ...c.enviados, [chave]: Math.max(Date.now(), minimo) }).sort((a, b) => b[1] - a[1]).slice(0, 300);
+  await configDoDesigner().salvar({ enviados: Object.fromEntries(todos) });
+}
+ipcMain.handle('fluxo-conferido', async (_e, caminhoCliente: unknown) => {
+  const c = await exigirDesigner();
+  if (typeof caminhoCliente !== 'string') throw new Error('Pasta inválida.');
+  for (const raiz of [c.pasta2, c.pasta3]) {
+    const origem = raiz ? origemDoCliente(raiz, caminhoCliente) : null;
+    if (origem) {
+      // a base nunca fica antes do arquivo mais novo (relógio de outro PC no Drive não pode manter o aviso para sempre)
+      await registrarEnvio(chaveDe({ nome: basename(caminhoCliente), ...(origem.grupo ? { grupo: origem.grupo } : {}) }), await ultimaAlteracao(caminhoCliente));
+      return true;
+    }
+  }
+  throw new Error('Essa pasta não está na Pasta 2 nem na Pasta 3.');
 });
 ipcMain.handle('fluxo-mover', async (_e, caminhoCliente: unknown) => {
   const c = await exigirDesigner();
@@ -258,7 +277,9 @@ ipcMain.handle('fluxo-mover', async (_e, caminhoCliente: unknown) => {
   // só move pastas que estão direto na Pasta 1 escolhida ou dentro de uma pasta de grupo (SHOPEE)
   const origem = origemDoCliente(c.pasta1, caminhoCliente);
   if (!origem) return { ok: false, motivo: 'Essa pasta não está dentro da Pasta 1.' };
-  return moverParaAprovar(caminhoCliente, c.pasta2, origem.grupo);
+  const r = await moverParaAprovar(caminhoCliente, c.pasta2, origem.grupo);
+  if (r.ok) await registrarEnvio(chaveDe({ nome: basename(caminhoCliente), ...(origem.grupo ? { grupo: origem.grupo } : {}) }));
+  return r;
 });
 ipcMain.handle('operador', () => operador());
 ipcMain.handle('historico-listar', () => historicoDoOperador().listar());
