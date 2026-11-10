@@ -91,3 +91,28 @@ export function cropMargins(page: Raster): Raster {
   if (area < AREA_MINIMA) return page;
   return copiar(page, x0, y0, x1, y1);
 }
+
+/** Corta a página na caixa (frações 0..1 da página). Caixa vazia ou fora da página devolve a página inteira. */
+export function cropToBox(page: Raster, caixa: { x: number; y: number; w: number; h: number }): Raster {
+  const x0 = Math.max(0, Math.round(caixa.x * page.width));
+  const y0 = Math.max(0, Math.round(caixa.y * page.height));
+  const x1 = Math.min(page.width, Math.round((caixa.x + caixa.w) * page.width));
+  const y1 = Math.min(page.height, Math.round((caixa.y + caixa.h) * page.height));
+  if (x1 <= x0 || y1 <= y0) return page;
+  const w = x1 - x0;
+  const h = y1 - y0;
+  const data = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y++) {
+    const de = ((y0 + y) * page.width + x0) * 4;
+    data.set(page.data.subarray(de, de + w * 4), y * w * 4);
+  }
+  return { width: w, height: h, data };
+}
+
+const LARGURA_MAXIMA_DA_PAGINA = 4800;
+
+/** Largura em que renderizar a página inteira para que a arte (a caixa) saia com `artWidthPx` de largura. */
+export function widthForArt(artWidthPx: number, caixa: { x: number; y: number; w: number; h: number } | null): number {
+  if (!caixa || caixa.w <= 0) return artWidthPx;
+  return Math.min(LARGURA_MAXIMA_DA_PAGINA, Math.ceil(artWidthPx / caixa.w));
+}

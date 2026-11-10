@@ -73,3 +73,44 @@ describe.skipIf(!existsSync(CAPAS))('openPdf com CAPAS.pdf', () => {
     expect(performance.now() - t0).toBeLessThan(5000);
   });
 });
+
+const ELEGANCE = fileURLToPath(new URL('../../fixtures/Elegance.pdf', import.meta.url));
+
+describe.skipIf(!existsSync(ELEGANCE))('artBox com Elegance.pdf (fundo grande + arte menor por cima)', () => {
+  test('devolve a caixa da arte menor, e não a do fundo', async () => {
+    const doc = await openPdf(new Uint8Array(readFileSync(ELEGANCE)), opts);
+    const caixa = await doc.artBox(1);
+    await doc.close();
+    expect(caixa).not.toBeNull();
+    // a arte ocupa ~75% da página, centralizada (o fundo ocupa quase tudo)
+    expect(caixa!.w).toBeGreaterThan(0.72);
+    expect(caixa!.w).toBeLessThan(0.78);
+    expect(caixa!.x).toBeGreaterThan(0.11);
+    expect(caixa!.x).toBeLessThan(0.14);
+    expect(caixa!.y).toBeGreaterThan(0.11);
+    expect(caixa!.y).toBeLessThan(0.14);
+  });
+
+  test('a caixa tem a proporção da arte (1055×1491 px) quando medida em pixels da página', async () => {
+    const doc = await openPdf(new Uint8Array(readFileSync(ELEGANCE)), opts);
+    const caixa = await doc.artBox(1);
+    const pagina = await doc.renderPage(1, 595);
+    await doc.close();
+    const proporcao = (caixa!.w * pagina.width) / (caixa!.h * pagina.height);
+    expect(proporcao).toBeGreaterThan(0.69);
+    expect(proporcao).toBeLessThan(0.72);
+  });
+});
+
+describe.skipIf(!existsSync(CAPAS))('artBox com CAPAS.pdf (uma imagem por página)', () => {
+  test('devolve a caixa da imagem da capa, com a proporção da arte', async () => {
+    const doc = await openPdf(new Uint8Array(readFileSync(CAPAS)), opts);
+    const caixa = await doc.artBox(1);
+    const pagina = await doc.renderPage(1, 595);
+    await doc.close();
+    expect(caixa).not.toBeNull();
+    const proporcao = (caixa!.w * pagina.width) / (caixa!.h * pagina.height);
+    expect(proporcao).toBeGreaterThan(0.69);
+    expect(proporcao).toBeLessThan(0.72);
+  });
+});

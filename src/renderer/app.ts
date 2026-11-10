@@ -4,7 +4,7 @@ import { copyToAll, createState, select, setColor, type AppState } from '../app/
 import { compose, isAvailable } from '../engine/compose';
 import { exportAll } from '../export/exporter';
 import type { Accessory, Pack, Raster } from '../engine/types';
-import { cropMargins } from '../pdf/crop';
+import { cropMargins, cropToBox, widthForArt } from '../pdf/crop';
 import { coverCrop } from '../pdf/fit';
 import { capaPageNumbers } from '../pdf/pages';
 import { openPdf, PdfError } from '../pdf/reader';
@@ -186,7 +186,10 @@ async function abrirPdfDeBytes(nome: string, bytes: Uint8Array): Promise<void> {
       mensagem(`Lendo a capa ${i + 1} de ${paginas.length}…`);
       progresso(i / paginas.length);
       await proximoQuadro();
-      const recortada = cropMargins(await doc.renderPage(n, 1200));
+      // a arte é a imagem de cima da página (em PDFs com fundo esticado + arte menor, é só a menor)
+      const caixa = await doc.artBox(n);
+      const pagina = await doc.renderPage(n, widthForArt(1200, caixa));
+      const recortada = cropMargins(caixa ? cropToBox(pagina, caixa) : pagina);
       const proporcao = recortada.width / recortada.height;
       novaInfo.push({
         pagina: n,
