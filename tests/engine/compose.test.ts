@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 import { newRaster } from '../../src/engine/blend';
-import { compose, isAvailable } from '../../src/engine/compose';
+import { compose, isAvailable, limparCacheDoCompose } from '../../src/engine/compose';
 import type { Choices, Pack, Raster, StackLayer } from '../../src/engine/types';
 import { loadPackNode, lerPng } from '../support/loadPackNode';
 
@@ -38,6 +38,57 @@ const camada = (id: string, x: number, y: number, when?: Partial<Choices>): Stac
   id, role: 'fixed', file: `${id}.png`, opacity: 1, blend: 'normal', offset: [x, y], ...(when ? { when } : {}),
 });
 const ARTE: StackLayer = { id: 'arte', role: 'art', opacity: 1, blend: 'normal', offset: [0, 0] };
+
+describe('compose: cache da prévia (trocar uma cor não pode mudar o resultado)', () => {
+  const pack = packDeTeste(
+    [
+      camada('fundo', 0, 0),
+      camada('w-preto', 0, 1, { wireo: 'preto' }),
+      camada('w-rose', 1, 1, { wireo: 'rose-gold' }),
+      ARTE,
+      camada('e-preto', 2, 2, { elastico: 'preto' }),
+      camada('e-azul', 3, 2, { elastico: 'azul' }),
+      camada('t-branco', 0, 3, { tassel: 'branco' }),
+      camada('t-rosa', 1, 3, { tassel: 'rosa' }),
+    ],
+    {
+      options: {
+        wireo: [{ id: 'preto', label: 'Preto', swatch: '#000' }, { id: 'rose-gold', label: 'Rose', swatch: '#b76e79' }],
+        elastico: [{ id: 'preto', label: 'Preto', swatch: '#000' }, { id: 'azul', label: 'Azul', swatch: '#00f' }],
+        tassel: [{ id: 'branco', label: 'Branco', swatch: '#fff' }, { id: 'rosa', label: 'Rosa', swatch: '#f9c' }],
+      },
+    },
+  );
+  const layers = () =>
+    new Map<string, Raster>([
+      ['fundo.png', solido(4, 4, 255, 255, 255)],
+      ['mascara.png', solido(4, 4, 255, 255, 255)],
+      ...['w-preto', 'w-rose', 'e-preto', 'e-azul', 't-branco', 't-rosa'].map((id, i): [string, Raster] => [`${id}.png`, ponto(10 * (i + 1), 0, 0)]),
+    ]);
+  const todas: Choices[] = [];
+  for (const wireo of ['preto', 'rose-gold']) for (const elastico of ['preto', 'azul']) for (const tassel of ['branco', 'rosa']) todas.push({ wireo, elastico, tassel });
+
+  test('qualquer sequência de trocas dá o mesmo que montar do zero', () => {
+    const l = layers();
+    const art = solido(4, 4, 0, 255, 0);
+    const sequencia = [0, 1, 3, 2, 6, 7, 4, 5, 0, 0, 7, 1];
+    for (const n of sequencia) {
+      const escolha = todas[n] as Choices;
+      const comCache = compose(pack, l, art, escolha);
+      limparCacheDoCompose();
+      const doZero = compose(pack, l, art, escolha);
+      expect(Array.from(comCache.data)).toEqual(Array.from(doZero.data));
+    }
+  });
+
+  test('arte diferente não aproveita o cache da anterior', () => {
+    const l = layers();
+    const a = compose(pack, l, solido(4, 4, 0, 255, 0), todas[0] as Choices);
+    const b = compose(pack, l, solido(4, 4, 255, 0, 255), todas[0] as Choices);
+    expect(px(a, 3, 0)).toEqual([0, 255, 0, 255]);
+    expect(px(b, 3, 0)).toEqual([255, 0, 255, 255]);
+  });
+});
 
 describe('compose: variantes e círculos de zoom', () => {
   const comVariante = (variant: string, id: string, x: number): StackLayer => ({ ...camada(id, x, 0), variant });

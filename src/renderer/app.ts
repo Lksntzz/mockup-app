@@ -7,7 +7,7 @@ import { compose, isAvailable } from '../engine/compose';
 import { exportAll, type ExportCapa, type ExportExtra } from '../export/exporter';
 import type { Accessory, Pack, Raster } from '../engine/types';
 import { cropMargins, cropToBox, widthForArt } from '../pdf/crop';
-import { coverCrop } from '../pdf/fit';
+import { coverCrop, reduzir } from '../pdf/fit';
 import { capaPageNumbers } from '../pdf/pages';
 import { openPdf, PdfError } from '../pdf/reader';
 import type { ArquivoPdf, EstadoAtualizacao, MockupApi } from './global';
@@ -171,6 +171,14 @@ function pedirPrevia(): void {
   agendador.request({ capa: estado.selecionada, choices: { ...capa.choices }, modo: modoPrevia });
 }
 
+// A lista só precisa de miniaturas: guardar a capa inteira em cada uma gasta memória à toa.
+const miniaturas = new WeakMap<Raster, Raster>();
+function miniaturaDe(art: Raster): Raster {
+  let m = miniaturas.get(art);
+  if (!m) miniaturas.set(art, (m = reduzir(art, 240)));
+  return m;
+}
+
 function desenharLista(): void {
   const lista = $('lista');
   lista.replaceChildren();
@@ -182,7 +190,7 @@ function desenharLista(): void {
     item.className = 'item';
     item.setAttribute('aria-current', String(i === estado!.selecionada));
     const miniatura = document.createElement('canvas');
-    pintar(miniatura, capa.art);
+    pintar(miniatura, miniaturaDe(capa.art));
     const rotulo = document.createElement('div');
     rotulo.className = 'rotulo';
     rotulo.innerHTML = `<strong>Capa ${i + 1}</strong><span>pág. ${dados.pagina}</span>`;

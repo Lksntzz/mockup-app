@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { blendOver, newRaster } from '../../src/engine/blend';
-import type { Raster } from '../../src/engine/types';
+import type { Blend, Raster } from '../../src/engine/types';
 
 function solido(w: number, h: number, r: number, g: number, b: number, a = 255): Raster {
   const x = newRaster(w, h);
@@ -78,4 +78,64 @@ describe('blendOver', () => {
     expect(px(dst, 0)).toEqual([255, 255, 255, 255]);
     expect(() => blendOver(dst, solido(2, 2, 0, 0, 0), [-5, 40], 1, 'normal')).not.toThrow();
   });
+});
+
+describe('blendOver (caminho rápido contra a fórmula de referência)', () => {
+  // fórmula original, pixel a pixel, em ponto flutuante
+  function referencia(dst: Raster, src: Raster, [ox, oy]: [number, number], opacity: number, blend: Blend): Raster {
+    const out: Raster = { width: dst.width, height: dst.height, data: new Uint8ClampedArray(dst.data) };
+    const mix = (cb: number, cs: number) => {
+      if (blend === 'multiply') return cb * cs;
+      if (blend === 'color-burn') return cb >= 1 ? 1 : cs <= 0 ? 0 : 1 - Math.min(1, (1 - cb) / cs);
+      return cs;
+    };
+    for (let y = Math.max(0, oy); y < Math.min(dst.height, oy + src.height); y++) {
+      for (let x = Math.max(0, ox); x < Math.min(dst.width, ox + src.width); x++) {
+        const si = ((y - oy) * src.width + (x - ox)) * 4;
+        const sa = (src.data[si + 3]! / 255) * opacity;
+        if (sa <= 0) continue;
+        const di = (y * dst.width + x) * 4;
+        const ab = out.data[di + 3]! / 255;
+        const ar = sa + ab * (1 - sa);
+        const k = sa / ar;
+        for (let c = 0; c < 3; c++) {
+          const cb = out.data[di + c]! / 255;
+          const cs = src.data[si + c]! / 255;
+          const co = (1 - ab) * cs + ab * mix(cb, cs);
+          out.data[di + c] = Math.round(((1 - k) * cb + k * co) * 255);
+        }
+        out.data[di + 3] = Math.round(ar * 255);
+      }
+    }
+    return out;
+  }
+  let semente = 12345;
+  const alea = () => ((semente = (semente * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+  const aleatorio = (w: number, h: number, alfaVariado: boolean): Raster => {
+    const r = newRaster(w, h);
+    for (let i = 0; i < r.data.length; i += 4) {
+      r.data[i] = Math.floor(alea() * 256);
+      r.data[i + 1] = Math.floor(alea() * 256);
+      r.data[i + 2] = Math.floor(alea() * 256);
+      const sorte = alea();
+      r.data[i + 3] = !alfaVariado || sorte < 0.4 ? 255 : sorte < 0.55 ? 0 : Math.floor(alea() * 256);
+    }
+    return r;
+  };
+
+  for (const blend of ['normal', 'multiply', 'color-burn'] as const) {
+    for (const opacity of [1, 0.5, 0.12]) {
+      for (const fundoOpaco of [true, false]) {
+        test(`${blend}, opacidade ${opacity}, fundo ${fundoOpaco ? 'opaco' : 'com transparência'}`, () => {
+          const dst = aleatorio(30, 20, !fundoOpaco);
+          const src = aleatorio(24, 18, true);
+          const esperado = referencia(dst, src, [3, 2], opacity, blend);
+          blendOver(dst, src, [3, 2], opacity, blend);
+          let maior = 0;
+          for (let i = 0; i < dst.data.length; i++) maior = Math.max(maior, Math.abs((dst.data[i] as number) - (esperado.data[i] as number)));
+          expect(maior).toBeLessThanOrEqual(1);
+        });
+      }
+    }
+  }
 });

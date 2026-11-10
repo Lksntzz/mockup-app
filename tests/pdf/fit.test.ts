@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { newRaster } from '../../src/engine/blend';
-import { coverCrop } from '../../src/pdf/fit';
+import { coverCrop, reduzir } from '../../src/pdf/fit';
 import type { Raster } from '../../src/engine/types';
 
 function faixas(w: number, h: number): Raster {
@@ -29,5 +29,31 @@ describe('coverCrop', () => {
     const out = coverCrop(faixas(1115, 1460), 1772 / 2480);
     expect(out.height).toBe(1460);
     expect(out.width).toBe(Math.round(1460 * (1772 / 2480)));
+  });
+});
+
+describe('reduzir', () => {
+  const quadro = (w: number, h: number, f: (x: number, y: number) => number[]): Raster => {
+    const r = { width: w, height: h, data: new Uint8ClampedArray(w * h * 4) };
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) r.data.set(f(x, y), (y * w + x) * 4);
+    return r;
+  };
+  test('faz a média de cada bloco e mantém a proporção', () => {
+    const r = reduzir(quadro(4, 4, (x) => (x < 2 ? [0, 0, 0, 255] : [200, 100, 50, 255])), 2);
+    expect([r.width, r.height]).toEqual([2, 2]);
+    expect([...r.data.slice(0, 4)]).toEqual([0, 0, 0, 255]);
+    expect([...r.data.slice(4, 8)]).toEqual([200, 100, 50, 255]);
+  });
+  test('mistura as cores de um bloco que mistura duas', () => {
+    const r = reduzir(quadro(2, 2, (x) => (x < 1 ? [0, 0, 0, 255] : [100, 100, 100, 255])), 1);
+    expect([...r.data]).toEqual([50, 50, 50, 255]);
+  });
+  test('imagem já pequena não é ampliada: devolve a própria', () => {
+    const r = quadro(3, 3, () => [1, 2, 3, 255]);
+    expect(reduzir(r, 10)).toBe(r);
+  });
+  test('proporção que não divide certinho: altura acompanha a largura', () => {
+    const r = reduzir(quadro(100, 150, () => [9, 9, 9, 255]), 40);
+    expect([r.width, r.height]).toEqual([40, 60]);
   });
 });

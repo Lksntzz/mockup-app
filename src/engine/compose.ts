@@ -96,14 +96,83 @@ function recorteDoZoom(out: Raster, fonte: NonNullable<StackLayer['source']>, ma
   return dst;
 }
 
+// Trocar só uma cor não precisa refazer o fundo, a contra capa e a arte: guarda o desenho parcial nos pontos
+// onde cada acessório começa e retoma dali. Um cache por pacote, com poucos desenhos guardados (cada um tem 5,5 MB).
+const MAX_DESENHOS_GUARDADOS = 3;
+interface CacheDoPacote {
+  art: Raster;
+  verso: Raster | null;
+  layers: Map<string, Raster>;
+  variante: string | undefined;
+  pontos: Map<string, Raster>;
+}
+let caches = new WeakMap<Pack, CacheDoPacote>();
+const paradas = new WeakMap<Pack, { idx: number; acessorios: Accessory[] }[]>();
+
+/** Para testes: esquece tudo o que a prévia guardou. */
+export function limparCacheDoCompose(): void {
+  caches = new WeakMap();
+}
+
+/** Índices do stack onde cada acessório aparece pela primeira vez, com os acessórios que já apareceram antes. */
+function pontosDeParada(pack: Pack): { idx: number; acessorios: Accessory[] }[] {
+  const guardado = paradas.get(pack);
+  if (guardado) return guardado;
+  const primeiro = new Map<Accessory, number>();
+  pack.stack.forEach((c, i) => {
+    for (const k of Object.keys(c.when ?? {}) as Accessory[]) if (!primeiro.has(k)) primeiro.set(k, i);
+  });
+  const indices = [...new Set(primeiro.values())].filter((i) => i > 0).sort((a, b) => a - b);
+  const pontos = indices.map((idx) => ({ idx, acessorios: ACESSORIOS.filter((a) => (primeiro.get(a) ?? Infinity) < idx) }));
+  paradas.set(pack, pontos);
+  return pontos;
+}
+
+const chaveDoPonto = (idx: number, acessorios: Accessory[], choices: Choices): string =>
+  `${idx}|${acessorios.map((a) => choices[a]).join(',')}`;
+
+function copia(r: Raster): Raster {
+  return { width: r.width, height: r.height, data: new Uint8ClampedArray(r.data) };
+}
+
 /** Monta o mockup: percorre o stack de baixo para cima e pula as camadas cujo `when` não bate. */
 export function compose(pack: Pack, layers: Map<string, Raster>, art: Raster, choices: Choices, verso?: Raster | null, variante?: string): Raster {
   if (!isAvailable(pack, choices)) throw new Error('combinação indisponível');
-  const out = newRaster(pack.canvas.width, pack.canvas.height);
   const arteDeformada = arteProntaDe(pack, layers, art);
   const versoDeformado = verso ? versoProntoDe(pack, layers, verso) : null;
 
-  for (const camada of pack.stack) {
+  let cache = caches.get(pack);
+  if (!cache || cache.art !== art || cache.verso !== (verso ?? null) || cache.layers !== layers || cache.variante !== variante) {
+    cache = { art, verso: verso ?? null, layers, variante, pontos: new Map() };
+    caches.set(pack, cache);
+  }
+  const paradasDoPack = pontosDeParada(pack);
+  const paradaPorIndice = new Map(paradasDoPack.map((p) => [p.idx, p]));
+
+  // retoma do ponto guardado mais adiantado que ainda vale para estas escolhas
+  let out: Raster | null = null;
+  let inicio = 0;
+  for (let k = paradasDoPack.length - 1; k >= 0; k--) {
+    const p = paradasDoPack[k] as { idx: number; acessorios: Accessory[] };
+    const guardado = cache.pontos.get(chaveDoPonto(p.idx, p.acessorios, choices));
+    if (guardado) {
+      out = copia(guardado);
+      inicio = p.idx;
+      break;
+    }
+  }
+  if (!out) out = newRaster(pack.canvas.width, pack.canvas.height);
+
+  for (let i = inicio; i < pack.stack.length; i++) {
+    const parada = paradaPorIndice.get(i);
+    if (parada) {
+      const chave = chaveDoPonto(parada.idx, parada.acessorios, choices);
+      if (!cache.pontos.has(chave)) {
+        cache.pontos.set(chave, copia(out));
+        if (cache.pontos.size > MAX_DESENHOS_GUARDADOS) cache.pontos.delete(cache.pontos.keys().next().value as string);
+      }
+    }
+    const camada = pack.stack[i] as StackLayer;
     if (camada.when && !Object.entries(camada.when).every(([k, v]) => choices[k as Accessory] === v)) continue;
     if (camada.variant !== undefined && camada.variant !== variante) continue;
     if (camada.role === 'zoom') {

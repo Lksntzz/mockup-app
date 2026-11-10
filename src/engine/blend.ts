@@ -31,9 +31,33 @@ export function blendOver(dst: Raster, src: Raster, offset: Pt, opacity: number,
   for (let y = y0; y < y1; y++) {
     for (let x = x0; x < x1; x++) {
       const si = ((y - oy) * src.width + (x - ox)) * 4;
-      const sa = ((s[si + 3] as number) / 255) * opacity;
+      const sa8 = s[si + 3] as number;
+      if (sa8 === 0) continue;
+      const sa = (sa8 / 255) * opacity;
       if (sa <= 0) continue;
       const di = (y * dst.width + x) * 4;
+      if (d[di + 3] === 255) {
+        // caminho rápido: fundo opaco (o caso comum). A fórmula geral se reduz a  fundo + (mistura - fundo) × alfa
+        if (blend === 'normal') {
+          if (sa >= 1) {
+            d[di] = s[si] as number;
+            d[di + 1] = s[si + 1] as number;
+            d[di + 2] = s[si + 2] as number;
+          } else {
+            d[di] = (d[di] as number) + ((s[si] as number) - (d[di] as number)) * sa;
+            d[di + 1] = (d[di + 1] as number) + ((s[si + 1] as number) - (d[di + 1] as number)) * sa;
+            d[di + 2] = (d[di + 2] as number) + ((s[si + 2] as number) - (d[di + 2] as number)) * sa;
+          }
+          continue;
+        }
+        if (blend === 'multiply') {
+          for (let c = 0; c < 3; c++) {
+            const cb = d[di + c] as number;
+            d[di + c] = cb + ((cb * (s[si + c] as number)) / 255 - cb) * sa;
+          }
+          continue;
+        }
+      }
       const ab = (d[di + 3] as number) / 255;
       const ar = sa + ab * (1 - sa);
       const k = sa / ar;
