@@ -45,6 +45,17 @@
       ]
     },
     {
+      "id": "contracapa-01",
+      "role": "fixed",
+      "file": "contracapa-01.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        281,
+        34
+      ]
+    },
+    {
       "id": "wireo-rose-gold-01",
       "role": "fixed",
       "file": "wireo-rose-gold-01.png",
@@ -146,7 +157,7 @@
       "id": "wireo-rose-gold-08",
       "role": "fixed",
       "file": "wireo-rose-gold-08.png",
-      "opacity": 1.0,
+      "opacity": 0.702,
       "blend": "normal",
       "offset": [
         913,
@@ -286,7 +297,7 @@
       "id": "wireo-branco-08",
       "role": "fixed",
       "file": "wireo-branco-08.png",
-      "opacity": 1.0,
+      "opacity": 0.702,
       "blend": "normal",
       "offset": [
         913,
@@ -398,7 +409,7 @@
       "id": "wireo-preto-06",
       "role": "fixed",
       "file": "wireo-preto-06.png",
-      "opacity": 1.0,
+      "opacity": 0.702,
       "blend": "normal",
       "offset": [
         913,
@@ -587,7 +598,7 @@
       "opacity": 1.0,
       "blend": "normal",
       "offset": [
-        816,
+        814,
         19
       ],
       "when": {
@@ -629,7 +640,7 @@
       "opacity": 1.0,
       "blend": "normal",
       "offset": [
-        809,
+        808,
         21
       ],
       "when": {
@@ -671,8 +682,8 @@
       "opacity": 1.0,
       "blend": "normal",
       "offset": [
-        816,
-        21
+        810,
+        20
       ],
       "when": {
         "elastico": "laranja"

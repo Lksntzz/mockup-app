@@ -12,10 +12,14 @@ from pathlib import Path
 
 from psd_tools import PSDImage
 
+sys_path_tools = Path(__file__).resolve().parent
+if str(sys_path_tools) not in sys.path:
+    sys.path.insert(0, str(sys_path_tools))
+from effects import aplicar_efeitos  # noqa: E402
+
 warnings.filterwarnings("ignore")
 
 BLEND = {"NORMAL": "normal", "MULTIPLY": "multiply", "COLOR_BURN": "color-burn"}
-MARGEM_EFEITOS = 40  # sombras e relevos podem passar da borda da camada
 
 OPCOES = {
     "wireo": [
@@ -40,7 +44,7 @@ OPCOES = {
 }
 DEFAULTS = {"wireo": "preto", "elastico": "preto", "tassel": "branco"}
 GRUPO_DE_ACESSORIO = {"WIRE-O": "wireo", "TASSEL": "tassel", "GRUPO ELASTICOS": "elastico"}
-IGNORADOS = {"CONTRA CAPA", "MARCA D AGUA", "MARCA D'ÁGUA"}
+IGNORADOS = {"MARCA D AGUA", "MARCA D'ÁGUA"}
 
 
 def _id_da_opcao(nome_grupo: str) -> str:
@@ -50,11 +54,11 @@ def _id_da_opcao(nome_grupo: str) -> str:
     return nome.replace(" ", "-")
 
 
-def _tem_efeito_ativo(camada) -> bool:
+def _efeitos_ativos(camada) -> list:
     try:
-        return any(getattr(e, "enabled", False) for e in camada.effects)
+        return [e for e in camada.effects if getattr(e, "enabled", False)]
     except Exception:
-        return False
+        return []
 
 
 def _ancestrais(camada):
@@ -64,16 +68,10 @@ def _ancestrais(camada):
         pai = pai.parent
 
 
-def _renderizar(camada, largura: int, altura: int):
-    """Devolve (imagem RGBA, (x, y), opacidade_ja_aplicada) cortada ao canvas, ou None."""
-    efeitos = _tem_efeito_ativo(camada)
-    if efeitos:
-        vp = (
-            camada.left - MARGEM_EFEITOS,
-            camada.top - MARGEM_EFEITOS,
-            camada.right + MARGEM_EFEITOS,
-            camada.bottom + MARGEM_EFEITOS,
-        )
+def _imagem_base(camada):
+    """(imagem RGBA sem efeitos, (x, y)) da camada como ela é, sem sombras nem relevo."""
+    if camada.kind == "smartobject":
+        vp = (camada.left, camada.top, camada.right, camada.bottom)
         # o psd-tools não renderiza camadas dentro de grupos ocultos: liga os grupos só durante a leitura
         pais = list(_ancestrais(camada))
         antes = [p.visible for p in pais]
@@ -84,13 +82,24 @@ def _renderizar(camada, largura: int, altura: int):
         finally:
             for p, v in zip(pais, antes):
                 p.visible = v
-        x, y = vp[0], vp[1]
-    else:
-        img = camada.topil()
-        x, y = camada.left, camada.top
+        return img, (vp[0], vp[1])
+    return camada.topil(), (camada.left, camada.top)
+
+
+def _renderizar(camada, largura: int, altura: int):
+    """Devolve (imagem RGBA com os efeitos de camada, (x, y)) cortada ao canvas, ou None.
+
+    A opacidade da camada NÃO é aplicada aqui: o motor aplica `opacity` sobre a camada inteira, efeitos inclusos
+    (como o Photoshop faz).
+    """
+    img, (x, y) = _imagem_base(camada)
     if img is None:
         return None
     img = img.convert("RGBA")
+    efeitos = _efeitos_ativos(camada)
+    if efeitos:
+        img, margem = aplicar_efeitos(img, efeitos)
+        x, y = x - margem, y - margem
 
     # corta ao canvas
     x0, y0 = max(x, 0), max(y, 0)
@@ -105,7 +114,7 @@ def _renderizar(camada, largura: int, altura: int):
     if caixa is None:
         return None
     img = img.crop(caixa)
-    return img, (x + caixa[0], y + caixa[1]), efeitos
+    return img, (x + caixa[0], y + caixa[1])
 
 
 def export_pack(psd_path, out_dir) -> dict:
@@ -122,14 +131,14 @@ def export_pack(psd_path, out_dir) -> dict:
     def adicionar(camada, prefixo: str, when=None, id_fixo=None):
         if not camada.visible:
             return
-        if camada.kind not in ("pixel",):
+        if camada.kind not in ("pixel", "smartobject"):
             raise ValueError(f"camada '{camada.name}' do tipo {camada.kind} não é suportada")
         if camada.blend_mode.name not in BLEND:
             raise ValueError(f"modo de mistura {camada.blend_mode.name} da camada '{camada.name}' não é suportado")
         r = _renderizar(camada, largura, altura)
         if r is None:
             return
-        img, (x, y), opacidade_ja_aplicada = r
+        img, (x, y) = r
         contador[prefixo] = contador.get(prefixo, 0) + 1
         ident = id_fixo or f"{prefixo}-{contador[prefixo]:02d}"
         arquivo = f"{ident}.png"
@@ -138,7 +147,7 @@ def export_pack(psd_path, out_dir) -> dict:
             "id": ident,
             "role": "fixed",
             "file": arquivo,
-            "opacity": 1.0 if opacidade_ja_aplicada else round(camada.opacity / 255, 4),
+            "opacity": round(camada.opacity / 255, 4),
             "blend": BLEND[camada.blend_mode.name],
             "offset": [x, y],
         }
@@ -179,6 +188,9 @@ def export_pack(psd_path, out_dir) -> dict:
                 "mask": {"file": nome_mascara, "offset": [mascara.bbox[0], mascara.bbox[1]]},
             }
             stack.append({"id": "arte", "role": "art", "opacity": 1.0, "blend": "normal", "offset": [0, 0]})
+        elif nome == "CONTRA CAPA":
+            for c in grupo:
+                adicionar(c, "contracapa")
         elif nome == "ATIVAR COM WIREO ROSE":
             for c in grupo:
                 adicionar(c, "rose-extra", when={"wireo": "rose-gold"})

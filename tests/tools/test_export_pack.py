@@ -86,8 +86,17 @@ def test_camadas_de_cor_so_aparecem_com_a_escolha_certa(pack):
             assert camadas, f"{acc}/{opcao['id']} sem camada"
 
 
-def test_nao_inclui_contra_capa_nem_marca_dagua(pack):
-    _, d = pack
-    for c in d["stack"]:
-        assert "contra" not in c["id"].lower()
-        assert "marca" not in c["id"].lower()
+def test_inclui_contra_capa_com_sombra_interna_e_nao_inclui_marca_dagua(pack):
+    """A contra capa é onde mora a sombra interna que escurece a lateral das páginas (visível ao lado da capa)."""
+    pasta, d = pack
+    ids = [c["id"].lower() for c in d["stack"]]
+    assert "contracapa-01" in ids
+    assert not any("marca" in i for i in ids)
+    from PIL import Image
+    c = next(c for c in d["stack"] if c["id"] == "contracapa-01")
+    img = Image.open(pasta / "layers" / c["file"]).convert("RGBA")
+    # perto da borda direita a camada é escurecida pela sombra interna (não é branco puro)
+    ox, oy = c["offset"]
+    y = 600 - oy
+    borda = next(x for x in range(img.width - 1, 0, -1) if img.getpixel((x, y))[3] > 200)
+    assert img.getpixel((borda - 1, y))[0] < 245
