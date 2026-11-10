@@ -13,7 +13,7 @@ export interface CamadaBruta {
 }
 
 // dist/main/main.js → ../../pack, tanto em desenvolvimento quanto dentro do app instalado
-const PACOTES = ['especificacao'] as const;
+const PACOTES = ['especificacao', 'verso'] as const;
 const pastaDoPacote = (nome?: string) => {
   if (nome !== undefined && !(PACOTES as readonly string[]).includes(nome)) throw new Error('Pacote desconhecido.');
   return nome ? join(__dirname, '..', '..', 'pack', nome) : join(__dirname, '..', '..', 'pack');

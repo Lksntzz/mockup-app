@@ -12,7 +12,9 @@ export interface ExportExtra {
   suffix: string;
   pack: Pack;
   layers: Map<string, Raster>;
-  variant: string;
+  variant?: string;
+  /** Escolhe as artes e as cores desta imagem a partir da capa; devolve null para pular a capa (ex.: sem página par). */
+  montar?: (capa: ExportCapa) => ExportCapa | null;
 }
 
 export interface ExportOptions {
@@ -64,7 +66,15 @@ export async function exportAll(opts: ExportOptions): Promise<{ written: string[
   opts.capas.forEach((capa, i) => {
     if (!opts.semFrente) tarefas.push({ destino: join(opts.pasta, exportName(opts.pdfName, i + 1)), capa, pack: opts.pack, layers: opts.layers });
     for (const e of opts.extras ?? []) {
-      tarefas.push({ destino: join(opts.pasta, exportName(opts.pdfName, i + 1, e.suffix)), capa, pack: e.pack, layers: e.layers, variant: e.variant });
+      const montada = e.montar ? e.montar(capa) : capa;
+      if (!montada) continue;
+      tarefas.push({
+        destino: join(opts.pasta, exportName(opts.pdfName, i + 1, e.suffix)),
+        capa: montada,
+        pack: e.pack,
+        layers: e.layers,
+        ...(e.variant ? { variant: e.variant } : {}),
+      });
     }
   });
   const total = tarefas.length;

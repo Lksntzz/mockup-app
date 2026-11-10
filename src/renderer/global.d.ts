@@ -21,7 +21,7 @@ export interface MockupApi {
   verificarAtualizacao(): Promise<void>;
   instalarAtualizacao(): Promise<void>;
   aoMudarAtualizacao(cb: (estado: EstadoAtualizacao) => void): void;
-  carregarPacote(nome?: 'especificacao'): Promise<{ json: string; camadas: Record<string, CamadaBruta> }>;
+  carregarPacote(nome?: 'especificacao' | 'verso'): Promise<{ json: string; camadas: Record<string, CamadaBruta> }>;
   escolherPdf(): Promise<ArquivoPdf | null>;
   lerPdf(caminho: string): Promise<ArquivoPdf>;
   caminhoDoArquivo(arquivo: File): string;

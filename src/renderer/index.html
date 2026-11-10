@@ -41,6 +41,10 @@
             <div id="trabalhos"></div>
           </section>
         </div>
+        <div id="abas" class="abas" role="group" aria-label="Qual lado mostrar" hidden>
+          <button id="aba-frente" type="button" aria-pressed="true">Frente</button>
+          <button id="aba-verso" type="button" aria-pressed="false">Verso</button>
+        </div>
         <canvas id="previa" class="previa" hidden></canvas>
       </section>
       <aside id="painel" class="coluna painel" aria-label="Cores da capa" hidden>
@@ -51,6 +55,7 @@
           <label><input id="saida-frente" type="checkbox" checked /> Frente</label>
           <label><input id="saida-vt" type="checkbox" /> Especificação VT (com envelope)</label>
           <label><input id="saida-sem-canguru" type="checkbox" /> Especificação sem canguru</label>
+          <label><input id="saida-verso" type="checkbox" /> Verso (página par do PDF)</label>
         </fieldset>
         <div class="acoes">
           <button id="copiar" class="secundario" type="button">Copiar estas cores para todas as capas</button>

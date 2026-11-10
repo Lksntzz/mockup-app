@@ -3,6 +3,8 @@ import type { Choices, Raster } from '../engine/types';
 export interface PreviewRequest {
   capa: number;
   choices: Choices;
+  /** Qual mockup mostrar; sem isso, a frente. */
+  modo?: 'frente' | 'verso';
 }
 
 /**

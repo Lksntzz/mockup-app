@@ -1,8 +1,9 @@
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { createPreviewScheduler } from '../app/scheduler';
-import { copyToAll, createState, select, setColor, type AppState } from '../app/state';
+import { copyToAll, createState, select, setColor, type AppState, type CapaState } from '../app/state';
+import { escolhasDoVerso, paraRazao } from '../app/verso';
 import { compose, isAvailable } from '../engine/compose';
-import { exportAll, type ExportExtra } from '../export/exporter';
+import { exportAll, type ExportCapa, type ExportExtra } from '../export/exporter';
 import type { Accessory, Pack, Raster } from '../engine/types';
 import { cropMargins, cropToBox, widthForArt } from '../pdf/crop';
 import { coverCrop } from '../pdf/fit';
@@ -29,6 +30,7 @@ interface InfoDaCapa {
 
 let pacote: { pack: Pack; layers: Map<string, Raster> } | null = null;
 let estado: AppState | null = null;
+let modoPrevia: 'frente' | 'verso' = 'frente';
 let info: InfoDaCapa[] = [];
 let contadorDePrevias = 0;
 let nomeDoPdf = '';
@@ -61,6 +63,7 @@ function definirEstado(e: 'carregando-pacote' | 'vazio' | 'carregando' | 'pronto
   $('previa').hidden = e !== 'pronto';
   $('painel').hidden = e !== 'pronto';
   $('voltar').hidden = e !== 'pronto';
+  $('abas').hidden = e !== 'pronto';
   $('zona').toggleAttribute('aria-disabled', e !== 'vazio');
 }
 
@@ -75,12 +78,57 @@ function textoDoErro(e: unknown): string {
   return `Não consegui abrir o PDF: ${msg}`;
 }
 
+// Pacotes grandes (especificação, verso) só são lidos quando alguém usa.
+const pacotesCarregados = new Map<string, { pack: Pack; layers: Map<string, Raster> }>();
+async function carregarPacoteNomeado(nome: 'especificacao' | 'verso'): Promise<{ pack: Pack; layers: Map<string, Raster> }> {
+  const guardado = pacotesCarregados.get(nome);
+  if (guardado) return guardado;
+  const { json, camadas } = await api.carregarPacote(nome);
+  const layers = new Map<string, Raster>();
+  for (const [arquivo, c] of Object.entries(camadas)) {
+    layers.set(arquivo, { width: c.width, height: c.height, data: new Uint8ClampedArray(c.data.buffer, c.data.byteOffset, c.data.length) });
+  }
+  const carregado = { pack: JSON.parse(json) as Pack, layers };
+  pacotesCarregados.set(nome, carregado);
+  return carregado;
+}
+
+const razaoDaFaixa = (p: Pack): number => (p.backArt ? p.backArt.size.width / p.backArt.size.height : p.artSize.width / p.artSize.height);
+/** A página par é guardada na proporção da capa; a contra capa da frente pede a proporção dela. */
+const versoDaFrente = (back: Raster | undefined): Raster | undefined =>
+  back && pacote ? paraRazao(back, razaoDaFaixa(pacote.pack)) : back;
+
+function atualizarAbas(): void {
+  const capa = estado?.capas[estado.selecionada];
+  const temVerso = !!capa?.back;
+  const verso = modoPrevia === 'verso' && temVerso;
+  $<HTMLButtonElement>('aba-verso').disabled = !temVerso;
+  $('aba-verso').title = temVerso ? '' : 'Esta capa não tem página par no PDF.';
+  $('aba-frente').setAttribute('aria-pressed', String(!verso));
+  $('aba-verso').setAttribute('aria-pressed', String(verso));
+  const algumVerso = !!estado?.capas.some((c) => c.back);
+  const caixaVerso = $<HTMLInputElement>('saida-verso');
+  caixaVerso.disabled = !algumVerso;
+  if (!algumVerso) caixaVerso.checked = false;
+  caixaVerso.title = algumVerso ? '' : 'Este PDF não tem páginas pares.';
+}
+for (const [id, modo] of [['aba-frente', 'frente'], ['aba-verso', 'verso']] as const) {
+  $(id).addEventListener('click', () => {
+    modoPrevia = modo;
+    pedirPrevia();
+  });
+}
+
 const agendador = createPreviewScheduler(
   async (req) => {
     await proximoQuadro();
     const capa = estado?.capas[req.capa];
     if (!pacote || !capa) throw new Error('capa não encontrada');
-    return compose(pacote.pack, pacote.layers, capa.art, req.choices, capa.back);
+    if (req.modo === 'verso' && capa.back) {
+      const v = await carregarPacoteNomeado('verso');
+      return compose(v.pack, v.layers, capa.back, escolhasDoVerso(v.pack, req.choices), paraRazao(capa.art, razaoDaFaixa(v.pack)));
+    }
+    return compose(pacote.pack, pacote.layers, capa.art, req.choices, versoDaFrente(capa.back));
   },
   (capa, resultado) => {
     if (!estado || capa !== estado.selecionada) return;
@@ -93,7 +141,10 @@ const agendador = createPreviewScheduler(
 function pedirPrevia(): void {
   if (!estado) return;
   const capa = estado.capas[estado.selecionada];
-  if (capa) agendador.request({ capa: estado.selecionada, choices: { ...capa.choices } });
+  if (!capa) return;
+  const modo = modoPrevia === 'verso' && capa.back ? 'verso' : 'frente';
+  agendador.request({ capa: estado.selecionada, choices: { ...capa.choices }, modo });
+  atualizarAbas();
 }
 
 function desenharLista(): void {
@@ -205,7 +256,7 @@ async function abrirPdf(arquivo: ArquivoPdf): Promise<void> {
     if (paginas.length === 0) throw new PdfError('corrupt', 'O PDF não tem páginas.');
     const artes: Raster[] = [];
     const versos: (Raster | null)[] = [];
-    const razaoDoVerso = pacote.pack.backArt ? pacote.pack.backArt.size.width / pacote.pack.backArt.size.height : null;
+    const temContraCapa = !!pacote.pack.backArt;
     const novaInfo: InfoDaCapa[] = [];
     for (const [i, n] of paginas.entries()) {
       mensagem(`Lendo a capa ${i + 1} de ${paginas.length}…`);
@@ -221,8 +272,9 @@ async function abrirPdf(arquivo: ArquivoPdf): Promise<void> {
       });
       artes.push(coverCrop(recortada, razaoDaCapa));
       // a página par seguinte é o verso: vai para a contra capa
-      if (razaoDoVerso !== null && n + 1 <= doc.pageCount) {
-        versos.push(coverCrop(await lerArteDaPagina(doc, n + 1), razaoDoVerso));
+      // (guardada na proporção da capa: serve de face grande no mockup do verso e é recortada para a contra capa na frente)
+      if (temContraCapa && n + 1 <= doc.pageCount) {
+        versos.push(coverCrop(await lerArteDaPagina(doc, n + 1), razaoDaCapa));
       } else {
         versos.push(null);
       }
@@ -372,24 +424,13 @@ async function codificarPng(r: Raster): Promise<Uint8Array> {
   return new Uint8Array(await blob.arrayBuffer());
 }
 
-// O pacote da especificação é grande: só é lido quando alguém marca uma imagem de especificação.
-let pacoteEspec: { pack: Pack; layers: Map<string, Raster> } | null = null;
-async function carregarEspecificacao(): Promise<{ pack: Pack; layers: Map<string, Raster> }> {
-  if (pacoteEspec) return pacoteEspec;
-  const { json, camadas } = await api.carregarPacote('especificacao');
-  const layers = new Map<string, Raster>();
-  for (const [arquivo, c] of Object.entries(camadas)) {
-    layers.set(arquivo, { width: c.width, height: c.height, data: new Uint8ClampedArray(c.data.buffer, c.data.byteOffset, c.data.length) });
-  }
-  pacoteEspec = { pack: JSON.parse(json) as Pack, layers };
-  return pacoteEspec;
-}
-
 const caixa = (id: string) => $<HTMLInputElement>(id);
 // Sempre fica ao menos uma imagem marcada: desmarcar a última não faz nada.
-for (const id of ['saida-frente', 'saida-vt', 'saida-sem-canguru']) {
+const IDS_SAIDAS = ['saida-frente', 'saida-vt', 'saida-sem-canguru', 'saida-verso'];
+const nenhumaMarcada = () => IDS_SAIDAS.every((id) => !caixa(id).checked);
+for (const id of IDS_SAIDAS) {
   caixa(id).addEventListener('change', () => {
-    if (!caixa('saida-frente').checked && !caixa('saida-vt').checked && !caixa('saida-sem-canguru').checked) {
+    if (nenhumaMarcada()) {
       caixa(id).checked = true;
       mensagem('Deixe ao menos uma imagem marcada.', true);
     } else {
@@ -407,12 +448,35 @@ $('exportar').addEventListener('click', async () => {
       { marcada: caixa('saida-vt').checked, suffix: 'especificacao-vt', variant: 'vt' },
       { marcada: caixa('saida-sem-canguru').checked, suffix: 'especificacao-sem-canguru', variant: 'sem-canguru' },
     ].filter((v) => v.marcada);
-    let extras: ExportExtra[] = [];
-    if (variantes.length > 0) {
+    const querVerso = caixa('saida-verso').checked;
+    const extras: ExportExtra[] = [];
+    if (variantes.length > 0 || querVerso) {
       botao.disabled = true;
-      mensagem('Preparando a especificação…');
-      const espec = await carregarEspecificacao();
-      extras = variantes.map((v) => ({ suffix: v.suffix, variant: v.variant, pack: espec.pack, layers: espec.layers }));
+      mensagem('Preparando as imagens extras…');
+    }
+    if (variantes.length > 0) {
+      const espec = await carregarPacoteNomeado('especificacao');
+      for (const v of variantes) extras.push({ suffix: v.suffix, variant: v.variant, pack: espec.pack, layers: espec.layers });
+    }
+    // a contra capa da frente e da especificação usa a proporção dela; o verso usa a página par inteira como face grande
+    const originais = new Map<ExportCapa, CapaState>();
+    const capasParaFrente = estado.capas.map((c) => {
+      const pronta: ExportCapa = { art: c.art, ...(c.back ? { back: versoDaFrente(c.back) as Raster } : {}), choices: c.choices };
+      originais.set(pronta, c);
+      return pronta;
+    });
+    if (querVerso) {
+      const v = await carregarPacoteNomeado('verso');
+      extras.push({
+        suffix: 'verso',
+        pack: v.pack,
+        layers: v.layers,
+        montar: (pronta) => {
+          const c = originais.get(pronta);
+          if (!c?.back) return null;
+          return { art: c.back, back: paraRazao(c.art, razaoDaFaixa(v.pack)), choices: escolhasDoVerso(v.pack, c.choices) };
+        },
+      });
     }
     botao.disabled = true;
     mensagem('Salvando…');
@@ -422,7 +486,7 @@ $('exportar').addEventListener('click', async () => {
       pasta,
       pack: pacote.pack,
       layers: pacote.layers,
-      capas: estado.capas,
+      capas: capasParaFrente,
       extras,
       semFrente: !caixa('saida-frente').checked,
       encodePng: codificarPng,

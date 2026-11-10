@@ -165,6 +165,27 @@ app.on('browser-window-created', (_e, win) => {
       const cab2 = fs.readFileSync(path.join(pastaMkp, 'CAPAS_capa-01_especificacao-vt.png'));
       conferir(cab2.readUInt32BE(16) === 1200 && cab2.readUInt32BE(20) === 1200, 'a imagem de especificação tem 1200×1200');
       conferir(Buffer.compare(cab2, fs.readFileSync(path.join(pastaMkp, 'CAPAS_capa-01_especificacao-sem-canguru.png'))) !== 0, 'VT e sem canguru são imagens diferentes');
+
+      // verso: a página par do PDF vira o mockup de costas
+      await js("document.getElementById('zona').click()");
+      await ate("document.body.dataset.estado === 'pronto'", 'reabrir para o verso');
+      conferir(!(await js("document.getElementById('aba-verso').disabled")), 'a aba Verso está liberada (o PDF tem páginas pares)');
+      const antesDaPrevia = await js('document.body.dataset.previa');
+      await js("document.getElementById('aba-verso').click()");
+      await ate(`document.body.dataset.previa !== ${JSON.stringify(antesDaPrevia)}`, 'prévia do verso');
+      await foto('7-verso.png');
+      conferir((await js("document.getElementById('aba-verso').getAttribute('aria-pressed')")) === 'true', 'a aba Verso fica marcada');
+      await marcar('saida-verso', true);
+      await marcar('saida-vt', false);
+      await marcar('saida-sem-canguru', false);
+      await marcar('saida-frente', false);
+      await js("document.getElementById('exportar').click()");
+      await ate("document.body.dataset.estado === 'vazio' && !document.getElementById('salvo').hidden", 'conclusão do verso', 240000);
+      const cartao3 = await js("document.getElementById('salvo').textContent");
+      conferir(cartao3.includes('5 mockups'), `o card conta as 5 imagens do verso ("${cartao3.replace(/\s+/g, ' ').trim()}")`);
+      const nomes3 = fs.readdirSync(pastaMkp).sort();
+      conferir(nomes3.length === 20 && nomes3.includes('CAPAS_capa-01_verso.png') && nomes3.includes('CAPAS_capa-05_verso.png'), `gravou o verso de cada capa (${nomes3.length} arquivos)`);
+      conferir(Buffer.compare(fs.readFileSync(path.join(pastaMkp, 'CAPAS_capa-01_verso.png')), fs.readFileSync(path.join(pastaMkp, 'CAPAS_capa-01.png'))) !== 0, 'o verso é diferente da frente');
     } catch (e) {
       conferir(false, `exceção no roteiro: ${e}`);
     }

@@ -214,6 +214,20 @@ describe('exportAll com imagens de especificação', () => {
     expect(png.data[0]).toBe(33);
   });
 
+  test('extra com "montar": usa as artes e cores devolvidas e pula a capa quando devolve null', async () => {
+    const disco = discoFalso();
+    const capas = [0, 1].map((i) => ({ art: solido(4, 4, 40 + i), choices: ESCOLHA }));
+    const r = await exportAll(opcoes(disco, {
+      semFrente: true,
+      capas,
+      extras: [{
+        suffix: 'verso', pack: packEspec, layers: camadasEspec(), variant: 'vt',
+        montar: (capa) => (capa === capas[1] ? null : { art: capa.art, choices: ESCOLHA }),
+      }],
+    }));
+    expect(r.written).toEqual(['/saida/colecao_capa-01_verso.png']);
+  });
+
   test('pergunta sobre sobrescrever considera os arquivos de especificação também', async () => {
     const disco = discoFalso(['/saida/colecao_capa-01_especificacao-vt.png']);
     let perguntou: string[] = [];
