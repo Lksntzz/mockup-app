@@ -132,3 +132,24 @@ body:not([data-estado="pronto"]) #coluna-capas { display: none; }
 .historico-linha .pdf { display: block; font-weight: 600; color: var(--texto); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .historico-linha .detalhe { font-size: 12px; color: var(--suave); }
 .historico-vazio { color: var(--suave); text-align: center; padding: 24px 0; }
+
+/* Modo designer */
+.pastas-config { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; align-items: flex-start; }
+.pastas-config .caminho { color: var(--suave); font-size: 12px; margin-left: 8px; word-break: break-all; }
+.cliente-linha { display: flex; align-items: center; gap: 10px; padding: 10px 14px; margin-bottom: 8px; background: var(--superficie); border: 1px solid var(--borda); border-radius: 10px; box-shadow: var(--sombra); flex-wrap: wrap; }
+.cliente-linha .nome { flex: 1; font-weight: 600; min-width: 140px; }
+.cliente-linha .chegando { color: var(--suave); font-size: 12px; font-style: italic; }
+.qualidade { padding: 10px 12px; margin-bottom: 12px; border-radius: 10px; border: 1px solid var(--borda); font-size: 13px; }
+.qualidade .selo { display: inline-block; padding: 2px 10px; border-radius: 999px; font-weight: 700; margin-bottom: 4px; }
+.qualidade.boa .selo { background: #dff5e6; color: #14663a; }
+.qualidade.limite .selo { background: #fff1d6; color: #8a5a00; }
+.qualidade.baixa .selo { background: #fde8ed; color: var(--erro); }
+.qualidade .nota { color: var(--suave); font-size: 11px; margin-top: 4px; }
+.qualidade button { margin-top: 6px; }
+
+.tela-designer { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; background: var(--acento-escuro, #1f1a5c); color: #fff; }
+.tela-designer[hidden] { display: none; }
+.tela-designer .designer-titulo { font-size: 26px; font-weight: 700; letter-spacing: .3px; }
+.tela-designer .giro { width: 44px; height: 44px; border-radius: 50%; border: 4px solid rgba(255,255,255,.25); border-top-color: #fff; animation: gira 0.9s linear infinite; }
+.tela-designer .giro[hidden] { display: none; }
+@keyframes gira { to { transform: rotate(360deg); } }

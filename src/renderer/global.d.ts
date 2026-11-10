@@ -1,5 +1,7 @@
 import type { EntradaHistorico } from '../app/historico';
 import type { Rascunho } from '../app/rascunhos';
+import type { ConfigDesigner } from '../main/config-designer';
+import type { ClientePendente, ResultadoMover } from '../main/pasta-fluxo';
 export interface CamadaBruta {
   width: number;
   height: number;
@@ -26,6 +28,11 @@ export interface MockupApi {
   listarRascunhos(): Promise<Rascunho[]>;
   salvarRascunho(r: Rascunho): Promise<void>;
   removerRascunho(caminho: string): Promise<void>;
+  designerEstado(): Promise<ConfigDesigner>;
+  designerLigar(ligado: boolean): Promise<ConfigDesigner>;
+  designerEscolherPasta(qual: 'pasta1' | 'pasta2'): Promise<ConfigDesigner>;
+  fluxoListar(): Promise<ClientePendente[]>;
+  fluxoMover(caminho: string): Promise<ResultadoMover>;
   estadoAtualizacao(): Promise<EstadoAtualizacao>;
   verificarAtualizacao(): Promise<void>;
   instalarAtualizacao(): Promise<void>;

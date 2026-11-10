@@ -39,7 +39,7 @@ export interface ExportOptions {
 
 /** "CAPAS.pdf", 1 → "CAPAS_capa-01.png". Mantém acentos; remove o que o Windows recusa. */
 export function exportName(pdfName: string, index: number, suffix?: string): string {
-  let base = pdfName.replace(/\.pdf$/i, '');
+  let base = pdfName.replace(/\.(pdf|png|jpe?g)$/i, '');
   base = base.replace(/[:*?"<>|/\\]/g, '').replace(/\s+/g, '_');
   // Windows recusa nomes terminando em ponto ou espaço
   base = base.replace(/[. _]+$/g, '').replace(/^_+/, '');

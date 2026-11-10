@@ -14,6 +14,8 @@ import { openPdf, PdfError } from '../pdf/reader';
 import type { ArquivoPdf, EstadoAtualizacao, MockupApi } from './global';
 import { criarTrabalhos } from '../app/trabalhos';
 import type { Rascunho } from '../app/rascunhos';
+import { avaliarQualidade, AREA_PADRAO_MM, LIMITES_PADRAO, pedidoDeNovaArte } from '../app/qualidade';
+import type { ConfigDesigner } from '../main/config-designer';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('./pdf.worker.mjs', document.baseURI).href;
 
@@ -27,6 +29,8 @@ const TOLERANCIA_DE_PROPORCAO = 0.1;
 
 interface InfoDaCapa {
   pagina: number;
+  /** Tamanho original da imagem (só para PNG/JPG); em PDF não é medido. */
+  pixels?: { largura: number; altura: number };
   semVerso: boolean;
   avisoProporcao: boolean;
 }
@@ -261,6 +265,7 @@ function desenharPainel(): void {
     bloco.append(titulo, bolinhas, escolhida);
     grupos.append(bloco);
   }
+  desenharQualidade();
 }
 
 type PdfAberto = Awaited<ReturnType<typeof openPdf>>;
@@ -270,6 +275,23 @@ async function lerArteDaPagina(doc: PdfAberto, n: number): Promise<Raster> {
   const caixa = await doc.artBox(n);
   const pagina = await doc.renderPage(n, widthForArt(1200, caixa));
   return cropMargins(caixa ? cropToBox(pagina, caixa) : pagina);
+}
+
+const ehImagem = (nome: string) => /\.(png|jpe?g)$/i.test(nome);
+
+/** Lê PNG/JPG como pixels (sobre fundo branco, para imagens com transparência). */
+async function lerImagem(bytes: Uint8Array): Promise<Raster> {
+  const bmp = await createImageBitmap(new Blob([new Uint8Array(bytes)]));
+  const c = document.createElement('canvas');
+  c.width = bmp.width;
+  c.height = bmp.height;
+  const ctx = c.getContext('2d')!;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.drawImage(bmp, 0, 0);
+  bmp.close();
+  const d = ctx.getImageData(0, 0, c.width, c.height);
+  return { width: c.width, height: c.height, data: d.data };
 }
 
 /** Dados de um trabalho do histórico que está sendo reaberto para edição. */
@@ -298,35 +320,48 @@ async function abrirPdf(arquivo: ArquivoPdf, retomada?: Retomada): Promise<void>
   progresso(0);
   try {
     const razaoDaCapa = pacote.pack.artSize.width / pacote.pack.artSize.height;
-    const doc = await openPdf(bytes);
-    const paginas = capaPageNumbers(doc.pageCount);
-    if (paginas.length === 0) throw new PdfError('corrupt', 'O PDF não tem páginas.');
     const artes: Raster[] = [];
     const versos: (Raster | null)[] = [];
-    const temContraCapa = !!pacote.pack.backArt;
     const novaInfo: InfoDaCapa[] = [];
-    for (const [i, n] of paginas.entries()) {
-      mensagem(`Lendo a capa ${i + 1} de ${paginas.length}…`);
-      progresso(i / paginas.length);
-      await proximoQuadro();
-      // a arte é a imagem de cima da página (em PDFs com fundo esticado + arte menor, é só a menor)
-      const recortada = await lerArteDaPagina(doc, n);
-      const proporcao = recortada.width / recortada.height;
+    if (ehImagem(nome)) {
+      mensagem('Lendo a imagem…');
+      const img = await lerImagem(bytes);
+      artes.push(reduzir(coverCrop(img, razaoDaCapa), 1200));
+      versos.push(null);
       novaInfo.push({
-        pagina: n,
-        semVerso: n + 1 > doc.pageCount,
-        avisoProporcao: Math.abs(proporcao / razaoDaCapa - 1) > TOLERANCIA_DE_PROPORCAO,
+        pagina: 1,
+        semVerso: true,
+        avisoProporcao: Math.abs(img.width / img.height / razaoDaCapa - 1) > TOLERANCIA_DE_PROPORCAO,
+        pixels: { largura: img.width, altura: img.height },
       });
-      artes.push(coverCrop(recortada, razaoDaCapa));
-      // a página par seguinte é o verso: vai para a contra capa
-      // (guardada na proporção da capa: serve de face grande no mockup do verso e é recortada para a contra capa na frente)
-      if (temContraCapa && n + 1 <= doc.pageCount) {
-        versos.push(coverCrop(await lerArteDaPagina(doc, n + 1), razaoDaCapa));
-      } else {
-        versos.push(null);
+    } else {
+      const doc = await openPdf(bytes);
+      const paginas = capaPageNumbers(doc.pageCount);
+      if (paginas.length === 0) throw new PdfError('corrupt', 'O PDF não tem páginas.');
+      const temContraCapa = !!pacote.pack.backArt;
+      for (const [i, n] of paginas.entries()) {
+        mensagem(`Lendo a capa ${i + 1} de ${paginas.length}…`);
+        progresso(i / paginas.length);
+        await proximoQuadro();
+        // a arte é a imagem de cima da página (em PDFs com fundo esticado + arte menor, é só a menor)
+        const recortada = await lerArteDaPagina(doc, n);
+        const proporcao = recortada.width / recortada.height;
+        novaInfo.push({
+          pagina: n,
+          semVerso: n + 1 > doc.pageCount,
+          avisoProporcao: Math.abs(proporcao / razaoDaCapa - 1) > TOLERANCIA_DE_PROPORCAO,
+        });
+        artes.push(coverCrop(recortada, razaoDaCapa));
+        // a página par seguinte é o verso: vai para a contra capa
+        // (guardada na proporção da capa: serve de face grande no mockup do verso e é recortada para a contra capa na frente)
+        if (temContraCapa && n + 1 <= doc.pageCount) {
+          versos.push(coverCrop(await lerArteDaPagina(doc, n + 1), razaoDaCapa));
+        } else {
+          versos.push(null);
+        }
       }
+      await doc.close();
     }
-    await doc.close();
     estado = createState(pacote.pack, artes, versos);
     let aviso = '';
     if (retomada) {
@@ -365,6 +400,9 @@ async function abrirPdf(arquivo: ArquivoPdf, retomada?: Retomada): Promise<void>
 /** Card de confirmação: diz que salvou e quantos, sem mostrar caminho de pasta, e deixa escolher entre continuar ou terminar. */
 function mostrarSalvo(quantos: number): void {
   $('salvo-detalhe').textContent = quantos === 1 ? '1 mockup' : `${quantos} mockups`;
+  const dentroDaPasta1 = !!designer.pasta1 && semBarra(paiDe(paiDe(caminhoDoPdf))) === semBarra(designer.pasta1);
+  $('salvo-aprovar').hidden = !(designer.designer && dentroDaPasta1 && designer.pasta2);
+  $<HTMLButtonElement>('salvo-aprovar').disabled = false;
   $('salvo').hidden = false;
   $('cortina').hidden = false;
   $('salvo-continuar').focus();
@@ -531,6 +569,7 @@ async function iniciar(): Promise<void> {
       layers.set(arquivo, { width: c.width, height: c.height, data: new Uint8ClampedArray(c.data.buffer, c.data.byteOffset, c.data.length) });
     }
     pacote = { pack: JSON.parse(json) as Pack, layers };
+    void api.designerEstado().then(aplicarDesigner, () => undefined);
     void api.operador().then((nome) => {
       $('operador').textContent = nome;
       $('historico-operador').textContent = nome;
@@ -644,15 +683,211 @@ async function desenharHistorico(): Promise<void> {
   }
 }
 
-function mostrarAba(aba: 'novo' | 'historico'): void {
+function mostrarAba(aba: 'novo' | 'historico' | 'pasta1'): void {
+  if (aba === 'pasta1' && !designer.designer) aba = 'novo';
   $('inicio-novo').hidden = aba !== 'novo';
   $('historico').hidden = aba !== 'historico';
+  $('pasta1').hidden = aba !== 'pasta1';
   $('tab-novo').setAttribute('aria-pressed', String(aba === 'novo'));
   $('tab-historico').setAttribute('aria-pressed', String(aba === 'historico'));
+  $('tab-pasta1').setAttribute('aria-pressed', String(aba === 'pasta1'));
   if (aba === 'historico') void desenharHistorico();
+  if (aba === 'pasta1') void desenharPasta1();
 }
 $('tab-novo').addEventListener('click', () => mostrarAba('novo'));
 $('tab-historico').addEventListener('click', () => mostrarAba('historico'));
+$('tab-pasta1').addEventListener('click', () => mostrarAba('pasta1'));
+
+// ---- Modo designer (só aparece para quem liga; desligado por padrão) ----
+let designer: ConfigDesigner = { designer: false };
+
+const semBarra = (p: string) => p.replace(/[\\/]+$/, '').replace(/\//g, '\\').toLowerCase();
+const paiDe = (p: string) => p.slice(0, Math.max(p.lastIndexOf('\\'), p.lastIndexOf('/')));
+const nomeDoCaminho = (p: string) => p.slice(Math.max(p.lastIndexOf('\\'), p.lastIndexOf('/')) + 1);
+
+function aplicarDesigner(c: ConfigDesigner): void {
+  designer = c;
+  $('tab-pasta1').hidden = !c.designer;
+  if (!c.designer && $('pasta1').hidden === false) mostrarAba('novo');
+  desenharQualidade();
+}
+
+const NOME_DO_DESIGNER = 'LK';
+const esperar = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+let trocandoModo = false;
+
+/** Shift+D liga (ou desliga) o Modo designer, com uma tela de "carregando" e as boas-vindas. */
+async function trocarModoDesigner(): Promise<void> {
+  if (trocandoModo) return;
+  trocandoModo = true;
+  const tela = $('tela-designer');
+  const titulo = $('designer-titulo');
+  const giro = $('designer-giro');
+  const ligar = !designer.designer;
+  try {
+    giro.hidden = false;
+    titulo.textContent = ligar ? 'Carregando modo designer…' : 'Saindo do modo designer…';
+    tela.hidden = false;
+    const [config] = await Promise.all([api.designerLigar(ligar), esperar(1200)]);
+    aplicarDesigner(config);
+    if (ligar) {
+      await desenharPasta1();
+      giro.hidden = true;
+      titulo.textContent = `Bem-vindo, ${NOME_DO_DESIGNER}`;
+      await esperar(1600);
+    }
+  } catch (e) {
+    mensagem(textoDoErro(e), true);
+  } finally {
+    tela.hidden = true;
+    trocandoModo = false;
+  }
+}
+document.addEventListener('keydown', (e) => {
+  if (e.repeat || !e.shiftKey || e.ctrlKey || e.altKey || e.metaKey || e.key.toLowerCase() !== 'd') return;
+  const alvo = e.target as HTMLElement | null;
+  if (alvo && ['INPUT', 'TEXTAREA', 'SELECT'].includes(alvo.tagName)) return;
+  void trocarModoDesigner();
+});
+
+function desenharQualidade(): void {
+  const el = $('qualidade');
+  const dados = estado ? info[estado.selecionada] : undefined;
+  if (!designer.designer || !dados) {
+    el.hidden = true;
+    return;
+  }
+  el.hidden = false;
+  el.replaceChildren();
+  if (!dados.pixels) {
+    el.className = 'qualidade';
+    el.textContent = 'Qualidade medida só para imagens PNG/JPG. Em PDF ainda não é medida: confira a arte original.';
+    return;
+  }
+  const r = avaliarQualidade(dados.pixels, AREA_PADRAO_MM, LIMITES_PADRAO);
+  el.className = `qualidade ${r.nivel}`;
+  const selo = document.createElement('div');
+  selo.className = 'selo';
+  selo.textContent = r.nivel === 'boa' ? 'Qualidade boa' : r.nivel === 'limite' ? 'No limite: pode serrilhar' : 'Baixa: vai serrilhar';
+  const detalhe = document.createElement('div');
+  detalhe.textContent = `${dados.pixels.largura} × ${dados.pixels.altura} px · cerca de ${Math.round(r.dpi)} DPI em ${AREA_PADRAO_MM.largura} × ${AREA_PADRAO_MM.altura} mm`;
+  const nota = document.createElement('div');
+  nota.className = 'nota';
+  nota.textContent = 'Estimativa: o tamanho da área e os limites ainda não foram calibrados.';
+  el.append(selo, detalhe, nota);
+  if (r.nivel !== 'boa') {
+    const botao = document.createElement('button');
+    botao.type = 'button';
+    botao.className = 'secundario';
+    botao.textContent = 'Copiar pedido de nova arte';
+    botao.addEventListener('click', () => {
+      void navigator.clipboard.writeText(pedidoDeNovaArte(dados.pixels!, AREA_PADRAO_MM, LIMITES_PADRAO)).then(
+        () => mensagem('Texto copiado. É só colar na conversa com o admin.'),
+        () => mensagem('Não consegui copiar o texto.', true),
+      );
+    });
+    el.append(botao);
+  }
+}
+
+async function desenharPasta1(): Promise<void> {
+  const alvo = $('pasta1-lista');
+  $('caminho-pasta1').textContent = designer.pasta1 ?? 'não escolhida';
+  $('caminho-pasta2').textContent = designer.pasta2 ?? 'não escolhida';
+  alvo.replaceChildren();
+  const aviso = (texto: string) => {
+    const p = document.createElement('p');
+    p.className = 'historico-vazio';
+    p.textContent = texto;
+    alvo.append(p);
+  };
+  if (!designer.pasta1) return aviso('Escolha a Pasta 1 para ver as artes a fazer.');
+  let lista: Awaited<ReturnType<MockupApi['fluxoListar']>> = [];
+  try {
+    lista = await api.fluxoListar();
+  } catch (e) {
+    return aviso(textoDoErro(e));
+  }
+  if (lista.length === 0) return aviso('Nenhuma arte a fazer. Todas as pastas já têm o MKP.');
+  for (const c of lista) {
+    const linha = document.createElement('div');
+    linha.className = 'cliente-linha';
+    const nome = document.createElement('span');
+    nome.className = 'nome';
+    nome.textContent = c.nome;
+    linha.append(nome);
+    if (c.chegando) {
+      const e = document.createElement('span');
+      e.className = 'chegando';
+      e.textContent = 'chegando… (arquivos ainda sendo enviados)';
+      linha.append(e);
+    }
+    if (c.artes.length === 0) {
+      const e = document.createElement('span');
+      e.className = 'chegando';
+      e.textContent = 'sem PDF/JPG/PNG na pasta';
+      linha.append(e);
+    }
+    for (const arte of c.artes) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'primario';
+      b.textContent = c.artes.length === 1 ? 'Abrir' : `Abrir ${nomeDoCaminho(arte)}`;
+      b.title = nomeDoCaminho(arte);
+      b.addEventListener('click', () => {
+        void (async () => {
+          try {
+            const arquivo = await api.lerPdf(arte);
+            mostrarAba('novo');
+            await abrirPdf(arquivo);
+          } catch (e) {
+            mensagem(textoDoErro(e), true);
+          }
+        })();
+      });
+      linha.append(b);
+    }
+    alvo.append(linha);
+  }
+}
+
+for (const qual of ['pasta1', 'pasta2'] as const) {
+  $(`escolher-${qual}`).addEventListener('click', () => {
+    void api.designerEscolherPasta(qual).then((c) => {
+      aplicarDesigner(c);
+      void desenharPasta1();
+    }, (e) => mensagem(textoDoErro(e), true));
+  });
+}
+$('atualizar-pasta1').addEventListener('click', () => void desenharPasta1());
+// a lista se atualiza sozinha enquanto a aba está aberta
+window.setInterval(() => {
+  if (designer.designer && !$('pasta1').hidden) void desenharPasta1();
+}, 60_000);
+
+$('salvo-aprovar').addEventListener('click', () => {
+  const botao = $<HTMLButtonElement>('salvo-aprovar');
+  botao.disabled = true;
+  void api.fluxoMover(paiDe(caminhoDoPdf)).then(
+    (r) => {
+      if (!r.ok) {
+        $('salvo-detalhe').textContent = r.motivo;
+        botao.disabled = false;
+        return;
+      }
+      fecharSalvo();
+      descartarRascunho(caminhoDoPdf);
+      trabalhos.remover(caminhoDoPdf);
+      idsDoHistorico.delete(caminhoDoPdf);
+      irParaInicio();
+      mensagem('Pasta enviada para Aprovar.');
+    },
+    (e) => {
+      $('salvo-detalhe').textContent = textoDoErro(e);
+      botao.disabled = false;
+    },
+  );
+});
 
 async function escolherEAbrir(): Promise<void> {
   if (document.body.dataset.estado !== 'vazio') return;

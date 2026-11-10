@@ -1,7 +1,7 @@
 // Teste de fumaça da janela: abre o app de verdade (Electron + tela virtual), abre um PDF, troca cores,
 // tira capturas de tela e imprime o que viu. Uso (Linux):
 //   xvfb-run -a node_modules/.bin/electron --no-sandbox tools/smoke.cjs <pdf> <pasta-de-saida>
-const { app, dialog } = require('electron');
+const { app, dialog, nativeImage } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -18,7 +18,11 @@ let arquivoDoDialogo = pdfDoTrabalho;
 const pastaDeDados = path.join(saida, 'dados');
 fs.rmSync(pastaDeDados, { recursive: true, force: true });
 app.setPath('userData', pastaDeDados);
-dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [arquivoDoDialogo] });
+let pastaDoDialogo = null;
+dialog.showOpenDialog = async (opcoes) =>
+  (opcoes && opcoes.properties && opcoes.properties.includes('openDirectory'))
+    ? { canceled: false, filePaths: [pastaDoDialogo] }
+    : { canceled: false, filePaths: [arquivoDoDialogo] };
 
 require(process.env.MAIN_JS || path.resolve(__dirname, '../dist/main/main.js'));
 
@@ -43,7 +47,7 @@ app.on('browser-window-created', (_e, win) => {
         if (await js(cond)) return true;
         await espera(200);
       }
-      console.log('tempo esgotado esperando:', rotulo);
+      console.log('tempo esgotado esperando:', rotulo, '| mensagem:', await js("document.getElementById('mensagem').textContent").catch(() => '?'));
       return false;
     };
     const foto = async (nome) => fs.writeFileSync(path.join(saida, nome), (await wc.capturePage()).toPNG());
@@ -249,6 +253,60 @@ app.on('browser-window-created', (_e, win) => {
       conferir((await js("document.querySelector('#lista .item[aria-current=true] strong').textContent")) === 'Capa 3', 'a capa que estava selecionada volta selecionada');
       await js("document.querySelectorAll('#lista .item')[0].click()");
       conferir((await js("document.querySelector('[data-acc=elastico][aria-pressed=true]').dataset.id")) === 'nenhum', 'a cor escolhida (elástico Nenhum) volta depois de reiniciar');
+
+      // ---- Modo designer: escondido por padrão; liga com 5 cliques na versão ----
+      wc.reload();
+      await espera(1500);
+      await ate("document.body.dataset.estado === 'vazio'", 'app recarregado para o designer');
+      conferir(await js("document.getElementById('tab-pasta1').hidden"), 'por padrão a aba Pasta 1 NÃO aparece');
+      const recusa = await js("window.mockupApi.fluxoListar().then(() => 'permitiu', (e) => String(e.message || e))");
+      conferir(recusa !== 'permitiu' && recusa.includes('Modo designer'), `sem o modo designer o app recusa listar a Pasta 1 (${recusa.slice(-60)})`);
+      await js("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'D', shiftKey: true }))");
+      conferir(await ate("!document.getElementById('tela-designer').hidden && document.getElementById('designer-titulo').textContent.includes('Carregando')", 'tela carregando'), 'Shift+D mostra a tela "Carregando modo designer…"');
+      await foto('8a-carregando-designer.png');
+      conferir(await ate("document.getElementById('designer-titulo').textContent === 'Bem-vindo, LK'", 'boas-vindas'), 'depois de carregar aparece "Bem-vindo, LK"');
+      await foto('8b-bem-vindo.png');
+      await ate("document.getElementById('tela-designer').hidden", 'tela some');
+      conferir(!(await js("document.getElementById('tab-pasta1').hidden")), 'depois das boas-vindas a aba Pasta 1 está liberada');
+      // pastas falsas: nada de pastas reais de clientes
+      const fluxo = path.join(saida, 'fluxo');
+      fs.rmSync(fluxo, { recursive: true, force: true });
+      const p1 = path.join(fluxo, '1 AGUARDA ARTE');
+      const p2 = path.join(fluxo, '2 APROVAR');
+      const cliente = path.join(p1, 'CLIENTE A');
+      fs.mkdirSync(cliente, { recursive: true });
+      fs.mkdirSync(p2, { recursive: true });
+      const largura = 1238, altura = 1562;
+      const bmp = Buffer.alloc(largura * altura * 4, 200);
+      fs.writeFileSync(path.join(cliente, 'arte.png'), nativeImage.createFromBitmap(bmp, { width: largura, height: altura }).toPNG());
+      pastaDoDialogo = p1;
+      await js("document.getElementById('escolher-pasta1').click()");
+      await espera(400);
+      pastaDoDialogo = p2;
+      await js("document.getElementById('escolher-pasta2').click()");
+      await espera(400);
+      await js("document.getElementById('tab-pasta1').click()");
+      await ate("document.querySelectorAll('#pasta1-lista .cliente-linha').length === 1", 'cliente listado');
+      conferir((await js("document.querySelectorAll('#pasta1-lista .cliente-linha').length")) === 1, 'a Pasta 1 lista o cliente que ainda não tem MKP');
+      await foto('8-pasta1.png');
+      await js("document.querySelector('#pasta1-lista .primario').click()");
+      await ate("document.body.dataset.estado === 'pronto'", 'abrir a arte PNG');
+      conferir((await js("document.querySelectorAll('#lista .item').length")) === 1, 'a imagem PNG abre como uma capa');
+      conferir(await js("document.getElementById('qualidade').className.includes('limite')"), 'o painel de qualidade marca a imagem 1238×1562 como "no limite"');
+      await foto('9-qualidade.png');
+      await js("document.getElementById('exportar').click()");
+      await ate("!document.getElementById('salvo').hidden", 'conclusão da arte PNG', 240000);
+      conferir(!(await js("document.getElementById('salvo-aprovar').hidden")), 'o card tem o botão Enviar para Aprovar');
+      await js("document.getElementById('salvo-aprovar').click()");
+      await espera(800);
+      const detalhe = await js("document.getElementById('salvo-detalhe').textContent");
+      conferir(detalhe.includes('.cdr') && detalhe.includes('.pdf'), `sem .cdr e .pdf a pasta NÃO é movida e o app diz o que falta ("${detalhe}")`);
+      conferir(fs.existsSync(cliente) && !fs.existsSync(path.join(p2, 'CLIENTE A')), 'a pasta continua na Pasta 1');
+      fs.writeFileSync(path.join(cliente, 'capa.cdr'), 'x');
+      fs.writeFileSync(path.join(cliente, 'capa.pdf'), 'x');
+      await js("document.getElementById('salvo-aprovar').click()");
+      await ate("document.body.dataset.estado === 'vazio'", 'voltar ao início depois de mover');
+      conferir(!fs.existsSync(cliente) && fs.existsSync(path.join(p2, 'CLIENTE A', 'MKP')), 'completa, a pasta do cliente foi para a Pasta 2 com o MKP dentro');
     } catch (e) {
       conferir(false, `exceção no roteiro: ${e}`);
     }

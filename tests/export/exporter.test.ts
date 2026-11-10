@@ -14,6 +14,10 @@ const encodePng = async (r: Raster): Promise<Uint8Array> => {
 };
 
 describe('exportName', () => {
+  test('imagem PNG/JPG não deixa a extensão no nome', () => {
+    expect(exportName('arte.png', 1)).toBe('arte_capa-01.png');
+    expect(exportName('Foto Cliente.JPEG', 2)).toBe('Foto_Cliente_capa-02.png');
+  });
   test('tira .pdf, numera com dois dígitos e começa em 1', () => {
     expect(exportName('CAPAS.pdf', 1)).toBe('CAPAS_capa-01.png');
     expect(exportName('CAPAS.PDF', 12)).toBe('CAPAS_capa-12.png');

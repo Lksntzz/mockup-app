@@ -34,6 +34,7 @@
           <div class="abas-inicio" role="group" aria-label="Início">
             <button id="tab-novo" type="button" aria-pressed="true">Novo trabalho</button>
             <button id="tab-historico" type="button" aria-pressed="false">Histórico</button>
+            <button id="tab-pasta1" type="button" aria-pressed="false" hidden>Pasta 1</button>
           </div>
           <div id="inicio-novo">
           <div id="zona" class="zona" role="button" tabindex="0" aria-label="Escolher um PDF ou arrastar para cá">
@@ -47,6 +48,15 @@
             <div id="trabalhos"></div>
           </section>
           </div>
+          <section id="pasta1" class="historico" hidden>
+            <h2 class="titulo-coluna">Artes a fazer (Pasta 1)</h2>
+            <div class="pastas-config">
+              <div><button id="escolher-pasta1" class="secundario" type="button">Escolher Pasta 1</button> <span id="caminho-pasta1" class="caminho"></span></div>
+              <div><button id="escolher-pasta2" class="secundario" type="button">Escolher Pasta 2</button> <span id="caminho-pasta2" class="caminho"></span></div>
+              <button id="atualizar-pasta1" class="discreto" type="button">Atualizar lista</button>
+            </div>
+            <div id="pasta1-lista"></div>
+          </section>
           <section id="historico" class="historico" hidden>
             <h2 class="titulo-coluna">Histórico de <span id="historico-operador"></span></h2>
             <div id="historico-lista"></div>
@@ -61,6 +71,7 @@
       </section>
       <aside id="painel" class="coluna painel" aria-label="Cores da capa" hidden>
         <h2 id="titulo-capa" class="titulo-coluna">Capa</h2>
+        <div id="qualidade" class="qualidade" hidden></div>
         <div id="grupos"></div>
         <fieldset id="saidas" class="saidas">
           <legend>Imagens a gerar</legend>
@@ -75,6 +86,10 @@
         </div>
       </aside>
     </main>
+    <div id="tela-designer" class="tela-designer" role="status" aria-live="polite" hidden>
+      <div id="designer-giro" class="giro" aria-hidden="true"></div>
+      <div id="designer-titulo" class="designer-titulo"></div>
+    </div>
     <div id="cortina" class="cortina" hidden></div>
     <div id="salvo" class="salvo" role="status" aria-live="polite" hidden>
       <div class="salvo-icone" aria-hidden="true">✓</div>
@@ -82,6 +97,7 @@
       <div id="salvo-detalhe" class="salvo-detalhe"></div>
       <div class="salvo-botoes">
         <button id="salvo-continuar" class="secundario" type="button">Continuar com esta arte</button>
+        <button id="salvo-aprovar" class="secundario" type="button" hidden>Enviar para Aprovar</button>
         <button id="salvo-ok" class="primario" type="button">Terminar</button>
       </div>
     </div>

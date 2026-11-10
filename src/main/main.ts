@@ -2,12 +2,14 @@ import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import { EventEmitter } from 'node:events';
 import { mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import { userInfo } from 'node:os';
-import { basename, extname, join } from 'node:path';
+import { basename, dirname, extname, join, resolve } from 'node:path';
 import { PNG } from 'pngjs';
 import { entradaValida } from '../app/historico';
 import { criarHistorico, nomeSeguro } from './historico';
 import { rascunhoValido } from '../app/rascunhos';
 import { criarRascunhos } from './rascunhos';
+import { criarConfigDesigner } from './config-designer';
+import { listarPendentes, moverParaAprovar } from './pasta-fluxo';
 import { caminhoPermitido, pastaMkp } from './paths';
 import { criarAtualizador, type AtualizadorLike } from './updater';
 
@@ -42,15 +44,15 @@ ipcMain.handle('carregar-pacote', async (_e, nome?: string) => {
 });
 
 async function lerPdf(caminho: string) {
-  if (extname(caminho).toLowerCase() !== '.pdf') throw new Error('Esse arquivo não é um PDF.');
+  if (!['.pdf', '.png', '.jpg', '.jpeg'].includes(extname(caminho).toLowerCase())) throw new Error('Esse arquivo não é um PDF, PNG ou JPG.');
   return { nome: basename(caminho), caminho, bytes: new Uint8Array(await readFile(caminho)) };
 }
 
 ipcMain.handle('escolher-pdf', async () => {
   const r = await dialog.showOpenDialog({
-    title: 'Escolher o PDF das capas',
+    title: 'Escolher o PDF das capas (ou uma imagem PNG/JPG)',
     properties: ['openFile'],
-    filters: [{ name: 'PDF', extensions: ['pdf'] }],
+    filters: [{ name: 'PDF ou imagem', extensions: ['pdf', 'png', 'jpg', 'jpeg'] }],
   });
   const caminho = r.filePaths[0];
   if (r.canceled || !caminho) return null;
@@ -141,6 +143,43 @@ ipcMain.handle('rascunhos-salvar', (_e, r: unknown) => {
 ipcMain.handle('rascunhos-remover', (_e, caminho: unknown) => {
   if (typeof caminho !== 'string') throw new Error('Caminho inválido.');
   return rascunhosDoOperador().remover(caminho);
+});
+// ---- Modo designer: funções só de quem liga (desligado por padrão, guardado por usuário do Windows) ----
+const configDoDesigner = () => criarConfigDesigner(join(app.getPath('userData'), 'usuarios', nomeSeguro(operador()), 'designer.json'));
+async function exigirDesigner() {
+  const c = await configDoDesigner().ler();
+  if (!c.designer) throw new Error('Função disponível só no Modo designer.');
+  return c;
+}
+const normalizar = (p: string) => (process.platform === 'win32' ? resolve(p).toLowerCase() : resolve(p));
+ipcMain.handle('designer-estado', () => configDoDesigner().ler());
+ipcMain.handle('designer-ligar', (_e, ligado: unknown) => {
+  if (typeof ligado !== 'boolean') throw new Error('Valor inválido.');
+  return configDoDesigner().salvar({ designer: ligado });
+});
+ipcMain.handle('designer-escolher-pasta', async (_e, qual: unknown) => {
+  await exigirDesigner();
+  if (qual !== 'pasta1' && qual !== 'pasta2') throw new Error('Pasta inválida.');
+  const r = await dialog.showOpenDialog({
+    title: qual === 'pasta1' ? 'Escolher a Pasta 1 (AGUARDA ARTE)' : 'Escolher a Pasta 2 (APROVAR)',
+    properties: ['openDirectory'],
+  });
+  const caminho = r.filePaths[0];
+  if (r.canceled || !caminho) return configDoDesigner().ler();
+  return configDoDesigner().salvar({ [qual]: caminho });
+});
+ipcMain.handle('fluxo-listar', async () => {
+  const c = await exigirDesigner();
+  if (!c.pasta1) return [];
+  return listarPendentes(c.pasta1);
+});
+ipcMain.handle('fluxo-mover', async (_e, caminhoCliente: unknown) => {
+  const c = await exigirDesigner();
+  if (typeof caminhoCliente !== 'string') throw new Error('Pasta inválida.');
+  if (!c.pasta1 || !c.pasta2) return { ok: false, motivo: 'Escolha a Pasta 1 e a Pasta 2 antes.' };
+  // só move pastas que estão direto dentro da Pasta 1 escolhida
+  if (normalizar(dirname(caminhoCliente)) !== normalizar(c.pasta1)) return { ok: false, motivo: 'Essa pasta não está dentro da Pasta 1.' };
+  return moverParaAprovar(caminhoCliente, c.pasta2);
 });
 ipcMain.handle('operador', () => operador());
 ipcMain.handle('historico-listar', () => historicoDoOperador().listar());

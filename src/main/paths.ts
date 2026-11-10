@@ -11,6 +11,6 @@ export function caminhoPermitido(pasta: string, caminho: string): boolean {
 
 /** Os mockups de um PDF vão para a pasta "MKP", criada ao lado dele. */
 export function pastaMkp(caminhoDoPdf: string): string {
-  if (extname(caminhoDoPdf).toLowerCase() !== '.pdf') throw new Error('Isso não é um arquivo PDF.');
+  if (!['.pdf', '.png', '.jpg', '.jpeg'].includes(extname(caminhoDoPdf).toLowerCase())) throw new Error('Isso não é um arquivo PDF, PNG ou JPG.');
   return join(dirname(caminhoDoPdf), 'MKP');
 }
