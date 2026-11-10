@@ -109,3 +109,6 @@ body:not([data-estado="pronto"]) #coluna-capas { display: none; }
 .abas button[aria-pressed="true"] { background: var(--acento); border-color: var(--acento); color: #fff; }
 .abas button:disabled { opacity: .5; cursor: not-allowed; }
 .saidas label:has(input:disabled) { opacity: .55; cursor: not-allowed; }
+
+.cortina { position: fixed; inset: 0; background: rgba(20, 24, 50, .35); z-index: 9; }
+.salvo-botoes { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }

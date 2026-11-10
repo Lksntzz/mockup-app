@@ -299,17 +299,28 @@ async function abrirPdf(arquivo: ArquivoPdf): Promise<void> {
   }
 }
 
-let timerDoSalvo: ReturnType<typeof setTimeout> | undefined;
-/** Card de confirmação: diz que salvou e quantos, sem mostrar caminho de pasta. */
+/** Card de confirmação: diz que salvou e quantos, sem mostrar caminho de pasta, e deixa escolher entre continuar ou terminar. */
 function mostrarSalvo(quantos: number): void {
   $('salvo-detalhe').textContent = quantos === 1 ? '1 mockup' : `${quantos} mockups`;
   $('salvo').hidden = false;
-  clearTimeout(timerDoSalvo);
-  timerDoSalvo = setTimeout(() => ($('salvo').hidden = true), 5000);
+  $('cortina').hidden = false;
+  $('salvo-continuar').focus();
 }
-$('salvo-ok').addEventListener('click', () => {
-  clearTimeout(timerDoSalvo);
+function fecharSalvo(): void {
   $('salvo').hidden = true;
+  $('cortina').hidden = true;
+}
+// Continuar: fica na mesma arte, com as cores como estão (dá para salvar de novo, por exemplo outras imagens).
+$('salvo-continuar').addEventListener('click', () => {
+  fecharSalvo();
+  mensagem('Você continua trabalhando nesta arte.');
+});
+// Terminar: o trabalho sai de "Em andamento" e volta para o início.
+$('salvo-ok').addEventListener('click', () => {
+  fecharSalvo();
+  trabalhos.remover(caminhoDoPdf);
+  irParaInicio();
+  mensagem('');
 });
 
 function guardarAtual(): void {
@@ -504,8 +515,7 @@ $('exportar').addEventListener('click', async () => {
     if (r.written.length === 0) {
       mensagem('Nada foi gravado. Você continua trabalhando nesta arte.');
     } else {
-      trabalhos.remover(caminhoDoPdf);
-      irParaInicio();
+      guardarAtual();
       mensagem('');
       mostrarSalvo(r.written.length);
     }

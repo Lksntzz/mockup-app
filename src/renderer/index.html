@@ -63,11 +63,15 @@
         </div>
       </aside>
     </main>
+    <div id="cortina" class="cortina" hidden></div>
     <div id="salvo" class="salvo" role="status" aria-live="polite" hidden>
       <div class="salvo-icone" aria-hidden="true">✓</div>
       <div class="salvo-titulo">Salvo</div>
       <div id="salvo-detalhe" class="salvo-detalhe"></div>
-      <button id="salvo-ok" class="primario" type="button">OK</button>
+      <div class="salvo-botoes">
+        <button id="salvo-continuar" class="secundario" type="button">Continuar com esta arte</button>
+        <button id="salvo-ok" class="primario" type="button">Terminar</button>
+      </div>
     </div>
     <script src="app.js"></script>
   </body>
