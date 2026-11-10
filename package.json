@@ -6,11 +6,16 @@
   "main": "dist/main/main.js",
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build": "node tools/build.mjs",
+    "start": "node tools/build.mjs && electron .",
+    "smoke": "xvfb-run -a -s \"-screen 0 1400x900x24\" electron --no-sandbox tools/smoke.cjs fixtures/CAPAS.pdf /tmp/smoke"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
     "@types/pngjs": "^6.0.5",
+    "electron": "^45.2.3",
+    "esbuild": "^0.28.2",
     "pixelmatch": "^8.0.0",
     "pngjs": "^7.0.0",
     "typescript": "^7.0.2",

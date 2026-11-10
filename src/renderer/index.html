@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; worker-src 'self' blob:; connect-src 'self' blob:"
+    />
+    <title>Mockup da Agenda</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body data-estado="carregando-pacote">
+    <header class="topo">
+      <button id="abrir" type="button" disabled>Abrir PDF</button>
+      <span id="nome-pdf" class="nome-pdf"></span>
+      <span id="mensagem" class="mensagem" role="status"></span>
+      <progress id="progresso" max="1" value="0" hidden></progress>
+    </header>
+    <main class="area">
+      <aside id="lista" class="lista" aria-label="Capas do PDF"></aside>
+      <section class="centro">
+        <div id="vazio" class="vazio">
+          <p><strong>Arraste um PDF aqui</strong> ou clique em <em>Abrir PDF</em>.</p>
+          <p class="dica">Só as páginas ímpares viram capa (1, 3, 5...). As pares são o verso e são ignoradas.</p>
+        </div>
+        <canvas id="previa" class="previa" hidden></canvas>
+      </section>
+      <aside id="painel" class="painel" aria-label="Cores da capa" hidden>
+        <h2 id="titulo-capa">Capa</h2>
+        <div id="grupos"></div>
+        <button id="copiar" type="button">Copiar estas cores para todas as capas</button>
+        <button id="exportar" type="button" disabled title="Disponível na próxima etapa">Exportar</button>
+      </aside>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>
