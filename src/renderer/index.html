@@ -32,9 +32,9 @@
       <section class="centro">
         <div id="vazio" class="vazio">
           <div class="abas-inicio" role="group" aria-label="Início">
-            <button id="tab-novo" type="button" aria-pressed="true">Novo trabalho</button>
+            <button id="tab-novo" type="button" aria-pressed="true">MKP</button>
             <button id="tab-historico" type="button" aria-pressed="false">Histórico</button>
-            <button id="tab-pasta1" type="button" aria-pressed="false" hidden>Pasta 1</button>
+            <button id="tab-pasta1" type="button" aria-pressed="false" hidden>Cliente <span id="badge-cliente" class="badge" hidden></span></button>
           </div>
           <div id="inicio-novo">
           <div id="zona" class="zona" role="button" tabindex="0" aria-label="Escolher um PDF ou arrastar para cá">
@@ -49,12 +49,23 @@
           </section>
           </div>
           <section id="pasta1" class="historico" hidden>
-            <h2 class="titulo-coluna">Artes a fazer (Pasta 1)</h2>
-            <div class="pastas-config">
-              <div><button id="escolher-pasta1" class="secundario" type="button">Escolher Pasta 1</button> <span id="caminho-pasta1" class="caminho"></span></div>
-              <div><button id="escolher-pasta2" class="secundario" type="button">Escolher Pasta 2</button> <span id="caminho-pasta2" class="caminho"></span></div>
+            <h2 class="titulo-coluna">Clientes</h2>
+            <details class="config-pastas">
+              <summary>Pastas do fluxo</summary>
+              <div class="pastas-config">
+                <div><button id="escolher-pasta1" class="secundario" type="button">Escolher Pasta 1 (Aguarda arte)</button> <span id="caminho-pasta1" class="caminho"></span></div>
+                <div><button id="escolher-pasta2" class="secundario" type="button">Escolher Pasta 2 (Aprovar)</button> <span id="caminho-pasta2" class="caminho"></span></div>
+                <div><button id="escolher-pasta3" class="secundario" type="button">Escolher Pasta 3 (Aguarda impressão)</button> <span id="caminho-pasta3" class="caminho"></span></div>
+                <div><button id="escolher-pasta4" class="secundario" type="button">Escolher Pasta 4 (Finalizados)</button> <span id="caminho-pasta4" class="caminho"></span></div>
+              </div>
+            </details>
+            <div class="busca">
+              <input id="busca-finalizados" type="search" placeholder="Buscar cliente nos finalizados (Pasta 4)" />
+              <button id="buscar-finalizados" class="secundario" type="button">Buscar</button>
               <button id="atualizar-pasta1" class="discreto" type="button">Atualizar lista</button>
             </div>
+            <div id="busca-resultado"></div>
+            <div id="pasta1-avisos"></div>
             <div id="pasta1-lista"></div>
           </section>
           <section id="historico" class="historico" hidden>
@@ -89,6 +100,11 @@
     <div id="tela-designer" class="tela-designer" role="status" aria-live="polite" hidden>
       <div id="designer-giro" class="giro" aria-hidden="true"></div>
       <div id="designer-titulo" class="designer-titulo"></div>
+    </div>
+    <div id="alerta-arte" class="alerta-arte" role="alert" hidden>
+      <strong>Arte para fazer</strong> <span id="alerta-arte-nomes"></span>
+      <button id="alerta-arte-ver" class="primario" type="button">Ver</button>
+      <button id="alerta-arte-fechar" class="discreto" type="button" aria-label="Fechar aviso">×</button>
     </div>
     <div id="cortina" class="cortina" hidden></div>
     <div id="salvo" class="salvo" role="status" aria-live="polite" hidden>

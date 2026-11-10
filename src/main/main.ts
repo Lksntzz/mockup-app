@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Notification } from 'electron';
 import { EventEmitter } from 'node:events';
 import { mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import { userInfo } from 'node:os';
@@ -9,7 +9,8 @@ import { criarHistorico, nomeSeguro } from './historico';
 import { rascunhoValido } from '../app/rascunhos';
 import { criarRascunhos } from './rascunhos';
 import { criarConfigDesigner } from './config-designer';
-import { listarPendentes, moverParaAprovar } from './pasta-fluxo';
+import { moverParaAprovar } from './pasta-fluxo';
+import { atualizarVistos, buscarFinalizados, listarClientes } from './clientes';
 import { caminhoPermitido, pastaMkp } from './paths';
 import { criarAtualizador, type AtualizadorLike } from './updater';
 
@@ -159,19 +160,25 @@ ipcMain.handle('designer-ligar', (_e, ligado: unknown) => {
 });
 ipcMain.handle('designer-escolher-pasta', async (_e, qual: unknown) => {
   await exigirDesigner();
-  if (qual !== 'pasta1' && qual !== 'pasta2') throw new Error('Pasta inválida.');
+  const titulos = { pasta1: 'Escolher a Pasta 1 (AGUARDA ARTE)', pasta2: 'Escolher a Pasta 2 (APROVAR)', pasta3: 'Escolher a Pasta 3 (AGUARDA IMPRESSÃO)', pasta4: 'Escolher a Pasta 4 (FINALIZADOS)' } as const;
+  if (typeof qual !== 'string' || !(qual in titulos)) throw new Error('Pasta inválida.');
   const r = await dialog.showOpenDialog({
-    title: qual === 'pasta1' ? 'Escolher a Pasta 1 (AGUARDA ARTE)' : 'Escolher a Pasta 2 (APROVAR)',
+    title: titulos[qual as keyof typeof titulos],
     properties: ['openDirectory'],
   });
   const caminho = r.filePaths[0];
   if (r.canceled || !caminho) return configDoDesigner().ler();
   return configDoDesigner().salvar({ [qual]: caminho });
 });
-ipcMain.handle('fluxo-listar', async () => {
+ipcMain.handle('clientes-listar', async () => {
   const c = await exigirDesigner();
-  if (!c.pasta1) return [];
-  return listarPendentes(c.pasta1);
+  return listarClientes(c);
+});
+ipcMain.handle('clientes-buscar', async (_e, termo: unknown) => {
+  const c = await exigirDesigner();
+  if (typeof termo !== 'string') throw new Error('Busca inválida.');
+  if (!c.pasta4) throw new Error('Escolha a Pasta 4 (Finalizados) para buscar.');
+  return buscarFinalizados(c.pasta4, termo);
 });
 ipcMain.handle('fluxo-mover', async (_e, caminhoCliente: unknown) => {
   const c = await exigirDesigner();
@@ -196,6 +203,36 @@ ipcMain.handle('verificar-atualizacao', () => atualizador.verificar(true));
 ipcMain.handle('instalar-atualizacao', () => atualizador.instalar());
 
 const QUATRO_HORAS = 4 * 60 * 60 * 1000;
+
+/** Confere a Pasta 1 de tempos em tempos e avisa "arte para fazer" (só com o Modo designer ligado e o app aberto). */
+async function vigiarPasta1(): Promise<void> {
+  try {
+    const c = await configDoDesigner().ler();
+    if (!c.designer || !c.pasta1) return;
+    const { clientes } = await listarClientes(c);
+    const r = atualizarVistos(clientes, c.vistos);
+    if (JSON.stringify(r.vistos) !== JSON.stringify(c.vistos)) await configDoDesigner().salvar({ vistos: r.vistos });
+    if (r.alertar.length === 0) return;
+    try {
+      if (Notification.isSupported()) {
+        const n = new Notification({ title: 'Arte para fazer', body: r.alertar.join(', ') });
+        n.on('click', () => {
+          const w = BrowserWindow.getAllWindows()[0];
+          if (!w) return;
+          if (w.isMinimized()) w.restore();
+          w.focus();
+          w.webContents.send('abrir-cliente');
+        });
+        n.show();
+      }
+    } catch {
+      // sem notificação do sistema: o aviso dentro do app continua valendo
+    }
+    BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('arte-para-fazer', r.alertar));
+  } catch (e) {
+    console.warn('vigia da Pasta 1', e);
+  }
+}
 
 function criarJanela(): BrowserWindow {
   const win = new BrowserWindow({
@@ -224,6 +261,9 @@ function criarJanela(): BrowserWindow {
 
 app.whenReady().then(() => {
   criarJanela();
+  const periodo = Number(process.env.MOCKUP_VIGIA_MS) || 60_000;
+  setTimeout(() => void vigiarPasta1(), Math.min(periodo, 8000));
+  setInterval(() => void vigiarPasta1(), periodo);
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) criarJanela();
   });

@@ -1,7 +1,7 @@
 import { readdir, rename, stat } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
 
-const EXT_ARTE = new Set(['.pdf', '.jpg', '.jpeg', '.png']);
+export const EXT_ARTE = new Set(['.pdf', '.jpg', '.jpeg', '.png']);
 
 export interface ClientePendente {
   nome: string;
@@ -12,7 +12,7 @@ export interface ClientePendente {
   chegando: boolean;
 }
 
-async function ehPasta(caminho: string): Promise<boolean> {
+export async function ehPasta(caminho: string): Promise<boolean> {
   try {
     return (await stat(caminho)).isDirectory();
   } catch {
@@ -20,7 +20,7 @@ async function ehPasta(caminho: string): Promise<boolean> {
   }
 }
 
-async function nomesEm(pasta: string): Promise<{ nome: string; caminho: string; pasta: boolean; mtimeMs: number }[]> {
+export async function nomesEm(pasta: string): Promise<{ nome: string; caminho: string; pasta: boolean; mtimeMs: number }[]> {
   const itens = await readdir(pasta, { withFileTypes: true });
   return Promise.all(
     itens.map(async (d) => {

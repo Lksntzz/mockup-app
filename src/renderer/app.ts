@@ -16,6 +16,7 @@ import { criarTrabalhos } from '../app/trabalhos';
 import type { Rascunho } from '../app/rascunhos';
 import { avaliarQualidade, AREA_PADRAO_MM, LIMITES_PADRAO, pedidoDeNovaArte } from '../app/qualidade';
 import type { ConfigDesigner } from '../main/config-designer';
+import type { Cliente } from '../main/clientes';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('./pdf.worker.mjs', document.baseURI).href;
 
@@ -692,7 +693,11 @@ function mostrarAba(aba: 'novo' | 'historico' | 'pasta1'): void {
   $('tab-historico').setAttribute('aria-pressed', String(aba === 'historico'));
   $('tab-pasta1').setAttribute('aria-pressed', String(aba === 'pasta1'));
   if (aba === 'historico') void desenharHistorico();
-  if (aba === 'pasta1') void desenharPasta1();
+  if (aba === 'pasta1') {
+    alertasNovos = 0;
+    $('badge-cliente').hidden = true;
+    void desenharPasta1();
+  }
 }
 $('tab-novo').addEventListener('click', () => mostrarAba('novo'));
 $('tab-historico').addEventListener('click', () => mostrarAba('historico'));
@@ -790,68 +795,147 @@ function desenharQualidade(): void {
   }
 }
 
-async function desenharPasta1(): Promise<void> {
-  const alvo = $('pasta1-lista');
-  $('caminho-pasta1').textContent = designer.pasta1 ?? 'não escolhida';
-  $('caminho-pasta2').textContent = designer.pasta2 ?? 'não escolhida';
-  alvo.replaceChildren();
-  const aviso = (texto: string) => {
-    const p = document.createElement('p');
-    p.className = 'historico-vazio';
-    p.textContent = texto;
-    alvo.append(p);
+const ROTULOS_ETAPAS = ['Arte', 'Aprovar', 'Impressão', 'Finalizado'];
+
+function linhaDoCliente(c: Cliente): HTMLElement {
+  const linha = document.createElement('div');
+  linha.className = 'cliente-linha';
+  const topo = document.createElement('div');
+  topo.className = 'topo-linha';
+  const nome = document.createElement('span');
+  nome.className = 'nome';
+  nome.textContent = c.nome;
+  topo.append(nome);
+  const nota = (texto: string) => {
+    const e = document.createElement('span');
+    e.className = 'chegando';
+    e.textContent = texto;
+    topo.append(e);
   };
-  if (!designer.pasta1) return aviso('Escolha a Pasta 1 para ver as artes a fazer.');
-  let lista: Awaited<ReturnType<MockupApi['fluxoListar']>> = [];
-  try {
-    lista = await api.fluxoListar();
-  } catch (e) {
-    return aviso(textoDoErro(e));
+  if (c.duplicado) nota('mesmo nome em mais de uma etapa');
+  if (c.chegando) nota('chegando… (arquivos ainda sendo enviados)');
+  if (c.etapa === 1 && c.artes.length === 0) nota('sem PDF/JPG/PNG na pasta');
+  for (const arte of c.artes) {
+    if (c.etapa !== 1) break;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'primario';
+    b.textContent = c.artes.length === 1 ? 'Abrir no MKP' : `Abrir ${nomeDoCaminho(arte)}`;
+    b.title = nomeDoCaminho(arte);
+    b.addEventListener('click', () => {
+      void (async () => {
+        try {
+          const arquivo = await api.lerPdf(arte);
+          mostrarAba('novo');
+          await abrirPdf(arquivo);
+        } catch (e) {
+          mensagem(textoDoErro(e), true);
+        }
+      })();
+    });
+    topo.append(b);
   }
-  if (lista.length === 0) return aviso('Nenhuma arte a fazer. Todas as pastas já têm o MKP.');
-  for (const c of lista) {
-    const linha = document.createElement('div');
-    linha.className = 'cliente-linha';
-    const nome = document.createElement('span');
-    nome.className = 'nome';
-    nome.textContent = c.nome;
-    linha.append(nome);
-    if (c.chegando) {
-      const e = document.createElement('span');
-      e.className = 'chegando';
-      e.textContent = 'chegando… (arquivos ainda sendo enviados)';
-      linha.append(e);
-    }
-    if (c.artes.length === 0) {
-      const e = document.createElement('span');
-      e.className = 'chegando';
-      e.textContent = 'sem PDF/JPG/PNG na pasta';
-      linha.append(e);
-    }
-    for (const arte of c.artes) {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'primario';
-      b.textContent = c.artes.length === 1 ? 'Abrir' : `Abrir ${nomeDoCaminho(arte)}`;
-      b.title = nomeDoCaminho(arte);
-      b.addEventListener('click', () => {
-        void (async () => {
-          try {
-            const arquivo = await api.lerPdf(arte);
-            mostrarAba('novo');
-            await abrirPdf(arquivo);
-          } catch (e) {
-            mensagem(textoDoErro(e), true);
-          }
-        })();
-      });
-      linha.append(b);
-    }
-    alvo.append(linha);
+  linha.append(topo);
+  const barra = document.createElement('div');
+  barra.className = 'etapas';
+  barra.setAttribute('aria-label', `Etapa ${c.etapa} de 4: ${ROTULOS_ETAPAS[c.etapa - 1]}`);
+  ROTULOS_ETAPAS.forEach((r, i) => {
+    const e = document.createElement('div');
+    e.className = `etapa ${i + 1 < c.etapa ? 'feita' : i + 1 === c.etapa ? 'atual' : ''}`;
+    e.textContent = `${i + 1} ${r}`;
+    barra.append(e);
+  });
+  linha.append(barra);
+  if (c.etapa === 1) {
+    const s = document.createElement('div');
+    s.className = 'situacao';
+    s.textContent =
+      c.situacao === 'arte-a-fazer' ? 'Arte para fazer o MKP' : c.situacao === 'pronta-para-aprovar' ? 'Pronta para enviar para Aprovar' : `Em andamento: falta ${c.faltando.join(', ')}`;
+    linha.append(s);
   }
+  if (c.arquivos.length > 0) {
+    const f = document.createElement('div');
+    f.className = 'arquivos';
+    f.textContent = `${c.arquivos.length} ${c.arquivos.length === 1 ? 'arquivo' : 'arquivos'}: ${c.arquivos.join(' · ')}`;
+    f.title = c.arquivos.join('\n');
+    linha.append(f);
+  }
+  return linha;
 }
 
-for (const qual of ['pasta1', 'pasta2'] as const) {
+async function desenharPasta1(): Promise<void> {
+  const alvo = $('pasta1-lista');
+  for (const n of [1, 2, 3, 4] as const) $(`caminho-pasta${n}`).textContent = designer[`pasta${n}`] ?? 'não escolhida';
+  const avisos = $('pasta1-avisos');
+  avisos.replaceChildren();
+  alvo.replaceChildren();
+  const texto = (onde: HTMLElement, t: string) => {
+    const p = document.createElement('p');
+    p.className = 'historico-vazio';
+    p.textContent = t;
+    onde.append(p);
+  };
+  if (!designer.pasta1) return texto(alvo, 'Abra "Pastas do fluxo" e escolha a Pasta 1 para ver os clientes.');
+  let resultado: Awaited<ReturnType<MockupApi['clientesListar']>>;
+  try {
+    resultado = await api.clientesListar();
+  } catch (e) {
+    return texto(alvo, textoDoErro(e));
+  }
+  for (const a of resultado.avisos) texto(avisos, a);
+  if (resultado.clientes.length === 0) return texto(alvo, 'Nenhum cliente nas Pastas 1, 2 e 3.');
+  for (const c of resultado.clientes) alvo.append(linhaDoCliente(c));
+}
+
+async function buscarFinalizados(): Promise<void> {
+  const alvo = $('busca-resultado');
+  alvo.replaceChildren();
+  const termo = $<HTMLInputElement>('busca-finalizados').value;
+  if (!termo.trim()) return;
+  try {
+    const achados = await api.clientesBuscar(termo);
+    if (achados.length === 0) {
+      const p = document.createElement('p');
+      p.className = 'historico-vazio';
+      p.textContent = 'Nenhum cliente com esse nome nos finalizados.';
+      alvo.append(p);
+    }
+    for (const c of achados) alvo.append(linhaDoCliente(c));
+  } catch (e) {
+    mensagem(textoDoErro(e), true);
+  }
+}
+$('buscar-finalizados').addEventListener('click', () => void buscarFinalizados());
+$('busca-finalizados').addEventListener('keydown', (e) => {
+  if ((e as KeyboardEvent).key === 'Enter') void buscarFinalizados();
+});
+
+// ---- alerta "arte para fazer" ----
+let alertasNovos = 0;
+function mostrarAlertaDeArte(nomes: string[]): void {
+  alertasNovos += nomes.length;
+  const badge = $('badge-cliente');
+  badge.textContent = String(alertasNovos);
+  badge.hidden = false;
+  $('alerta-arte-nomes').textContent = nomes.join(', ');
+  $('alerta-arte').hidden = false;
+}
+function irParaCliente(): void {
+  $('alerta-arte').hidden = true;
+  if (document.body.dataset.estado === 'pronto') {
+    guardarAtual();
+    irParaInicio();
+  }
+  mostrarAba('pasta1');
+}
+$('alerta-arte-ver').addEventListener('click', irParaCliente);
+$('alerta-arte-fechar').addEventListener('click', () => {
+  $('alerta-arte').hidden = true;
+});
+api.aoArteParaFazer(mostrarAlertaDeArte);
+api.aoAbrirCliente(irParaCliente);
+
+for (const qual of ['pasta1', 'pasta2', 'pasta3', 'pasta4'] as const) {
   $(`escolher-${qual}`).addEventListener('click', () => {
     void api.designerEscolherPasta(qual).then((c) => {
       aplicarDesigner(c);

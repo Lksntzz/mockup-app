@@ -37,6 +37,17 @@ describe('criarConfigDesigner', () => {
     await writeFile(arquivo, JSON.stringify({ designer: 'sim', pasta1: 5 }));
     expect(await c.ler()).toEqual({ designer: false });
   });
+  test('guarda também as Pastas 3 e 4 e a lista de clientes já alertados', async () => {
+    const c = criarConfigDesigner(arquivo);
+    await c.salvar({ designer: true, pasta3: 'G:\\3', pasta4: 'G:\\4', vistos: ['A', 'B'] });
+    expect(await criarConfigDesigner(arquivo).ler()).toEqual({ designer: true, pasta3: 'G:\\3', pasta4: 'G:\\4', vistos: ['A', 'B'] });
+  });
+  test('"vistos" com tipos errados é ignorado', async () => {
+    const c = criarConfigDesigner(arquivo);
+    await c.salvar({ designer: true });
+    await writeFile(arquivo, JSON.stringify({ designer: true, vistos: [1, 'ok'] }));
+    expect(await c.ler()).toEqual({ designer: true });
+  });
   test('grava sem deixar arquivo temporário', async () => {
     await criarConfigDesigner(arquivo).salvar({ designer: true });
     expect(JSON.parse(await readFile(arquivo, 'utf-8'))).toEqual({ designer: true });

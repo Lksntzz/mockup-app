@@ -24,6 +24,7 @@ dialog.showOpenDialog = async (opcoes) =>
     ? { canceled: false, filePaths: [pastaDoDialogo] }
     : { canceled: false, filePaths: [arquivoDoDialogo] };
 
+process.env.MOCKUP_VIGIA_MS = '1500'; // vigia da Pasta 1 rápido para o teste
 require(process.env.MAIN_JS || path.resolve(__dirname, '../dist/main/main.js'));
 
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -259,7 +260,7 @@ app.on('browser-window-created', (_e, win) => {
       await espera(1500);
       await ate("document.body.dataset.estado === 'vazio'", 'app recarregado para o designer');
       conferir(await js("document.getElementById('tab-pasta1').hidden"), 'por padrão a aba Pasta 1 NÃO aparece');
-      const recusa = await js("window.mockupApi.fluxoListar().then(() => 'permitiu', (e) => String(e.message || e))");
+      const recusa = await js("window.mockupApi.clientesListar().then(() => 'permitiu', (e) => String(e.message || e))");
       conferir(recusa !== 'permitiu' && recusa.includes('Modo designer'), `sem o modo designer o app recusa listar a Pasta 1 (${recusa.slice(-60)})`);
       await js("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'D', shiftKey: true }))");
       conferir(await ate("!document.getElementById('tela-designer').hidden && document.getElementById('designer-titulo').textContent.includes('Carregando')", 'tela carregando'), 'Shift+D mostra a tela "Carregando modo designer…"');
@@ -288,6 +289,38 @@ app.on('browser-window-created', (_e, win) => {
       await js("document.getElementById('tab-pasta1').click()");
       await ate("document.querySelectorAll('#pasta1-lista .cliente-linha').length === 1", 'cliente listado');
       conferir((await js("document.querySelectorAll('#pasta1-lista .cliente-linha').length")) === 1, 'a Pasta 1 lista o cliente que ainda não tem MKP');
+      conferir((await js("document.querySelector('#pasta1-lista .etapa.atual').textContent")).startsWith('1'), 'o cliente da Pasta 1 mostra a etapa 1 marcada na barra');
+      conferir((await js("document.querySelector('#pasta1-lista .situacao').textContent")).includes('Arte para fazer'), 'a situação diz "Arte para fazer o MKP"');
+      // etapas 3 e 4 e busca nos finalizados
+      const p3 = path.join(fluxo, '3 AGUARDA IMPRESSAO');
+      const p4 = path.join(fluxo, '4 FINALIZADOS');
+      fs.mkdirSync(path.join(p3, 'CLIENTE IMPRIMINDO'), { recursive: true });
+      fs.mkdirSync(path.join(p4, 'ANTIGO CLIENTE'), { recursive: true });
+      pastaDoDialogo = p3;
+      await js("document.getElementById('escolher-pasta3').click()");
+      await espera(400);
+      pastaDoDialogo = p4;
+      await js("document.getElementById('escolher-pasta4').click()");
+      await espera(400);
+      await ate("document.querySelectorAll('#pasta1-lista .cliente-linha').length === 2", 'cliente da etapa 3');
+      conferir(await js("[...document.querySelectorAll('#pasta1-lista .cliente-linha')].some(l => l.textContent.includes('CLIENTE IMPRIMINDO') && l.querySelector('.etapa.atual').textContent.startsWith('3'))"), 'cliente da Pasta 3 aparece com a etapa 3 marcada');
+      await js("document.getElementById('busca-finalizados').value = 'antigo'; document.getElementById('buscar-finalizados').click()");
+      await ate("document.querySelectorAll('#busca-resultado .cliente-linha').length === 1", 'resultado da busca');
+      conferir(await js("document.querySelector('#busca-resultado .etapa.atual').textContent.startsWith('4')"), 'a busca nos finalizados acha o cliente da Pasta 4 com a etapa 4 marcada');
+      // alerta "arte para fazer": cliente novo com arte
+      await ate("window.mockupApi.designerEstado().then((c) => Array.isArray(c.vistos))", 'vigia registrou os existentes', 30000);
+      conferir(await js("document.getElementById('alerta-arte').hidden"), 'os clientes que já existiam não geram alerta');
+      const novo = path.join(p1, 'CLIENTE NOVO');
+      fs.mkdirSync(novo);
+      await espera(2500);
+      conferir(await js("document.getElementById('alerta-arte').hidden"), 'pasta nova ainda vazia não gera alerta');
+      fs.writeFileSync(path.join(novo, 'arte.jpg'), 'x');
+      conferir(await ate("!document.getElementById('alerta-arte').hidden && document.getElementById('alerta-arte-nomes').textContent.includes('CLIENTE NOVO')", 'alerta arte para fazer', 30000), 'chegou a arte numa pasta nova: aparece o alerta "Arte para fazer: CLIENTE NOVO"');
+      await foto('8c-alerta.png');
+      await js("document.getElementById('alerta-arte-fechar').click()");
+      fs.rmSync(novo, { recursive: true, force: true });
+      await js("document.getElementById('tab-pasta1').click()");
+      await ate("document.querySelectorAll('#pasta1-lista .cliente-linha').length === 2", 'lista sem o cliente de teste');
       await foto('8-pasta1.png');
       await js("document.querySelector('#pasta1-lista .primario').click()");
       await ate("document.body.dataset.estado === 'pronto'", 'abrir a arte PNG');
