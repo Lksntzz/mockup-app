@@ -73,6 +73,20 @@ app.on('browser-window-created', (_e, win) => {
       const msg = await js("document.getElementById('mensagem').textContent");
       conferir(msg.includes('não é um PDF'), `arquivo que não é PDF mostra mensagem clara ("${msg}")`);
       conferir((await js("document.querySelectorAll('#lista .item').length")) === 5, 'o app continua com as 5 capas depois do erro');
+
+      // exportação de verdade: canvas → PNG → IPC → disco
+      const pastaExport = path.join(saida, 'exportados');
+      fs.rmSync(pastaExport, { recursive: true, force: true });
+      fs.mkdirSync(pastaExport, { recursive: true });
+      arquivoDoDialogo = pastaExport;
+      await js("document.getElementById('exportar').click()");
+      await ate("/exportados/.test(document.getElementById('mensagem').textContent)", 'exportação concluída');
+      const nomes = fs.readdirSync(pastaExport).sort();
+      conferir(nomes.length === 5 && nomes[0] === 'CAPAS_capa-01.png' && nomes[4] === 'CAPAS_capa-05.png', `exportou 5 PNGs com os nomes certos (${nomes.join(', ')})`);
+      const cab = fs.readFileSync(path.join(pastaExport, nomes[0] || 'x'));
+      conferir(cab.readUInt32BE(16) === 1200 && cab.readUInt32BE(20) === 1200 && cab.subarray(1, 4).toString() === 'PNG', 'o primeiro PNG tem 1200×1200');
+      conferir(!nomes.some((n) => n.includes('parcial')), 'nenhum arquivo temporário sobrou');
+      conferir(!(await js("document.getElementById('exportar').disabled")), 'o botão Exportar voltou a ficar ativo');
     } catch (e) {
       conferir(false, `exceção no roteiro: ${e}`);
     }

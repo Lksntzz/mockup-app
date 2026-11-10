@@ -1,7 +1,8 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
-import { readFile } from 'node:fs/promises';
+import { readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { PNG } from 'pngjs';
+import { caminhoPermitido } from './paths';
 
 export interface CamadaBruta {
   width: number;
@@ -40,10 +41,52 @@ ipcMain.handle('escolher-pdf', async () => {
   return { nome: basename(caminho), bytes: new Uint8Array(await readFile(caminho)) };
 });
 
+/** Só a pasta que o usuário escolheu na caixa de diálogo aceita gravação. */
+let pastaEscolhida: string | null = null;
+
+function exigirPermitido(caminho: string): void {
+  if (!pastaEscolhida || !caminhoPermitido(pastaEscolhida, caminho)) {
+    throw new Error('Caminho fora da pasta escolhida.');
+  }
+}
+
 ipcMain.handle('escolher-pasta', async () => {
   const r = await dialog.showOpenDialog({ title: 'Escolher a pasta dos mockups', properties: ['openDirectory', 'createDirectory'] });
   const pasta = r.filePaths[0];
-  return r.canceled || !pasta ? null : pasta;
+  if (r.canceled || !pasta) return null;
+  pastaEscolhida = pasta;
+  return pasta;
+});
+
+ipcMain.handle('existe', async (_e, caminho: string) => {
+  exigirPermitido(caminho);
+  return stat(caminho).then(() => true, () => false);
+});
+ipcMain.handle('gravar-arquivo', async (_e, caminho: string, bytes: Uint8Array) => {
+  exigirPermitido(caminho);
+  await writeFile(caminho, bytes);
+});
+ipcMain.handle('renomear-arquivo', async (_e, de: string, para: string) => {
+  exigirPermitido(de);
+  exigirPermitido(para);
+  await rename(de, para);
+});
+ipcMain.handle('remover-arquivo', async (_e, caminho: string) => {
+  exigirPermitido(caminho);
+  await unlink(caminho);
+});
+ipcMain.handle('confirmar-sobrescrever', async (_e, arquivos: string[]) => {
+  const lista = arquivos.slice(0, 8).map((a) => basename(a)).join('\n') + (arquivos.length > 8 ? `\n… e mais ${arquivos.length - 8}` : '');
+  const r = await dialog.showMessageBox({
+    type: 'question',
+    title: 'Arquivos já existem',
+    message: `${arquivos.length} ${arquivos.length === 1 ? 'arquivo já existe' : 'arquivos já existem'} nessa pasta. Substituir?`,
+    detail: lista,
+    buttons: ['Substituir', 'Cancelar'],
+    defaultId: 1,
+    cancelId: 1,
+  });
+  return r.response === 0;
 });
 
 function criarJanela(): BrowserWindow {

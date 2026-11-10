@@ -2,6 +2,7 @@ import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { createPreviewScheduler } from '../app/scheduler';
 import { copyToAll, createState, select, setColor, type AppState } from '../app/state';
 import { compose, isAvailable } from '../engine/compose';
+import { exportAll } from '../export/exporter';
 import type { Accessory, Pack, Raster } from '../engine/types';
 import { cropMargins } from '../pdf/crop';
 import { coverCrop } from '../pdf/fit';
@@ -29,6 +30,7 @@ let pacote: { pack: Pack; layers: Map<string, Raster> } | null = null;
 let estado: AppState | null = null;
 let info: InfoDaCapa[] = [];
 let contadorDePrevias = 0;
+let nomeDoPdf = '';
 
 const proximoQuadro = () => new Promise<void>((r) => setTimeout(r, 0));
 
@@ -196,6 +198,7 @@ async function abrirPdfDeBytes(nome: string, bytes: Uint8Array): Promise<void> {
     await doc.close();
     estado = createState(pacote.pack, artes);
     info = novaInfo;
+    nomeDoPdf = nome;
     $('nome-pdf').textContent = nome;
     progresso(null);
     mensagem(`${artes.length} ${artes.length === 1 ? 'capa' : 'capas'} carregadas.`);
@@ -233,6 +236,50 @@ $('copiar').addEventListener('click', () => {
   estado = copyToAll(estado, estado.selecionada);
   mensagem('Cores copiadas para todas as capas.');
   desenharLista();
+});
+
+async function codificarPng(r: Raster): Promise<Uint8Array> {
+  const canvas = document.createElement('canvas');
+  pintar(canvas, r);
+  const blob = await new Promise<Blob | null>((ok) => canvas.toBlob(ok, 'image/png'));
+  if (!blob) throw new Error('não consegui gerar o PNG');
+  return new Uint8Array(await blob.arrayBuffer());
+}
+
+$('exportar').addEventListener('click', async () => {
+  if (!estado || !pacote) return;
+  const botao = $<HTMLButtonElement>('exportar');
+  try {
+    const pasta = await api.escolherPasta();
+    if (!pasta) return;
+    botao.disabled = true;
+    mensagem('Exportando…');
+    progresso(0);
+    const r = await exportAll({
+      pdfName: nomeDoPdf,
+      pasta,
+      pack: pacote.pack,
+      layers: pacote.layers,
+      capas: estado.capas,
+      encodePng: codificarPng,
+      write: (c, b) => api.gravarArquivo(c, b),
+      rename: (de, para) => api.renomearArquivo(de, para),
+      remove: (c) => api.removerArquivo(c),
+      exists: (c) => api.existe(c),
+      confirmOverwrite: (a) => api.confirmarSobrescrever(a),
+      onProgress: (feito, total) => {
+        progresso(feito / total);
+        mensagem(`Exportando ${feito} de ${total}…`);
+      },
+    });
+    progresso(null);
+    mensagem(r.written.length === 0 ? 'Exportação cancelada. Nada foi gravado.' : `${r.written.length} ${r.written.length === 1 ? 'mockup exportado' : 'mockups exportados'} em ${pasta}.`);
+  } catch (e) {
+    progresso(null);
+    mensagem(`A exportação falhou. ${e instanceof Error ? e.message : String(e)}`, true);
+  } finally {
+    botao.disabled = false;
+  }
 });
 
 for (const tipo of ['dragenter', 'dragover']) {
