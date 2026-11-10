@@ -1,8 +1,11 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import { EventEmitter } from 'node:events';
 import { mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
+import { userInfo } from 'node:os';
 import { basename, extname, join } from 'node:path';
 import { PNG } from 'pngjs';
+import { entradaValida } from '../app/historico';
+import { criarHistorico, nomeSeguro } from './historico';
 import { caminhoPermitido, pastaMkp } from './paths';
 import { criarAtualizador, type AtualizadorLike } from './updater';
 
@@ -117,6 +120,26 @@ const atualizador = criarAtualizador({
   enviar: (estado) => BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('atualizacao', estado)),
 });
 ipcMain.handle('versao', () => app.getVersion());
+
+/** Quem está usando: o usuário do Windows. Cada operador tem o seu histórico, numa pasta só dele. */
+function operador(): string {
+  try {
+    return userInfo().username;
+  } catch {
+    return process.env.USERNAME ?? 'usuario';
+  }
+}
+const historicoDoOperador = () => criarHistorico(join(app.getPath('userData'), 'usuarios', nomeSeguro(operador()), 'historico.json'));
+ipcMain.handle('operador', () => operador());
+ipcMain.handle('historico-listar', () => historicoDoOperador().listar());
+ipcMain.handle('historico-salvar', (_e, entrada: unknown) => {
+  if (!entradaValida(entrada)) throw new Error('Entrada de histórico inválida.');
+  return historicoDoOperador().salvar(entrada);
+});
+ipcMain.handle('historico-remover', (_e, id: unknown) => {
+  if (typeof id !== 'string') throw new Error('Identificador inválido.');
+  return historicoDoOperador().remover(id);
+});
 ipcMain.handle('estado-atualizacao', () => atualizador.estado());
 ipcMain.handle('verificar-atualizacao', () => atualizador.verificar(true));
 ipcMain.handle('instalar-atualizacao', () => atualizador.instalar());

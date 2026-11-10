@@ -1,5 +1,6 @@
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { createPreviewScheduler } from '../app/scheduler';
+import { aplicarEscolhas, descreverSaidas, formatarData, type EntradaHistorico, type Saidas } from '../app/historico';
 import { copyToAll, createState, select, setColor, type AppState, type CapaState } from '../app/state';
 import { abasVisiveis, ROTULOS, vizinha, type Modo } from '../app/abas';
 import { escolhasDoVerso, paraRazao } from '../app/verso';
@@ -268,9 +269,15 @@ async function lerArteDaPagina(doc: PdfAberto, n: number): Promise<Raster> {
   return cropMargins(caixa ? cropToBox(pagina, caixa) : pagina);
 }
 
-async function abrirPdf(arquivo: ArquivoPdf): Promise<void> {
+/** Dados de um trabalho do histórico que está sendo reaberto para edição. */
+interface Retomada {
+  entrada: EntradaHistorico;
+}
+
+async function abrirPdf(arquivo: ArquivoPdf, retomada?: Retomada): Promise<void> {
   if (!pacote) return;
   const { nome, bytes, caminho } = arquivo;
+  if (retomada) trabalhos.remover(caminho); // o histórico manda: parte das cores salvas, não do que estava na memória
   const salvo = trabalhos.buscar(caminho);
   if (salvo) {
     retomar(salvo.caminho);
@@ -313,6 +320,16 @@ async function abrirPdf(arquivo: ArquivoPdf): Promise<void> {
     }
     await doc.close();
     estado = createState(pacote.pack, artes, versos);
+    if (retomada) {
+      estado = aplicarEscolhas(estado, retomada.entrada.escolhas);
+      idsDoHistorico.set(caminho, retomada.entrada.id);
+      const sd = retomada.entrada.saidas;
+      caixa('saida-frente').checked = sd.frente;
+      caixa('saida-vt').checked = sd.vt;
+      caixa('saida-sem-canguru').checked = sd.semCanguru;
+      caixa('saida-verso').checked = sd.verso;
+      if (nenhumaMarcada()) caixa('saida-frente').checked = true;
+    }
     info = novaInfo;
     nomeDoPdf = nome;
     caminhoDoPdf = caminho;
@@ -351,6 +368,7 @@ $('salvo-continuar').addEventListener('click', () => {
 $('salvo-ok').addEventListener('click', () => {
   fecharSalvo();
   trabalhos.remover(caminhoDoPdf);
+  idsDoHistorico.delete(caminhoDoPdf);
   irParaInicio();
   mensagem('');
 });
@@ -399,6 +417,7 @@ function irParaInicio(): void {
   caminhoDoPdf = '';
   $('nome-pdf').textContent = '';
   definirEstado('vazio');
+  mostrarAba('novo');
   desenharEmAndamento();
 }
 
@@ -425,11 +444,128 @@ async function iniciar(): Promise<void> {
       layers.set(arquivo, { width: c.width, height: c.height, data: new Uint8ClampedArray(c.data.buffer, c.data.byteOffset, c.data.length) });
     }
     pacote = { pack: JSON.parse(json) as Pack, layers };
+    void api.operador().then((nome) => {
+      $('operador').textContent = nome;
+      $('historico-operador').textContent = nome;
+    });
     irParaInicio();
   } catch (e) {
     mensagem(`Não consegui carregar o pacote do mockup: ${e instanceof Error ? e.message : String(e)}`, true);
   }
 }
+
+// ---- operador e histórico ----
+/** Um trabalho salvo mantém o mesmo registro no histórico, mesmo se for salvo de novo (ex.: outras imagens). */
+const idsDoHistorico = new Map<string, string>();
+
+function saidasMarcadas(): Saidas {
+  return {
+    frente: caixa('saida-frente').checked,
+    vt: caixa('saida-vt').checked,
+    semCanguru: caixa('saida-sem-canguru').checked,
+    verso: caixa('saida-verso').checked,
+  };
+}
+
+async function registrarNoHistorico(geradas: number): Promise<void> {
+  if (!estado) return;
+  let id = idsDoHistorico.get(caminhoDoPdf);
+  if (!id) idsDoHistorico.set(caminhoDoPdf, (id = crypto.randomUUID()));
+  try {
+    await api.salvarNoHistorico({
+      id,
+      data: new Date().toISOString(),
+      pdfNome: nomeDoPdf,
+      pdfCaminho: caminhoDoPdf,
+      saidas: saidasMarcadas(),
+      escolhas: estado.capas.map((c) => ({ ...c.choices })),
+      geradas,
+    });
+  } catch (e) {
+    // o histórico é um extra: se falhar, os mockups já foram salvos
+    console.warn('não consegui gravar o histórico', e);
+  }
+}
+
+async function editarDoHistorico(entrada: EntradaHistorico, trocarPdf: boolean): Promise<void> {
+  try {
+    let arquivo: ArquivoPdf | null = null;
+    if (!trocarPdf) {
+      try {
+        arquivo = await api.lerPdf(entrada.pdfCaminho);
+      } catch {
+        mensagem('O PDF não está mais no lugar de antes. Escolha o PDF (as cores salvas serão mantidas).');
+      }
+    }
+    if (!arquivo) arquivo = await api.escolherPdf();
+    if (!arquivo) return;
+    mostrarAba('novo');
+    await abrirPdf(arquivo, { entrada });
+  } catch (e) {
+    mensagem(textoDoErro(e), true);
+  }
+}
+
+async function desenharHistorico(): Promise<void> {
+  const alvo = $('historico-lista');
+  alvo.replaceChildren();
+  let lista: EntradaHistorico[] = [];
+  try {
+    lista = await api.listarHistorico();
+  } catch (e) {
+    mensagem(`Não consegui ler o histórico: ${e instanceof Error ? e.message : String(e)}`, true);
+  }
+  if (lista.length === 0) {
+    const vazio = document.createElement('p');
+    vazio.className = 'historico-vazio';
+    vazio.textContent = 'Nenhum trabalho salvo ainda. Quando você salvar mockups, eles aparecem aqui.';
+    alvo.append(vazio);
+    return;
+  }
+  for (const e of lista) {
+    const linha = document.createElement('div');
+    linha.className = 'historico-linha';
+    const info = document.createElement('div');
+    info.className = 'info';
+    const pdf = document.createElement('span');
+    pdf.className = 'pdf';
+    pdf.textContent = e.pdfNome;
+    const detalhe = document.createElement('span');
+    detalhe.className = 'detalhe';
+    const capas = e.escolhas.length === 1 ? '1 capa' : `${e.escolhas.length} capas`;
+    detalhe.textContent = `${formatarData(e.data)} · ${capas} · ${descreverSaidas(e.saidas)} · ${e.geradas} ${e.geradas === 1 ? 'imagem' : 'imagens'}`;
+    info.append(pdf, detalhe);
+    const botao = (texto: string, classe: string, acao: () => void, dica = ''): HTMLButtonElement => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = classe;
+      b.textContent = texto;
+      if (dica) b.title = dica;
+      b.addEventListener('click', acao);
+      return b;
+    };
+    linha.append(
+      info,
+      botao('Editar', 'primario editar', () => void editarDoHistorico(e, false), 'Reabre este trabalho para mudar as cores'),
+      botao('Trocar a arte', 'secundario trocar', () => void editarDoHistorico(e, true), 'Escolhe outro PDF e mantém as cores salvas'),
+      botao('Remover', 'discreto remover', () => {
+        if (!window.confirm(`Remover "${e.pdfNome}" do histórico? Os arquivos já salvos não são apagados.`)) return;
+        void api.removerDoHistorico(e.id).then(desenharHistorico);
+      }),
+    );
+    alvo.append(linha);
+  }
+}
+
+function mostrarAba(aba: 'novo' | 'historico'): void {
+  $('inicio-novo').hidden = aba !== 'novo';
+  $('historico').hidden = aba !== 'historico';
+  $('tab-novo').setAttribute('aria-pressed', String(aba === 'novo'));
+  $('tab-historico').setAttribute('aria-pressed', String(aba === 'historico'));
+  if (aba === 'historico') void desenharHistorico();
+}
+$('tab-novo').addEventListener('click', () => mostrarAba('novo'));
+$('tab-historico').addEventListener('click', () => mostrarAba('historico'));
 
 async function escolherEAbrir(): Promise<void> {
   if (document.body.dataset.estado !== 'vazio') return;
@@ -557,6 +693,7 @@ $('exportar').addEventListener('click', async () => {
       guardarAtual();
       mensagem('');
       mostrarSalvo(r.written.length);
+      await registrarNoHistorico(r.written.length);
     }
   } catch (e) {
     progresso(null);

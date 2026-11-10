@@ -14,6 +14,10 @@ fs.mkdirSync(pastaDoTrabalho, { recursive: true });
 const pdfDoTrabalho = path.join(pastaDoTrabalho, path.basename(pdf));
 fs.copyFileSync(pdf, pdfDoTrabalho);
 let arquivoDoDialogo = pdfDoTrabalho;
+// os dados do operador (histórico) ficam numa pasta do teste, para começar sempre do zero
+const pastaDeDados = path.join(saida, 'dados');
+fs.rmSync(pastaDeDados, { recursive: true, force: true });
+app.setPath('userData', pastaDeDados);
 dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [arquivoDoDialogo] });
 
 require(process.env.MAIN_JS || path.resolve(__dirname, '../dist/main/main.js'));
@@ -135,6 +139,26 @@ app.on('browser-window-created', (_e, win) => {
       conferir(await js("document.body.dataset.estado") === 'pronto', 'com o card aberto, a arte continua aberta por trás (nada foi descartado)');
       await js("document.getElementById('salvo-ok').click()");
       conferir((await js('document.body.dataset.estado')) === 'vazio' && await js("document.getElementById('salvo').hidden"), 'Terminar fecha o card e volta ao início');
+
+      conferir(await js("document.getElementById('em-andamento').hidden"), 'ao concluir, o trabalho sai de "Em andamento"');
+      // operador e histórico
+      const operador = await js("document.getElementById('operador').textContent");
+      conferir(operador.length > 0, `o topo mostra o operador ("${operador}")`);
+      await js("document.getElementById('tab-historico').click()");
+      await ate("document.querySelectorAll('#historico-lista .historico-linha').length === 1", 'histórico com 1 trabalho');
+      const linhaHist = await js("document.querySelector('#historico-lista .historico-linha').textContent");
+      conferir(linhaHist.includes('CAPAS.pdf') && linhaHist.includes('5 capas') && linhaHist.includes('Frente'), `o histórico mostra PDF, capas e imagens ("${linhaHist.replace(/\s+/g, ' ').trim()}")`);
+      const arquivoHist = path.join(pastaDeDados, 'usuarios');
+      conferir(fs.existsSync(arquivoHist) && fs.readdirSync(arquivoHist).length === 1, 'o histórico fica numa pasta própria do operador');
+      await foto('5a-historico.png');
+      await js("document.querySelector('#historico-lista .editar').click()");
+      await ate("document.body.dataset.estado === 'pronto'", 'editar pelo histórico');
+      await js("document.querySelectorAll('#lista .item')[3].click()");
+      await espera(500);
+      const corHist = await js("document.querySelector('[data-acc=elastico][aria-pressed=true]').dataset.id");
+      conferir(corHist === 'nenhum', `Editar reabre o trabalho com as cores salvas (elástico da capa 4: ${corHist})`);
+      conferir((await js("document.querySelectorAll('#lista .item').length")) === 5, 'Editar traz as 5 capas de volta');
+      await js("document.getElementById('voltar').click()");
       const pastaMkp = path.join(path.dirname(pdfDoTrabalho), 'MKP');
       const nomes = fs.existsSync(pastaMkp) ? fs.readdirSync(pastaMkp).sort() : [];
       conferir(nomes.length === 5 && nomes[0] === 'CAPAS_capa-01.png' && nomes[4] === 'CAPAS_capa-05.png', `criou a pasta MKP ao lado do PDF com os 5 PNGs (${nomes.join(', ')})`);
@@ -142,7 +166,6 @@ app.on('browser-window-created', (_e, win) => {
       conferir(cab.readUInt32BE(16) === 1200 && cab.readUInt32BE(20) === 1200 && cab.subarray(1, 4).toString() === 'PNG', 'o primeiro PNG tem 1200×1200');
       conferir(!nomes.some((x) => x.includes('parcial')), 'nenhum arquivo temporário sobrou');
       conferir(fs.existsSync(pdfDoTrabalho), 'o PDF original continua no lugar');
-      conferir(await js("document.getElementById('em-andamento').hidden"), 'ao concluir, o trabalho sai de "Em andamento"');
       conferir(!(await js("document.getElementById('exportar').disabled")), 'o botão Concluir voltou a ficar ativo');
 
       // imagens de especificação: reabre o PDF e marca só VT e sem canguru

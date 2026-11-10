@@ -120,3 +120,15 @@ body:not([data-estado="pronto"]) #coluna-capas { display: none; }
 .abas { flex-shrink: 0; align-items: center; }
 .abas button { white-space: nowrap; }
 .centro .previa { flex: 0 1 auto; min-height: 0; }
+
+.operador { font-size: 13px; font-weight: 600; color: var(--texto); padding: 4px 10px; border-radius: 999px; background: var(--acento-claro); }
+.operador:empty { display: none; }
+.abas-inicio { display: flex; gap: 6px; justify-content: center; margin-bottom: 18px; }
+.abas-inicio button { padding: 6px 18px; border-radius: 999px; font-weight: 600; }
+.abas-inicio button[aria-pressed="true"] { background: var(--acento); border-color: var(--acento); color: #fff; }
+.historico { text-align: left; width: min(720px, 100%); }
+.historico-linha { display: flex; align-items: center; gap: 12px; padding: 10px 12px; margin-bottom: 8px; background: var(--superficie); border: 1px solid var(--borda); border-radius: 10px; box-shadow: var(--sombra); }
+.historico-linha .info { flex: 1; min-width: 0; }
+.historico-linha .pdf { display: block; font-weight: 600; color: var(--texto); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.historico-linha .detalhe { font-size: 12px; color: var(--suave); }
+.historico-vazio { color: var(--suave); text-align: center; padding: 24px 0; }

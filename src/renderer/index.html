@@ -16,6 +16,7 @@
       <span id="nome-pdf" class="nome-pdf"></span>
       <span id="mensagem" class="mensagem" role="status"></span>
       <progress id="progresso" max="1" value="0" hidden></progress>
+      <span id="operador" class="operador" title="Operador (usuário do Windows)"></span>
       <span id="versao" class="versao"></span>
       <button id="verificar" class="discreto" type="button">Verificar atualizações</button>
     </header>
@@ -30,6 +31,11 @@
       </aside>
       <section class="centro">
         <div id="vazio" class="vazio">
+          <div class="abas-inicio" role="group" aria-label="Início">
+            <button id="tab-novo" type="button" aria-pressed="true">Novo trabalho</button>
+            <button id="tab-historico" type="button" aria-pressed="false">Histórico</button>
+          </div>
+          <div id="inicio-novo">
           <div id="zona" class="zona" role="button" tabindex="0" aria-label="Escolher um PDF ou arrastar para cá">
             <div class="vazio-icone" aria-hidden="true">PDF</div>
             <p><strong>Arraste um PDF aqui</strong> ou <em>clique para escolher o arquivo</em>.</p>
@@ -39,6 +45,11 @@
           <section id="em-andamento" class="em-andamento" hidden>
             <h2 class="titulo-coluna">Em andamento</h2>
             <div id="trabalhos"></div>
+          </section>
+          </div>
+          <section id="historico" class="historico" hidden>
+            <h2 class="titulo-coluna">Histórico de <span id="historico-operador"></span></h2>
+            <div id="historico-lista"></div>
           </section>
         </div>
         <div id="abas" class="abas" role="group" aria-label="Qual mockup mostrar" hidden>

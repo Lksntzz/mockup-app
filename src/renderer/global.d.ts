@@ -1,3 +1,4 @@
+import type { EntradaHistorico } from '../app/historico';
 export interface CamadaBruta {
   width: number;
   height: number;
@@ -17,6 +18,10 @@ export interface ArquivoPdf {
 }
 export interface MockupApi {
   versao(): Promise<string>;
+  operador(): Promise<string>;
+  listarHistorico(): Promise<EntradaHistorico[]>;
+  salvarNoHistorico(entrada: EntradaHistorico): Promise<void>;
+  removerDoHistorico(id: string): Promise<void>;
   estadoAtualizacao(): Promise<EstadoAtualizacao>;
   verificarAtualizacao(): Promise<void>;
   instalarAtualizacao(): Promise<void>;
