@@ -197,6 +197,23 @@ describe('exportAll com imagens de especificação', () => {
     expect(px('/saida/colecao_capa-01_especificacao-sem-canguru.png')).not.toBe(7);
   });
 
+  test('a contra capa da especificação usa a arte da página par, como na frente', async () => {
+    const comVerso: Pack = {
+      ...packEspec,
+      backArt: { corners: [[0, 0], [4, 0], [4, 4], [0, 4]], size: { width: 4, height: 4 }, mask: { file: 'm.png', offset: [0, 0] } },
+      stack: [packEspec.stack[0] as Pack['stack'][number], { id: 'verso', role: 'back-art', opacity: 1, blend: 'normal', offset: [0, 0] }],
+    };
+    const disco = discoFalso();
+    const verso = opaco(33);
+    await exportAll(opcoes(disco, {
+      semFrente: true,
+      capas: [{ art: solido(4, 4, 40), back: verso, choices: ESCOLHA }],
+      extras: [{ suffix: 'especificacao-vt', pack: comVerso, layers: camadasEspec(), variant: 'vt' }],
+    }));
+    const png = PNG.sync.read(Buffer.from(disco.arquivos.get('/saida/colecao_capa-01_especificacao-vt.png') as Uint8Array));
+    expect(png.data[0]).toBe(33);
+  });
+
   test('pergunta sobre sobrescrever considera os arquivos de especificação também', async () => {
     const disco = discoFalso(['/saida/colecao_capa-01_especificacao-vt.png']);
     let perguntou: string[] = [];

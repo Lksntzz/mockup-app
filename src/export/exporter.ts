@@ -79,7 +79,7 @@ export async function exportAll(opts: ExportOptions): Promise<{ written: string[
     const { destino, capa, pack, layers, variant } = tarefas[i] as Tarefa;
     const tmp = destino.replace(/\.png$/i, '.parcial.png');
     try {
-      const raster = compose(pack, layers, capa.art, capa.choices, variant ? undefined : capa.back, variant);
+      const raster = compose(pack, layers, capa.art, capa.choices, capa.back, variant);
       const bytes = await opts.encodePng(raster);
       await opts.write(tmp, bytes);
       await opts.rename(tmp, destino);
