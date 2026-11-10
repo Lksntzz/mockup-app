@@ -140,7 +140,7 @@ const ARTE_REAL = fileURLToPath(new URL('../../fixtures/capa01.png', import.meta
 const temArquivos = existsSync(PACK_DIR + '/mockup.json') && existsSync(ARTE_REAL);
 
 describe.skipIf(!temArquivos)('compose (pack real)', () => {
-  test('todas as 105 combinações de options compõem sem erro', async () => {
+  test('todas as 126 combinações de options compõem sem erro', async () => {
     const { pack, layers } = await loadPackNode(PACK_DIR);
     const art = await lerPng(ARTE_REAL);
     let feitas = 0;
@@ -159,9 +159,9 @@ describe.skipIf(!temArquivos)('compose (pack real)', () => {
         }
       }
     }
-    expect(feitas + puladas).toBe(105);
+    expect(feitas + puladas).toBe(126);
     expect(feitas).toBeGreaterThan(0);
-  }, 180_000); // 105 composições de 1200×1200: com a máquina ocupada o limite padrão de 30 s estourava
+  }, 180_000); // 126 composições de 1200×1200: com a máquina ocupada o limite padrão de 30 s estourava
 
   test('a arte do verso só muda a faixa da contra capa à direita da frente', async () => {
     const { pack, layers } = await loadPackNode(PACK_DIR);
@@ -184,6 +184,29 @@ describe.skipIf(!temArquivos)('compose (pack real)', () => {
     expect(mudados).toBeGreaterThan(300); // a faixa aparece
     expect(mudados).toBeLessThan(60_000); // e é só uma faixa, não a imagem inteira
     expect(aEsquerda / mudados).toBeLessThan(0.02); // quase tudo à direita da frente
+  }, 60_000);
+
+  test('tassel laranja só combina com wire-o rose gold e aparece diferente do branco', async () => {
+    const { pack, layers } = await loadPackNode(PACK_DIR);
+    const art = await lerPng(ARTE_REAL);
+    const rose = { wireo: 'rose-gold', elastico: 'preto', tassel: 'laranja' };
+    expect(isAvailable(pack, rose)).toBe(true);
+    expect(isAvailable(pack, { ...rose, wireo: 'preto' })).toBe(false);
+    expect(isAvailable(pack, { ...rose, wireo: 'branco' })).toBe(false);
+    const laranja = compose(pack, layers, art, rose);
+    const branco = compose(pack, layers, art, { ...rose, tassel: 'branco' });
+    let laranjas = 0;
+    for (let i = 0; i < laranja.data.length; i += 4) {
+      const [r, g, b] = [laranja.data[i]!, laranja.data[i + 1]!, laranja.data[i + 2]!];
+      if (r > 200 && g > 100 && g < 190 && b < 110) laranjas++; // pixels bem alaranjados
+    }
+    expect(laranjas).toBeGreaterThan(1500);
+    let brancos = 0;
+    for (let i = 0; i < branco.data.length; i += 4) {
+      const [r, g, b] = [branco.data[i]!, branco.data[i + 1]!, branco.data[i + 2]!];
+      if (r > 200 && g > 100 && g < 190 && b < 110) brancos++;
+    }
+    expect(laranjas).toBeGreaterThan(brancos + 1500);
   }, 60_000);
 
   test('sem elástico e sem tassel a capa aparece onde eles ficavam', async () => {

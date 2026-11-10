@@ -555,6 +555,21 @@
       }
     },
     {
+      "id": "tassel-laranja-01",
+      "role": "fixed",
+      "file": "tassel-laranja-01.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        90,
+        121
+      ],
+      "when": {
+        "tassel": "laranja",
+        "wireo": "rose-gold"
+      }
+    },
+    {
       "id": "rose-extra-01",
       "role": "fixed",
       "file": "rose-extra-01.png",
@@ -850,13 +865,27 @@
         "swatch": "#f5f5f5"
       },
       {
+        "id": "laranja",
+        "label": "Laranja",
+        "swatch": "#fb8c00"
+      },
+      {
         "id": "nenhum",
         "label": "Nenhum",
         "swatch": "#ffffff"
       }
     ]
   },
-  "unavailable": [],
+  "unavailable": [
+    {
+      "tassel": "laranja",
+      "wireo": "preto"
+    },
+    {
+      "tassel": "laranja",
+      "wireo": "branco"
+    }
+  ],
   "defaults": {
     "wireo": "preto",
     "elastico": "preto",

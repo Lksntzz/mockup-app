@@ -64,8 +64,15 @@ app.on('browser-window-created', (_e, win) => {
       await espera(500);
       await foto('3-cores-trocadas.png');
 
+      // tassel laranja: só com wire-o rose gold (a capa 1 está com rose gold; a capa 2 tem wire-o preto)
+      await js("document.querySelector('[data-acc=tassel][data-id=laranja]').click()");
+      await espera(800);
+      conferir((await js("document.querySelector('[data-acc=tassel][aria-pressed=true]').dataset.id")) === 'laranja', 'o tassel laranja funciona com wire-o rose gold');
+      await foto('3a-tassel-laranja.png');
+      await js("document.querySelector('[data-acc=tassel][data-id=rosa]').click()");
       await js("document.querySelectorAll('#lista .item')[1].click()");
       await espera(1500);
+      conferir(await js("document.querySelector('[data-acc=tassel][data-id=laranja]').disabled"), 'com wire-o preto o tassel laranja fica desativado');
       const cor2 = await js("document.querySelector('[data-acc=elastico][aria-pressed=true]').dataset.id");
       conferir(cor2 === 'preto', `a capa 2 mantém as cores iniciais (elástico ${cor2})`);
 

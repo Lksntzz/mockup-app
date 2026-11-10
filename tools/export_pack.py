@@ -41,6 +41,7 @@ OPCOES = {
         ("azul", "Azul", "#2196f3"),
         ("rosa", "Rosa", "#f48fb1"),
         ("branco", "Branco", "#f5f5f5"),
+        ("laranja", "Laranja", "#fb8c00"),
         ("nenhum", "Nenhum", "#ffffff"),
     ],
 }
@@ -130,8 +131,8 @@ def export_pack(psd_path, out_dir) -> dict:
     contador = {}
     estado = {"arte": None, "verso": None}
 
-    def adicionar(camada, prefixo: str, when=None, id_fixo=None):
-        if not camada.visible:
+    def adicionar(camada, prefixo: str, when=None, id_fixo=None, mesmo_desligada=False):
+        if not camada.visible and not mesmo_desligada:
             return
         if camada.kind not in ("pixel", "smartobject"):
             raise ValueError(f"camada '{camada.name}' do tipo {camada.kind} não é suportada")
@@ -206,7 +207,11 @@ def export_pack(psd_path, out_dir) -> dict:
             stack.append({"id": "arte-verso", "role": "back-art", "opacity": 1.0, "blend": "multiply", "offset": [0, 0]})
         elif nome == "ATIVAR COM WIREO ROSE":
             for c in grupo:
-                adicionar(c, "rose-extra", when={"wireo": "rose-gold"})
+                if c.name.strip() == "Camada 24":
+                    # desligada no PSD: é o tassel laranja, já com os anéis rose gold; só existe com esse wire-o
+                    adicionar(c, "tassel-laranja", when={"tassel": "laranja", "wireo": "rose-gold"}, mesmo_desligada=True)
+                else:
+                    adicionar(c, "rose-extra", when={"wireo": "rose-gold"})
         elif nome == "NÃO MEXER 01":
             tratar_fixo(grupo, "luz", nomear=True)
         else:
@@ -225,7 +230,8 @@ def export_pack(psd_path, out_dir) -> dict:
         "options": {
             acc: [{"id": i, "label": l, "swatch": s} for i, l, s in lista] for acc, lista in OPCOES.items()
         },
-        "unavailable": [],
+        # o tassel laranja só existe com os anéis rose gold (camada do PSD que já os traz)
+        "unavailable": [{"tassel": "laranja", "wireo": w} for w in ("preto", "branco")],
         "defaults": DEFAULTS,
     }
     (out / "mockup.json").write_text(json.dumps(pack, indent=2, ensure_ascii=False), encoding="utf-8")

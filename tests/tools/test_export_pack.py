@@ -26,7 +26,7 @@ def test_opcoes_por_acessorio(pack):
     ids = {acc: [o["id"] for o in ops] for acc, ops in d["options"].items()}
     assert sorted(ids["wireo"]) == ["branco", "preto", "rose-gold"]
     assert sorted(ids["elastico"]) == ["azul", "branco", "laranja", "nenhum", "preto", "rosa", "verde"]
-    assert sorted(ids["tassel"]) == ["azul", "branco", "nenhum", "rosa", "verde"]
+    assert sorted(ids["tassel"]) == ["azul", "branco", "laranja", "nenhum", "rosa", "verde"]
     assert d["defaults"] == {"wireo": "preto", "elastico": "preto", "tassel": "branco"}
 
 
@@ -119,3 +119,15 @@ def test_contra_capa_tem_cantos_e_camada_de_arte_do_verso(pack):
     i = ids.index("arte-verso")
     assert d["stack"][i]["role"] == "back-art" and d["stack"][i]["blend"] == "multiply"
     assert (d["stack"][i - 1].get("file") or "") == verso["mask"]["file"]
+
+
+def test_tassel_laranja_so_existe_com_wireo_rose_gold(pack):
+    """No PSD o tassel laranja é a camada desligada do grupo "ATIVAR COM WIREO ROSE": já vem com os anéis rose gold."""
+    _, d = pack
+    laranja = [c for c in d["stack"] if c.get("when", {}).get("tassel") == "laranja"]
+    assert laranja, "faltou a camada do tassel laranja"
+    for c in laranja:
+        assert c["when"] == {"tassel": "laranja", "wireo": "rose-gold"}
+    for wireo in ("preto", "branco"):
+        assert {"tassel": "laranja", "wireo": wireo} in d["unavailable"]
+    assert {"tassel": "laranja", "wireo": "rose-gold"} not in d["unavailable"]
