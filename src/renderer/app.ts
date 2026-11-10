@@ -1,18 +1,19 @@
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { createPreviewScheduler } from '../app/scheduler';
-import { aplicarEscolhas, descreverSaidas, formatarData, type EntradaHistorico, type Saidas } from '../app/historico';
+import { aplicarEscolhas, contarIgnoradas, descreverSaidas, formatarData, type EntradaHistorico, type Saidas } from '../app/historico';
 import { copyToAll, createState, select, setColor, type AppState, type CapaState } from '../app/state';
 import { abasVisiveis, ROTULOS, vizinha, type Modo } from '../app/abas';
 import { escolhasDoVerso, paraRazao } from '../app/verso';
 import { compose, isAvailable } from '../engine/compose';
 import { exportAll, type ExportCapa, type ExportExtra } from '../export/exporter';
-import type { Accessory, Pack, Raster } from '../engine/types';
+import type { Accessory, Choices, Pack, Raster } from '../engine/types';
 import { cropMargins, cropToBox, widthForArt } from '../pdf/crop';
 import { coverCrop, reduzir } from '../pdf/fit';
 import { capaPageNumbers } from '../pdf/pages';
 import { openPdf, PdfError } from '../pdf/reader';
 import type { ArquivoPdf, EstadoAtualizacao, MockupApi } from './global';
 import { criarTrabalhos } from '../app/trabalhos';
+import type { Rascunho } from '../app/rascunhos';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('./pdf.worker.mjs', document.baseURI).href;
 
@@ -209,6 +210,7 @@ function desenharLista(): void {
     item.addEventListener('click', () => {
       if (!estado) return;
       estado = select(estado, i);
+      salvarRascunho();
       desenharLista();
       desenharPainel();
       pedirPrevia();
@@ -247,6 +249,7 @@ function desenharPainel(): void {
         estado = setColor(estado, estado.selecionada, acc, opcao.id);
         if (estado.lastError) mensagem(estado.lastError, true);
         else mensagem('');
+        salvarRascunho();
         desenharPainel();
         pedirPrevia();
       });
@@ -271,7 +274,12 @@ async function lerArteDaPagina(doc: PdfAberto, n: number): Promise<Raster> {
 
 /** Dados de um trabalho do histórico que está sendo reaberto para edição. */
 interface Retomada {
-  entrada: EntradaHistorico;
+  escolhas: Choices[];
+  saidas: Saidas;
+  /** Capa que estava selecionada (só nos rascunhos). */
+  selecionada?: number;
+  /** Registro do histórico a atualizar quando salvar de novo (só ao editar do histórico). */
+  idHistorico?: string;
 }
 
 async function abrirPdf(arquivo: ArquivoPdf, retomada?: Retomada): Promise<void> {
@@ -320,10 +328,15 @@ async function abrirPdf(arquivo: ArquivoPdf, retomada?: Retomada): Promise<void>
     }
     await doc.close();
     estado = createState(pacote.pack, artes, versos);
+    let aviso = '';
     if (retomada) {
-      estado = aplicarEscolhas(estado, retomada.entrada.escolhas);
-      idsDoHistorico.set(caminho, retomada.entrada.id);
-      const sd = retomada.entrada.saidas;
+      estado = aplicarEscolhas(estado, retomada.escolhas);
+      if (retomada.selecionada !== undefined) estado = select(estado, Math.min(Math.max(retomada.selecionada, 0), estado.capas.length - 1));
+      if (retomada.idHistorico) idsDoHistorico.set(caminho, retomada.idHistorico);
+      const ignoradas = contarIgnoradas(pacote.pack, retomada.escolhas);
+      if (ignoradas > 0) aviso += ` ${ignoradas === 1 ? '1 capa tinha uma cor que não existe mais no modelo e ficou com a cor padrão.' : `${ignoradas} capas tinham cores que não existem mais no modelo e ficaram com a cor padrão.`}`;
+      if (retomada.escolhas.length !== estado.capas.length) aviso += ` O PDF tem ${estado.capas.length} capas e o trabalho salvo tinha ${retomada.escolhas.length}.`;
+      const sd = retomada.saidas;
       caixa('saida-frente').checked = sd.frente;
       caixa('saida-vt').checked = sd.vt;
       caixa('saida-sem-canguru').checked = sd.semCanguru;
@@ -336,8 +349,9 @@ async function abrirPdf(arquivo: ArquivoPdf, retomada?: Retomada): Promise<void>
     trabalhos.guardar({ caminho, nome, estado, info });
     $('nome-pdf').textContent = nome;
     progresso(null);
-    mensagem(artes.length === 1 ? '1 capa carregada.' : `${artes.length} capas carregadas.`);
+    mensagem((artes.length === 1 ? '1 capa carregada.' : `${artes.length} capas carregadas.`) + aviso, aviso !== '');
     definirEstado('pronto');
+    salvarRascunho();
     desenharLista();
     desenharPainel();
     pedirPrevia();
@@ -367,47 +381,120 @@ $('salvo-continuar').addEventListener('click', () => {
 // Terminar: o trabalho sai de "Em andamento" e volta para o início.
 $('salvo-ok').addEventListener('click', () => {
   fecharSalvo();
+  descartarRascunho(caminhoDoPdf);
   trabalhos.remover(caminhoDoPdf);
   idsDoHistorico.delete(caminhoDoPdf);
   irParaInicio();
   mensagem('');
 });
 
+// ---- rascunho: o trabalho em andamento é gravado em disco a cada mudança ----
+let temporizadorRascunho: number | undefined;
+let filaRascunho: Promise<void> = Promise.resolve();
+const naFila = (acao: () => Promise<void>) => {
+  filaRascunho = filaRascunho.then(acao).catch((e) => console.warn('rascunho', e));
+};
+
+function salvarRascunho(): void {
+  if (!estado || !caminhoDoPdf) return;
+  // o retrato é tirado agora (e não quando o temporizador dispara), para não se perder se o usuário voltar ao início antes
+  const r: Rascunho = {
+    caminho: caminhoDoPdf,
+    nome: nomeDoPdf,
+    atualizadoEm: new Date().toISOString(),
+    selecionada: estado.selecionada,
+    saidas: saidasMarcadas(),
+    escolhas: estado.capas.map((c) => ({ ...c.choices })),
+  };
+  window.clearTimeout(temporizadorRascunho);
+  temporizadorRascunho = window.setTimeout(() => naFila(() => api.salvarRascunho(r)), 400);
+}
+
+function descartarRascunho(caminho: string): void {
+  window.clearTimeout(temporizadorRascunho);
+  naFila(() => api.removerRascunho(caminho));
+}
+
+async function continuarRascunho(r: Rascunho): Promise<void> {
+  try {
+    let arquivo: ArquivoPdf | null = null;
+    try {
+      arquivo = await api.lerPdf(r.caminho);
+    } catch {
+      mensagem('O PDF não está mais no lugar de antes. Escolha o PDF (as cores salvas serão mantidas).');
+    }
+    if (!arquivo) arquivo = await api.escolherPdf();
+    if (!arquivo) return;
+    if (arquivo.caminho !== r.caminho) descartarRascunho(r.caminho);
+    await abrirPdf(arquivo, { escolhas: r.escolhas, saidas: r.saidas, selecionada: r.selecionada });
+  } catch (e) {
+    mensagem(textoDoErro(e), true);
+  }
+}
+
 function guardarAtual(): void {
   if (estado && caminhoDoPdf) trabalhos.guardar({ caminho: caminhoDoPdf, nome: nomeDoPdf, estado, info });
 }
 
+let desenhoDeAndamento = 0;
 function desenharEmAndamento(): void {
-  const lista = trabalhos.todos();
-  $('em-andamento').hidden = lista.length === 0;
+  const rodada = ++desenhoDeAndamento;
+  const emMemoria = trabalhos.todos();
   const alvo = $('trabalhos');
-  alvo.replaceChildren();
-  for (const t of lista) {
+  const linhaDe = (nome: string, capas: number, continuar: () => void, descartar: () => void) => {
     const linha = document.createElement('div');
     linha.className = 'trabalho';
-    const nome = document.createElement('span');
-    nome.className = 'nome';
-    nome.textContent = t.nome;
+    const n = document.createElement('span');
+    n.className = 'nome';
+    n.textContent = nome;
     const qtd = document.createElement('span');
     qtd.className = 'qtd';
-    qtd.textContent = t.estado.capas.length === 1 ? '1 capa' : `${t.estado.capas.length} capas`;
-    const continuar = document.createElement('button');
-    continuar.type = 'button';
-    continuar.className = 'primario continuar';
-    continuar.textContent = 'Continuar';
-    continuar.addEventListener('click', () => retomar(t.caminho));
-    const descartar = document.createElement('button');
-    descartar.type = 'button';
-    descartar.className = 'discreto descartar';
-    descartar.textContent = 'Descartar';
-    descartar.addEventListener('click', () => {
-      if (!window.confirm(`Descartar "${t.nome}"? As cores escolhidas serão perdidas.`)) return;
-      trabalhos.remover(t.caminho);
-      desenharEmAndamento();
+    qtd.textContent = capas === 1 ? '1 capa' : `${capas} capas`;
+    const bc = document.createElement('button');
+    bc.type = 'button';
+    bc.className = 'primario continuar';
+    bc.textContent = 'Continuar';
+    bc.addEventListener('click', continuar);
+    const bd = document.createElement('button');
+    bd.type = 'button';
+    bd.className = 'discreto descartar';
+    bd.textContent = 'Descartar';
+    bd.addEventListener('click', () => {
+      if (!window.confirm(`Descartar "${nome}"? As cores escolhidas serão perdidas.`)) return;
+      descartar();
     });
-    linha.append(nome, qtd, continuar, descartar);
-    alvo.append(linha);
-  }
+    linha.append(n, qtd, bc, bd);
+    return linha;
+  };
+  const desenhar = (doDisco: Rascunho[]) => {
+    if (rodada !== desenhoDeAndamento) return; // uma desenhada mais nova já assumiu
+    alvo.replaceChildren();
+    for (const t of emMemoria) {
+      alvo.append(
+        linhaDe(t.nome, t.estado.capas.length, () => retomar(t.caminho), () => {
+          descartarRascunho(t.caminho);
+          trabalhos.remover(t.caminho);
+          desenharEmAndamento();
+        }),
+      );
+    }
+    // trabalhos que só existem em disco (o app foi fechado ou o PC reiniciou)
+    for (const r of doDisco) {
+      if (emMemoria.some((t) => t.caminho === r.caminho)) continue;
+      alvo.append(
+        linhaDe(r.nome, r.escolhas.length, () => void continuarRascunho(r), () => {
+          descartarRascunho(r.caminho);
+          void filaRascunho.then(desenharEmAndamento);
+        }),
+      );
+    }
+    $('em-andamento').hidden = alvo.childElementCount === 0;
+  };
+  desenhar([]);
+  void filaRascunho
+    .then(() => api.listarRascunhos())
+    .then(desenhar)
+    .catch((e) => console.warn('não consegui ler os rascunhos', e));
 }
 
 function irParaInicio(): void {
@@ -500,7 +587,7 @@ async function editarDoHistorico(entrada: EntradaHistorico, trocarPdf: boolean):
     if (!arquivo) arquivo = await api.escolherPdf();
     if (!arquivo) return;
     mostrarAba('novo');
-    await abrirPdf(arquivo, { entrada });
+    await abrirPdf(arquivo, { escolhas: entrada.escolhas, saidas: entrada.saidas, idHistorico: entrada.id });
   } catch (e) {
     mensagem(textoDoErro(e), true);
   }
@@ -591,6 +678,7 @@ $('voltar').addEventListener('click', () => {
 $('copiar').addEventListener('click', () => {
   if (!estado) return;
   estado = copyToAll(estado, estado.selecionada);
+  salvarRascunho();
   mensagem('Cores copiadas para todas as capas.');
   desenharLista();
 });
@@ -614,6 +702,7 @@ for (const id of IDS_SAIDAS) {
       mensagem('Deixe ao menos uma imagem marcada.', true);
     } else {
       mensagem('');
+      salvarRascunho();
       // marcou uma especificação: já mostra ela na prévia; desmarcou a que estava aparecendo: volta para a frente
       if (id === 'saida-vt' || id === 'saida-sem-canguru') {
         const modo: Modo = id === 'saida-vt' ? 'vt' : 'sem-canguru';

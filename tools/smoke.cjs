@@ -32,7 +32,10 @@ function conferir(ok, texto) {
 app.on('browser-window-created', (_e, win) => {
   const wc = win.webContents;
   wc.on('console-message', (_ev, nivel, msg) => nivel >= 2 && console.log('[console]', msg));
+  let roteiroIniciado = false;
   wc.on('did-finish-load', async () => {
+    if (roteiroIniciado) return; // recarregar a página (teste de rascunho) não reinicia o roteiro
+    roteiroIniciado = true;
     const js = (c) => wc.executeJavaScript(c);
     const ate = async (cond, rotulo, ms = 120000) => {
       const t0 = Date.now();
@@ -224,6 +227,28 @@ app.on('browser-window-created', (_e, win) => {
       const nomes3 = fs.readdirSync(pastaMkp).sort();
       conferir(nomes3.length === 20 && nomes3.includes('CAPAS_capa-01_verso.png') && nomes3.includes('CAPAS_capa-05_verso.png'), `gravou o verso de cada capa (${nomes3.length} arquivos)`);
       conferir(Buffer.compare(fs.readFileSync(path.join(pastaMkp, 'CAPAS_capa-01_verso.png')), fs.readFileSync(path.join(pastaMkp, 'CAPAS_capa-01.png'))) !== 0, 'o verso é diferente da frente');
+
+      // rascunho: fechar/reiniciar o app não perde o trabalho em andamento
+      wc.reload();
+      await ate("document.body.dataset.estado === 'vazio'", 'app recarregado');
+      await espera(600);
+      conferir(await js("document.getElementById('em-andamento').hidden"), 'depois de Terminar não sobra rascunho em disco');
+      await js("document.getElementById('zona').click()");
+      await ate("document.body.dataset.estado === 'pronto'", 'abrir para o rascunho');
+      await js("document.querySelector('[data-acc=elastico][data-id=nenhum]').click()");
+      await js("document.querySelectorAll('#lista .item')[2].click()");
+      await espera(1200); // o salvamento automático espera um instante antes de gravar
+      wc.reload(); // simula fechar o app com o trabalho aberto
+      await espera(1500);
+      await ate("document.body.dataset.estado === 'vazio'", 'app recarregado com rascunho');
+      await ate("document.querySelectorAll('#trabalhos .trabalho').length === 1", 'rascunho listado');
+      conferir((await js("document.querySelectorAll('#trabalhos .trabalho').length")) === 1, 'depois de reiniciar, o trabalho aberto aparece em "Em andamento"');
+      await js("document.querySelector('#trabalhos .continuar').click()");
+      await ate("document.body.dataset.estado === 'pronto'", 'continuar o rascunho');
+      conferir((await js("document.querySelector('[data-acc=elastico][aria-pressed=true]').dataset.id")) !== undefined, 'continuar abre o trabalho');
+      conferir((await js("document.querySelector('#lista .item[aria-current=true] strong').textContent")) === 'Capa 3', 'a capa que estava selecionada volta selecionada');
+      await js("document.querySelectorAll('#lista .item')[0].click()");
+      conferir((await js("document.querySelector('[data-acc=elastico][aria-pressed=true]').dataset.id")) === 'nenhum', 'a cor escolhida (elástico Nenhum) volta depois de reiniciar');
     } catch (e) {
       conferir(false, `exceção no roteiro: ${e}`);
     }

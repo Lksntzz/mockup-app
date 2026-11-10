@@ -1,4 +1,5 @@
 import type { EntradaHistorico } from '../app/historico';
+import type { Rascunho } from '../app/rascunhos';
 export interface CamadaBruta {
   width: number;
   height: number;
@@ -22,6 +23,9 @@ export interface MockupApi {
   listarHistorico(): Promise<EntradaHistorico[]>;
   salvarNoHistorico(entrada: EntradaHistorico): Promise<void>;
   removerDoHistorico(id: string): Promise<void>;
+  listarRascunhos(): Promise<Rascunho[]>;
+  salvarRascunho(r: Rascunho): Promise<void>;
+  removerRascunho(caminho: string): Promise<void>;
   estadoAtualizacao(): Promise<EstadoAtualizacao>;
   verificarAtualizacao(): Promise<void>;
   instalarAtualizacao(): Promise<void>;

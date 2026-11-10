@@ -6,6 +6,8 @@ import { basename, extname, join } from 'node:path';
 import { PNG } from 'pngjs';
 import { entradaValida } from '../app/historico';
 import { criarHistorico, nomeSeguro } from './historico';
+import { rascunhoValido } from '../app/rascunhos';
+import { criarRascunhos } from './rascunhos';
 import { caminhoPermitido, pastaMkp } from './paths';
 import { criarAtualizador, type AtualizadorLike } from './updater';
 
@@ -130,6 +132,16 @@ function operador(): string {
   }
 }
 const historicoDoOperador = () => criarHistorico(join(app.getPath('userData'), 'usuarios', nomeSeguro(operador()), 'historico.json'));
+const rascunhosDoOperador = () => criarRascunhos(join(app.getPath('userData'), 'usuarios', nomeSeguro(operador()), 'rascunhos.json'));
+ipcMain.handle('rascunhos-listar', () => rascunhosDoOperador().listar());
+ipcMain.handle('rascunhos-salvar', (_e, r: unknown) => {
+  if (!rascunhoValido(r)) throw new Error('Rascunho inválido.');
+  return rascunhosDoOperador().salvar(r);
+});
+ipcMain.handle('rascunhos-remover', (_e, caminho: unknown) => {
+  if (typeof caminho !== 'string') throw new Error('Caminho inválido.');
+  return rascunhosDoOperador().remover(caminho);
+});
 ipcMain.handle('operador', () => operador());
 ipcMain.handle('historico-listar', () => historicoDoOperador().listar());
 ipcMain.handle('historico-salvar', (_e, entrada: unknown) => {

@@ -65,3 +65,8 @@ export function formatarData(iso: string): string {
   const dois = (n: number) => String(n).padStart(2, '0');
   return `${dois(d.getDate())}/${dois(d.getMonth() + 1)}/${d.getFullYear()} ${dois(d.getHours())}:${dois(d.getMinutes())}`;
 }
+
+/** Quantas capas têm cores salvas que o modelo atual do PSD não oferece mais (para avisar o operador). */
+export function contarIgnoradas(pack: AppState['pack'], escolhas: Choices[]): number {
+  return escolhas.filter((c) => !isAvailable(pack, c)).length;
+}
