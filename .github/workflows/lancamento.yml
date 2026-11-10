@@ -1,9 +1,14 @@
 name: Publicar versão
-# Para lançar: aumente "version" no package.json, faça commit e crie a tag, por exemplo v0.3.0.
-# Os apps já instalados baixam sozinhos o que for publicado aqui.
+# Como lançar uma versão nova:
+#  1. aumente "version" no package.json (ex.: 0.2.2) e envie para o GitHub; ou
+#  2. aba Actions > "Publicar versão" > Run workflow.
+# O GitHub cria a tag, gera o instalador e publica a release. Os apps instalados baixam sozinhos.
+# Se a versão do package.json já tem release, nada é publicado (não sobrescreve).
 on:
+  workflow_dispatch:
   push:
-    tags: ["v*"]
+    branches: [feature/mockup-app, main]
+    paths: [package.json]
 permissions:
   contents: write
 jobs:
@@ -11,17 +16,38 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Ver se esta versão já foi publicada
+        id: versao
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          V=$(node -p "require('./package.json').version")
+          echo "versao=$V" >> "$GITHUB_OUTPUT"
+          if gh release view "v$V" >/dev/null 2>&1; then
+            echo "A versão v$V já tem release. Nada a publicar. Aumente a versão no package.json para lançar outra."
+            echo "publicar=nao" >> "$GITHUB_OUTPUT"
+          else
+            echo "publicar=sim" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/setup-node@v4
+        if: steps.versao.outputs.publicar == 'sim'
         with:
           node-version: 22
           cache: npm
-      - name: A tag precisa ser igual à versão do package.json
+      - if: steps.versao.outputs.publicar == 'sim'
+        run: npm ci
+      - if: steps.versao.outputs.publicar == 'sim'
+        run: npx vitest run --exclude "tests/engine/fidelity.test.ts"
+      - name: Criar a tag desta versão
+        if: steps.versao.outputs.publicar == 'sim'
         shell: bash
         run: |
-          V=$(node -p "require('./package.json').version")
-          if [ "v$V" != "$GITHUB_REF_NAME" ]; then echo "Tag $GITHUB_REF_NAME diferente de v$V no package.json"; exit 1; fi
-      - run: npm ci
-      - run: npx vitest run --exclude "tests/engine/fidelity.test.ts"
-      - run: npm run dist:publicar
+          git config user.name "github-actions"
+          git config user.email "actions@users.noreply.github.com"
+          git tag "v${{ steps.versao.outputs.versao }}"
+          git push origin "v${{ steps.versao.outputs.versao }}"
+      - if: steps.versao.outputs.publicar == 'sim'
+        run: npm run dist:publicar
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
