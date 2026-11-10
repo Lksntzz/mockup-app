@@ -10,7 +10,7 @@ fs.mkdirSync(saida, { recursive: true });
 let arquivoDoDialogo = pdf;
 dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [arquivoDoDialogo] });
 
-require(path.resolve(__dirname, '../dist/main/main.js'));
+require(process.env.MAIN_JS || path.resolve(__dirname, '../dist/main/main.js'));
 
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 const falhas = [];

@@ -1,0 +1,23 @@
+appId: br.com.agenda.mockup
+productName: Mockup da Agenda
+directories:
+  output: release
+# Só o que o app precisa em tempo de execução. tools/, fixtures/, tests/, docs/ e Python ficam de fora.
+# O código já vem empacotado pelo esbuild em dist/, então node_modules não entra.
+files:
+  - package.json
+  - dist/**
+  - pack/**
+  - "!**/*.map"
+asar: true
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  artifactName: Mockup-da-Agenda-Setup-${version}.exe
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  language: "1046"

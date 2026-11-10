@@ -9,20 +9,21 @@
     "typecheck": "tsc --noEmit",
     "build": "node tools/build.mjs",
     "start": "node tools/build.mjs && electron .",
-    "smoke": "xvfb-run -a -s \"-screen 0 1400x900x24\" electron --no-sandbox tools/smoke.cjs fixtures/CAPAS.pdf /tmp/smoke"
+    "smoke": "xvfb-run -a -s \"-screen 0 1400x900x24\" electron --no-sandbox tools/smoke.cjs fixtures/CAPAS.pdf /tmp/smoke",
+    "dist": "node tools/build.mjs && electron-builder --win nsis --x64"
   },
   "devDependencies": {
+    "@napi-rs/canvas": "^1.1.0",
     "@types/node": "^26.6.6",
     "@types/pngjs": "^6.0.5",
     "electron": "^45.2.3",
+    "electron-builder": "^26.18.0",
     "esbuild": "^0.28.2",
+    "pdfjs-dist": "^6.5.438",
     "pixelmatch": "^8.0.0",
     "pngjs": "^7.0.0",
     "typescript": "^7.0.2",
     "vitest": "^5.1.0"
   },
-  "dependencies": {
-    "@napi-rs/canvas": "^1.1.0",
-    "pdfjs-dist": "^6.5.438"
-  }
+  "author": "Lucas"
 }
