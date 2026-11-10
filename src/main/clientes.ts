@@ -1,11 +1,13 @@
 import { basename, extname } from 'node:path';
-import { EXT_ARTE, ehPasta, nomesEm, verificarProntidao } from './pasta-fluxo';
+import { EXT_ARTE, ehGrupo, ehPasta, nomesEm, verificarProntidao } from './pasta-fluxo';
 
 export type Etapa = 1 | 2 | 3 | 4;
 export type Situacao = 'arte-a-fazer' | 'em-andamento' | 'pronta-para-aprovar' | 'em-etapa';
 
 export interface Cliente {
   nome: string;
+  /** Pasta de agrupamento (ex.: SHOPEE) quando o cliente está dentro de uma. */
+  grupo?: string;
   caminho: string;
   etapa: Etapa;
   /** Só na etapa 1 diz o quanto falta; nas outras é sempre "em-etapa". */
@@ -31,6 +33,9 @@ export interface Pastas {
 
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
+/** Nome único do cliente para alertas e duplicados: com o grupo na frente, se houver. */
+export const chaveDe = (c: { nome: string; grupo?: string }) => (c.grupo ? `${c.grupo} / ${c.nome}` : c.nome);
+
 /** Clientes das etapas 1, 2 e 3 (a Pasta 4 tem anos de pastas e só é consultada por busca). */
 export async function listarClientes(
   pastas: Pastas,
@@ -49,7 +54,12 @@ export async function listarClientes(
       avisos.push(`Não encontrei a Pasta ${etapa} ("${raiz}").`);
       continue;
     }
-    const pastasDeCliente = (await nomesEm(raiz)).filter((i) => i.pasta);
+    const filhas = (await nomesEm(raiz)).filter((i) => i.pasta);
+    const pastasDeCliente: ((typeof filhas)[number] & { grupo?: string })[] = [];
+    for (const f of filhas) {
+      if (!ehGrupo(f.nome)) pastasDeCliente.push(f);
+      else for (const d of (await nomesEm(f.caminho)).filter((i) => i.pasta)) pastasDeCliente.push({ ...d, grupo: f.nome });
+    }
     for (const c of pastasDeCliente) {
       const itens = await nomesEm(c.caminho);
       const arquivos = itens.filter((i) => !i.pasta);
@@ -63,6 +73,7 @@ export async function listarClientes(
       const maisRecente = Math.max(c.mtimeMs, ...itens.map((i) => i.mtimeMs));
       clientes.push({
         nome: c.nome,
+        ...(c.grupo ? { grupo: c.grupo } : {}),
         caminho: c.caminho,
         etapa,
         situacao,
@@ -74,8 +85,8 @@ export async function listarClientes(
     }
   }
   const contagem = new Map<string, number>();
-  for (const c of clientes) contagem.set(norm(c.nome), (contagem.get(norm(c.nome)) ?? 0) + 1);
-  for (const c of clientes) if ((contagem.get(norm(c.nome)) ?? 0) > 1) c.duplicado = true;
+  for (const c of clientes) contagem.set(norm(chaveDe(c)), (contagem.get(norm(chaveDe(c))) ?? 0) + 1);
+  for (const c of clientes) if ((contagem.get(norm(chaveDe(c))) ?? 0) > 1) c.duplicado = true;
   clientes.sort((a, b) => a.etapa - b.etapa || a.nome.localeCompare(b.nome, 'pt-BR'));
   return { clientes, avisos };
 }
@@ -104,8 +115,8 @@ export async function buscarFinalizados(pasta4: string, termo: string, limite = 
 export function novasArtesParaFazer(clientes: Cliente[], vistos: string[]): string[] {
   const jaVistos = new Set(vistos.map(norm));
   return clientes
-    .filter((c) => c.etapa === 1 && c.situacao === 'arte-a-fazer' && c.artes.length > 0 && !jaVistos.has(norm(c.nome)))
-    .map((c) => c.nome);
+    .filter((c) => c.etapa === 1 && c.situacao === 'arte-a-fazer' && c.artes.length > 0 && !jaVistos.has(norm(chaveDe(c))))
+    .map(chaveDe);
 }
 
 const MAX_VISTOS = 500;
@@ -116,7 +127,7 @@ const MAX_VISTOS = 500;
  */
 export function atualizarVistos(clientes: Cliente[], vistos: string[] | undefined): { alertar: string[]; vistos: string[] } {
   if (vistos === undefined) {
-    return { alertar: [], vistos: clientes.filter((c) => c.etapa === 1 && c.situacao === 'arte-a-fazer').map((c) => c.nome).slice(-MAX_VISTOS) };
+    return { alertar: [], vistos: clientes.filter((c) => c.etapa === 1 && c.situacao === 'arte-a-fazer').map(chaveDe).slice(-MAX_VISTOS) };
   }
   const alertar = novasArtesParaFazer(clientes, vistos);
   return { alertar, vistos: [...vistos, ...alertar].slice(-MAX_VISTOS) };

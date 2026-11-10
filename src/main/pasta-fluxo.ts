@@ -1,5 +1,5 @@
-import { readdir, rename, stat } from 'node:fs/promises';
-import { basename, extname, join } from 'node:path';
+import { mkdir, readdir, rename, stat } from 'node:fs/promises';
+import { basename, dirname, extname, join, resolve } from 'node:path';
 
 export const EXT_ARTE = new Set(['.pdf', '.jpg', '.jpeg', '.png']);
 
@@ -10,6 +10,24 @@ export interface ClientePendente {
   artes: string[];
   /** Mexida há pouco tempo: os arquivos podem ainda estar subindo. */
   chegando: boolean;
+}
+
+/** Pastas que só agrupam clientes (ex.: um marketplace). Os clientes ficam dentro delas, um nível abaixo. */
+export const GRUPOS = ['SHOPEE'];
+
+const semAcento = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+export const ehGrupo = (nome: string) => GRUPOS.some((g) => semAcento(g) === semAcento(nome));
+
+/**
+ * Diz de onde vem a pasta do cliente dentro da Pasta 1: direto nela ou dentro de uma pasta de grupo.
+ * Devolve null se não for nenhum dos dois (então não pode ser movida).
+ */
+export function origemDoCliente(pasta1: string, caminhoCliente: string): { grupo: string | undefined } | null {
+  const igual = (a: string, b: string) => resolve(a).toLowerCase() === resolve(b).toLowerCase();
+  const pai = dirname(caminhoCliente);
+  if (igual(pai, pasta1)) return ehGrupo(basename(caminhoCliente)) ? null : { grupo: undefined };
+  if (igual(dirname(pai), pasta1) && ehGrupo(basename(pai))) return { grupo: basename(pai) };
+  return null;
 }
 
 export async function ehPasta(caminho: string): Promise<boolean> {
@@ -76,15 +94,17 @@ export async function verificarProntidao(pastaCliente: string): Promise<{ pronta
 export type ResultadoMover = { ok: true; destino: string } | { ok: false; motivo: string };
 
 /** Move a pasta do cliente para a Pasta 2. Nunca sobrescreve e só move se estiver completa. */
-export async function moverParaAprovar(pastaCliente: string, pastaAprovar: string): Promise<ResultadoMover> {
+export async function moverParaAprovar(pastaCliente: string, pastaAprovar: string, grupo?: string): Promise<ResultadoMover> {
   const { pronta, faltando } = await verificarProntidao(pastaCliente);
   if (!pronta) return { ok: false, motivo: `Ainda faltam: ${faltando.join(', ')}.` };
   if (!(await ehPasta(pastaAprovar))) return { ok: false, motivo: `Não encontrei a Pasta 2 ("${pastaAprovar}"). Escolha a pasta de novo.` };
-  const destino = join(pastaAprovar, basename(pastaCliente));
+  const destinoBase = grupo ? join(pastaAprovar, grupo) : pastaAprovar;
+  const destino = join(destinoBase, basename(pastaCliente));
   if (await stat(destino).then(() => true, () => false)) {
     return { ok: false, motivo: `Já existe uma pasta "${basename(pastaCliente)}" na Pasta 2. Nada foi movido.` };
   }
   try {
+    if (grupo) await mkdir(destinoBase, { recursive: true });
     await rename(pastaCliente, destino);
   } catch (e) {
     const codigo = (e as NodeJS.ErrnoException).code;

@@ -104,3 +104,32 @@ describe('atualizarVistos (vigia do alerta)', () => {
     expect(atualizarVistos([], muitos).vistos).toHaveLength(500);
   });
 });
+
+describe('pasta de grupo SHOPEE', () => {
+  test('os clientes de dentro da SHOPEE aparecem como clientes, com o grupo; a SHOPEE em si não é cliente', async () => {
+    await pasta('1', 'SHOPEE', 'LOJA X'); await arq('1', 'SHOPEE', 'LOJA X', 'arte.png');
+    await pasta('1', 'AVULSO'); await arq('1', 'AVULSO', 'arte.png');
+    await pasta('2', 'shopee', 'LOJA Y');
+    const { clientes } = await listarClientes(pastas(), agoraLonge(), 0);
+    expect(clientes.map((c) => [c.nome, c.etapa, c.grupo])).toEqual([
+      ['AVULSO', 1, undefined],
+      ['LOJA X', 1, 'SHOPEE'],
+      ['LOJA Y', 2, 'shopee'],
+    ]);
+    expect(clientes.find((c) => c.nome === 'LOJA X')?.caminho).toBe(join(p(1), 'SHOPEE', 'LOJA X'));
+  });
+  test('mesmo nome em grupos diferentes não é duplicado; o mesmo nome no mesmo grupo em etapas diferentes é', async () => {
+    await pasta('1', 'SHOPEE', 'A'); await pasta('1', 'A');
+    await pasta('2', 'SHOPEE', 'A');
+    const { clientes } = await listarClientes(pastas(), agoraLonge(), 0);
+    const dup = clientes.filter((c) => c.duplicado).map((c) => [c.etapa, c.grupo]);
+    expect(dup).toEqual([[1, 'SHOPEE'], [2, 'SHOPEE']]);
+  });
+  test('o alerta de arte para fazer vale para cliente dentro da SHOPEE e usa o grupo na chave', async () => {
+    await pasta('1', 'SHOPEE', 'LOJA X'); await arq('1', 'SHOPEE', 'LOJA X', 'arte.png');
+    await pasta('1', 'LOJA X'); await arq('1', 'LOJA X', 'arte.png');
+    const { clientes } = await listarClientes(pastas(), agoraLonge(), 0);
+    const r = atualizarVistos(clientes, ['LOJA X']);
+    expect(r.alertar).toEqual(['SHOPEE / LOJA X']);
+  });
+});

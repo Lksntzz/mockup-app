@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readdir, rm, utimes, writeFile } from 'node:fs/promises
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { listarPendentes, moverParaAprovar, verificarProntidao } from '../../src/main/pasta-fluxo';
+import { listarPendentes, moverParaAprovar, origemDoCliente, verificarProntidao } from '../../src/main/pasta-fluxo';
 
 let raiz = '';
 let aprovar = '';
@@ -102,5 +102,34 @@ describe('moverParaAprovar', () => {
     const r = await moverParaAprovar(join(raiz, 'A'), join(raiz, '..', 'nao-existe'));
     expect(r.ok).toBe(false);
     expect(await readdir(raiz)).toEqual(['A']);
+  });
+});
+
+describe('moverParaAprovar com grupo', () => {
+  test('cria a pasta do grupo na Pasta 2 se não existir e move para dentro dela', async () => {
+    await clienteCompleto(join('SHOPEE', 'LOJA'));
+    const r = await moverParaAprovar(join(raiz, 'SHOPEE', 'LOJA'), aprovar, 'SHOPEE');
+    expect(r).toEqual({ ok: true, destino: join(aprovar, 'SHOPEE', 'LOJA') });
+    expect(await readdir(join(aprovar, 'SHOPEE', 'LOJA'))).toContain('capa.cdr');
+    expect(await readdir(join(raiz, 'SHOPEE'))).toEqual([]);
+  });
+  test('usa a pasta do grupo que já existe e não sobrescreve cliente igual', async () => {
+    await clienteCompleto(join('SHOPEE', 'LOJA'));
+    await mkdir(join(aprovar, 'SHOPEE', 'LOJA'), { recursive: true });
+    const r = await moverParaAprovar(join(raiz, 'SHOPEE', 'LOJA'), aprovar, 'SHOPEE');
+    expect(r.ok).toBe(false);
+    expect(await readdir(join(raiz, 'SHOPEE'))).toEqual(['LOJA']);
+  });
+});
+
+describe('origemDoCliente', () => {
+  test('aceita pasta direto na Pasta 1 e pasta dentro da SHOPEE; recusa o resto', () => {
+    expect(origemDoCliente('/x/1', '/x/1/A')).toEqual({ grupo: undefined });
+    expect(origemDoCliente('/x/1', '/x/1/SHOPEE/A')).toEqual({ grupo: 'SHOPEE' });
+    expect(origemDoCliente('/x/1', '/x/1/shopee/A')).toEqual({ grupo: 'shopee' });
+    expect(origemDoCliente('/x/1', '/x/1/OUTRO/A')).toBeNull();
+    expect(origemDoCliente('/x/1', '/x/1/SHOPEE')).toBeNull();
+    expect(origemDoCliente('/x/1', '/x/2/A')).toBeNull();
+    expect(origemDoCliente('/x/1', '/x/1/SHOPEE/A/B')).toBeNull();
   });
 });

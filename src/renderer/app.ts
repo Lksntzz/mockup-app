@@ -846,7 +846,7 @@ function linhaDoCliente(c: Cliente): HTMLElement {
   topo.className = 'topo-linha';
   const nome = document.createElement('span');
   nome.className = 'nome';
-  nome.textContent = c.nome;
+  nome.textContent = c.grupo ? `${c.grupo} · ${c.nome}` : c.nome;
   topo.append(nome);
   const nota = (texto: string) => {
     const e = document.createElement('span');

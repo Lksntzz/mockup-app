@@ -9,7 +9,7 @@ import { criarHistorico, nomeSeguro } from './historico';
 import { rascunhoValido } from '../app/rascunhos';
 import { criarRascunhos } from './rascunhos';
 import { criarConfigDesigner } from './config-designer';
-import { moverParaAprovar } from './pasta-fluxo';
+import { moverParaAprovar, origemDoCliente } from './pasta-fluxo';
 import { atualizarVistos, buscarFinalizados, listarClientes } from './clientes';
 import { criarPortaoDePin } from './pin';
 import { arquivoAbrivel } from './abrir-arquivo';
@@ -255,9 +255,10 @@ ipcMain.handle('fluxo-mover', async (_e, caminhoCliente: unknown) => {
   const c = await exigirDesigner();
   if (typeof caminhoCliente !== 'string') throw new Error('Pasta inválida.');
   if (!c.pasta1 || !c.pasta2) return { ok: false, motivo: 'Escolha a Pasta 1 e a Pasta 2 antes.' };
-  // só move pastas que estão direto dentro da Pasta 1 escolhida
-  if (normalizar(dirname(caminhoCliente)) !== normalizar(c.pasta1)) return { ok: false, motivo: 'Essa pasta não está dentro da Pasta 1.' };
-  return moverParaAprovar(caminhoCliente, c.pasta2);
+  // só move pastas que estão direto na Pasta 1 escolhida ou dentro de uma pasta de grupo (SHOPEE)
+  const origem = origemDoCliente(c.pasta1, caminhoCliente);
+  if (!origem) return { ok: false, motivo: 'Essa pasta não está dentro da Pasta 1.' };
+  return moverParaAprovar(caminhoCliente, c.pasta2, origem.grupo);
 });
 ipcMain.handle('operador', () => operador());
 ipcMain.handle('historico-listar', () => historicoDoOperador().listar());

@@ -350,6 +350,12 @@ app.on('browser-window-created', (_e, win) => {
       const recusaAbrir = await js("window.mockupApi.abrirArquivoCliente('/etc/passwd').then((r) => r.motivo || 'abriu')");
       conferir(recusaAbrir !== 'abriu', `o app recusa abrir arquivo fora das pastas de cliente (${recusaAbrir.slice(0, 40)}…)`);
       fs.rmSync(segundoPlano, { recursive: true, force: true });
+      const lojaShopee = path.join(p1, 'SHOPEE', 'LOJA SMOKE');
+      fs.mkdirSync(lojaShopee, { recursive: true });
+      fs.writeFileSync(path.join(lojaShopee, 'arte.png'), 'x');
+      await js("document.getElementById('atualizar-pasta1').click()");
+      conferir(await ate("[...document.querySelectorAll('#pasta1-lista .cliente-linha')].some(l => l.textContent.includes('SHOPEE · LOJA SMOKE')) && ![...document.querySelectorAll('#pasta1-lista .cliente-linha .nome')].some(n => n.textContent === 'SHOPEE')", 'cliente da SHOPEE na lista'), 'o cliente de dentro da pasta SHOPEE aparece como cliente (a SHOPEE em si não)');
+      fs.rmSync(path.join(p1, 'SHOPEE'), { recursive: true, force: true });
       await js("document.getElementById('tab-pasta1').click()");
       await ate("document.querySelectorAll('#pasta1-lista .cliente-linha').length === 2", 'lista sem o cliente de teste');
       await foto('8-pasta1.png');
