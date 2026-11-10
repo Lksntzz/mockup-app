@@ -28,6 +28,9 @@ describe('exportName', () => {
     expect(exportName('???.pdf', 2)).toBe('mockup_capa-02.png');
     expect(exportName('', 2)).toBe('mockup_capa-02.png');
   });
+  test('com sufixo, ele vai depois do número da capa', () => {
+    expect(exportName('CAPAS.pdf', 1, 'especificacao-vt')).toBe('CAPAS_capa-01_especificacao-vt.png');
+  });
   test('tira pontos e espaços do fim do nome, que o Windows também recusa', () => {
     expect(exportName('colecao. .pdf', 1)).toBe('colecao_capa-01.png');
   });
@@ -149,6 +152,56 @@ describe('exportAll', () => {
     const disco = discoFalso();
     const r = await exportAll(opcoes(disco, { capas: [] }));
     expect(r.written).toEqual([]);
+  });
+});
+
+describe('exportAll com imagens de especificação', () => {
+  // pack da especificação sintético: mesmo da frente + uma camada que só existe na variante 'vt'
+  const packEspec: Pack = {
+    ...packPequeno,
+    stack: [...packPequeno.stack, { id: 'sel', role: 'fixed', file: 'v.png', opacity: 1, blend: 'normal', offset: [0, 0], variant: 'vt' }],
+  };
+  const opaco = (v: number) => {
+    const r = solido(4, 4, v);
+    for (let i = 3; i < r.data.length; i += 4) r.data[i] = 255;
+    return r;
+  };
+  const camadasEspec = () => new Map<string, Raster>([...camadasPequenas(), ['v.png', opaco(7)]]);
+  const extraVt = () => ({ suffix: 'especificacao-vt', pack: packEspec, layers: camadasEspec(), variant: 'vt' });
+  const extraSc = () => ({ suffix: 'especificacao-sem-canguru', pack: packEspec, layers: camadasEspec(), variant: 'sem-canguru' });
+
+  test('frente + VT + sem canguru: três arquivos por capa e progresso sobre o total', async () => {
+    const disco = discoFalso();
+    const progresso: Array<[number, number]> = [];
+    const r = await exportAll(opcoes(disco, { capas: opcoes(disco).capas.slice(0, 2), extras: [extraVt(), extraSc()], onProgress: (a, b) => progresso.push([a, b]) }));
+    expect(r.written).toEqual([
+      '/saida/colecao_capa-01.png', '/saida/colecao_capa-01_especificacao-vt.png', '/saida/colecao_capa-01_especificacao-sem-canguru.png',
+      '/saida/colecao_capa-02.png', '/saida/colecao_capa-02_especificacao-vt.png', '/saida/colecao_capa-02_especificacao-sem-canguru.png',
+    ]);
+    expect(progresso.at(-1)).toEqual([6, 6]);
+  });
+
+  test('sem a frente: só os marcados', async () => {
+    const disco = discoFalso();
+    const r = await exportAll(opcoes(disco, { semFrente: true, extras: [extraVt()] }));
+    expect(r.written).toEqual([
+      '/saida/colecao_capa-01_especificacao-vt.png', '/saida/colecao_capa-02_especificacao-vt.png', '/saida/colecao_capa-03_especificacao-vt.png',
+    ]);
+  });
+
+  test('a variante muda a imagem: VT pinta a camada da variante, sem canguru não', async () => {
+    const disco = discoFalso();
+    await exportAll(opcoes(disco, { capas: opcoes(disco).capas.slice(0, 1), extras: [extraVt(), extraSc()] }));
+    const px = (n: string) => PNG.sync.read(Buffer.from(disco.arquivos.get(n) as Uint8Array)).data[0];
+    expect(px('/saida/colecao_capa-01_especificacao-vt.png')).toBe(7);
+    expect(px('/saida/colecao_capa-01_especificacao-sem-canguru.png')).not.toBe(7);
+  });
+
+  test('pergunta sobre sobrescrever considera os arquivos de especificação também', async () => {
+    const disco = discoFalso(['/saida/colecao_capa-01_especificacao-vt.png']);
+    let perguntou: string[] = [];
+    await exportAll(opcoes(disco, { semFrente: true, extras: [extraVt()], confirmOverwrite: async (f) => ((perguntou = f), false) }));
+    expect(perguntou).toEqual(['/saida/colecao_capa-01_especificacao-vt.png']);
   });
 });
 
