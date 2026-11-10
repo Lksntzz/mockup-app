@@ -46,6 +46,12 @@
       <aside id="painel" class="coluna painel" aria-label="Cores da capa" hidden>
         <h2 id="titulo-capa" class="titulo-coluna">Capa</h2>
         <div id="grupos"></div>
+        <fieldset id="saidas" class="saidas">
+          <legend>Imagens a gerar</legend>
+          <label><input id="saida-frente" type="checkbox" checked /> Frente</label>
+          <label><input id="saida-vt" type="checkbox" /> Especificação VT (com envelope)</label>
+          <label><input id="saida-sem-canguru" type="checkbox" /> Especificação sem canguru</label>
+        </fieldset>
         <div class="acoes">
           <button id="copiar" class="secundario" type="button">Copiar estas cores para todas as capas</button>
           <button id="exportar" class="primario grande" type="button">Concluir e salvar</button>

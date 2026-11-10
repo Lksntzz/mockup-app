@@ -2,7 +2,7 @@ import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { createPreviewScheduler } from '../app/scheduler';
 import { copyToAll, createState, select, setColor, type AppState } from '../app/state';
 import { compose, isAvailable } from '../engine/compose';
-import { exportAll } from '../export/exporter';
+import { exportAll, type ExportExtra } from '../export/exporter';
 import type { Accessory, Pack, Raster } from '../engine/types';
 import { cropMargins, cropToBox, widthForArt } from '../pdf/crop';
 import { coverCrop } from '../pdf/fit';
@@ -372,11 +372,48 @@ async function codificarPng(r: Raster): Promise<Uint8Array> {
   return new Uint8Array(await blob.arrayBuffer());
 }
 
+// O pacote da especificação é grande: só é lido quando alguém marca uma imagem de especificação.
+let pacoteEspec: { pack: Pack; layers: Map<string, Raster> } | null = null;
+async function carregarEspecificacao(): Promise<{ pack: Pack; layers: Map<string, Raster> }> {
+  if (pacoteEspec) return pacoteEspec;
+  const { json, camadas } = await api.carregarPacote('especificacao');
+  const layers = new Map<string, Raster>();
+  for (const [arquivo, c] of Object.entries(camadas)) {
+    layers.set(arquivo, { width: c.width, height: c.height, data: new Uint8ClampedArray(c.data.buffer, c.data.byteOffset, c.data.length) });
+  }
+  pacoteEspec = { pack: JSON.parse(json) as Pack, layers };
+  return pacoteEspec;
+}
+
+const caixa = (id: string) => $<HTMLInputElement>(id);
+// Sempre fica ao menos uma imagem marcada: desmarcar a última não faz nada.
+for (const id of ['saida-frente', 'saida-vt', 'saida-sem-canguru']) {
+  caixa(id).addEventListener('change', () => {
+    if (!caixa('saida-frente').checked && !caixa('saida-vt').checked && !caixa('saida-sem-canguru').checked) {
+      caixa(id).checked = true;
+      mensagem('Deixe ao menos uma imagem marcada.', true);
+    } else {
+      mensagem('');
+    }
+  });
+}
+
 $('exportar').addEventListener('click', async () => {
   if (!estado || !pacote) return;
   const botao = $<HTMLButtonElement>('exportar');
   try {
     const pasta = await api.prepararMkp(caminhoDoPdf);
+    const variantes = [
+      { marcada: caixa('saida-vt').checked, suffix: 'especificacao-vt', variant: 'vt' },
+      { marcada: caixa('saida-sem-canguru').checked, suffix: 'especificacao-sem-canguru', variant: 'sem-canguru' },
+    ].filter((v) => v.marcada);
+    let extras: ExportExtra[] = [];
+    if (variantes.length > 0) {
+      botao.disabled = true;
+      mensagem('Preparando a especificação…');
+      const espec = await carregarEspecificacao();
+      extras = variantes.map((v) => ({ suffix: v.suffix, variant: v.variant, pack: espec.pack, layers: espec.layers }));
+    }
     botao.disabled = true;
     mensagem('Salvando…');
     progresso(0);
@@ -386,6 +423,8 @@ $('exportar').addEventListener('click', async () => {
       pack: pacote.pack,
       layers: pacote.layers,
       capas: estado.capas,
+      extras,
+      semFrente: !caixa('saida-frente').checked,
       encodePng: codificarPng,
       write: (c, b) => api.gravarArquivo(c, b),
       rename: (de, para) => api.renomearArquivo(de, para),

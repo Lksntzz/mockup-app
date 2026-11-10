@@ -141,6 +141,30 @@ app.on('browser-window-created', (_e, win) => {
       conferir(fs.existsSync(pdfDoTrabalho), 'o PDF original continua no lugar');
       conferir(await js("document.getElementById('em-andamento').hidden"), 'ao concluir, o trabalho sai de "Em andamento"');
       conferir(!(await js("document.getElementById('exportar').disabled")), 'o botão Concluir voltou a ficar ativo');
+
+      // imagens de especificação: reabre o PDF e marca só VT e sem canguru
+      arquivoDoDialogo = pdfDoTrabalho;
+      await js("document.getElementById('zona').click()");
+      await ate("document.body.dataset.estado === 'pronto'", 'reabrir para a especificação');
+      const marcar = (id, v) => js(`(() => { const c = document.getElementById('${id}'); c.checked = ${v}; c.dispatchEvent(new Event('change')); })()`);
+      const marcada = (id) => js(`document.getElementById('${id}').checked`);
+      conferir((await marcada('saida-frente')) && !(await marcada('saida-vt')) && !(await marcada('saida-sem-canguru')), 'por padrão só a Frente vem marcada');
+      await marcar('saida-frente', false);
+      conferir(await marcada('saida-frente'), 'não deixa desmarcar a última imagem marcada');
+      await marcar('saida-vt', true);
+      await marcar('saida-sem-canguru', true);
+      await marcar('saida-frente', false);
+      conferir(!(await marcada('saida-frente')), 'com outra marcada, dá para desmarcar a Frente');
+      await js("document.getElementById('exportar').click()");
+      await ate("document.body.dataset.estado === 'vazio' && !document.getElementById('salvo').hidden", 'conclusão com especificação', 240000);
+      await foto('6-especificacao.png');
+      const cartao2 = await js("document.getElementById('salvo').textContent");
+      conferir(cartao2.includes('10 mockups'), `o card conta as 10 imagens de especificação ("${cartao2.replace(/\s+/g, ' ').trim()}")`);
+      const nomes2 = fs.readdirSync(pastaMkp).sort();
+      conferir(nomes2.length === 15 && nomes2.includes('CAPAS_capa-01_especificacao-vt.png') && nomes2.includes('CAPAS_capa-05_especificacao-sem-canguru.png'), `gravou VT e sem canguru de cada capa sem mexer nas da frente (${nomes2.length} arquivos)`);
+      const cab2 = fs.readFileSync(path.join(pastaMkp, 'CAPAS_capa-01_especificacao-vt.png'));
+      conferir(cab2.readUInt32BE(16) === 1200 && cab2.readUInt32BE(20) === 1200, 'a imagem de especificação tem 1200×1200');
+      conferir(Buffer.compare(cab2, fs.readFileSync(path.join(pastaMkp, 'CAPAS_capa-01_especificacao-sem-canguru.png'))) !== 0, 'VT e sem canguru são imagens diferentes');
     } catch (e) {
       conferir(false, `exceção no roteiro: ${e}`);
     }

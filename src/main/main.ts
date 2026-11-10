@@ -13,7 +13,11 @@ export interface CamadaBruta {
 }
 
 // dist/main/main.js → ../../pack, tanto em desenvolvimento quanto dentro do app instalado
-const pastaDoPacote = () => join(__dirname, '..', '..', 'pack');
+const PACOTES = ['especificacao'] as const;
+const pastaDoPacote = (nome?: string) => {
+  if (nome !== undefined && !(PACOTES as readonly string[]).includes(nome)) throw new Error('Pacote desconhecido.');
+  return nome ? join(__dirname, '..', '..', 'pack', nome) : join(__dirname, '..', '..', 'pack');
+};
 
 async function lerPng(caminho: string): Promise<CamadaBruta> {
   const png = PNG.sync.read(await readFile(caminho));
@@ -21,8 +25,8 @@ async function lerPng(caminho: string): Promise<CamadaBruta> {
 }
 
 /** Lê mockup.json e todas as camadas PNG do pacote; as imagens já vão decodificadas (RGBA exato, sem perda). */
-ipcMain.handle('carregar-pacote', async () => {
-  const pasta = pastaDoPacote();
+ipcMain.handle('carregar-pacote', async (_e, nome?: string) => {
+  const pasta = pastaDoPacote(nome);
   const json = await readFile(join(pasta, 'mockup.json'), 'utf-8');
   const pack = JSON.parse(json) as { stack: { file?: string }[]; artMask: { file: string } };
   const arquivos = new Set<string>([pack.artMask.file]);

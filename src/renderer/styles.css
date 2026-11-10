@@ -98,3 +98,8 @@ body:not([data-estado="pronto"]) #coluna-capas { display: none; }
 .salvo-icone { width: 52px; height: 52px; border-radius: 50%; background: #e3f6e8; color: #1f9d4c; font-size: 28px; font-weight: 700; display: grid; place-items: center; }
 .salvo-titulo { font-size: 20px; font-weight: 700; margin-top: 4px; }
 .salvo-detalhe { color: var(--suave); margin-bottom: 10px; }
+
+.saidas { border: 0; border-top: 1px solid var(--borda); margin: 0 0 12px; padding: 14px 0 0; display: flex; flex-direction: column; gap: 8px; }
+.saidas legend { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--suave); padding: 0 6px 0 0; float: left; width: 100%; margin-bottom: 8px; }
+.saidas label { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
+.saidas input { width: 16px; height: 16px; accent-color: var(--acento); }
