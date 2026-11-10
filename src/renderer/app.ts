@@ -201,7 +201,7 @@ async function abrirPdfDeBytes(nome: string, bytes: Uint8Array): Promise<void> {
     nomeDoPdf = nome;
     $('nome-pdf').textContent = nome;
     progresso(null);
-    mensagem(`${artes.length} ${artes.length === 1 ? 'capa' : 'capas'} carregadas.`);
+    mensagem(artes.length === 1 ? '1 capa carregada.' : `${artes.length} capas carregadas.`);
     definirEstado('pronto');
     desenharLista();
     desenharPainel();
