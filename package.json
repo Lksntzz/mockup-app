@@ -10,7 +10,7 @@
     "build": "node tools/build.mjs",
     "start": "node tools/build.mjs && electron .",
     "smoke": "xvfb-run -a -s \"-screen 0 1400x900x24\" electron --no-sandbox tools/smoke.cjs fixtures/CAPAS.pdf /tmp/smoke",
-    "dist": "node tools/build.mjs && electron-builder --win nsis --x64"
+    "dist": "node tools/build.mjs && electron-builder --win nsis --x64 --publish never"
   },
   "devDependencies": {
     "@napi-rs/canvas": "^1.1.0",
