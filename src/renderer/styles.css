@@ -57,7 +57,7 @@ progress { width: 150px; height: 8px; accent-color: var(--acento); }
 .item .aviso { font-size: 11px; margin-top: 5px; padding: 3px 7px; border-radius: 5px; background: #fff3c4; color: #6b5200; }
 
 .centro { display: flex; align-items: center; justify-content: center; padding: 22px; min-width: 0; min-height: 0; }
-.vazio { text-align: center; color: var(--suave); max-width: 420px; padding: 34px 28px; background: var(--superficie); border: 2px dashed #ccd0e0; border-radius: 16px; }
+.vazio { text-align: center; color: var(--suave); }
 .vazio strong { color: var(--texto); }
 .vazio-icone { width: 56px; height: 56px; margin: 0 auto 12px; border-radius: 14px; background: var(--acento-claro); color: var(--acento); font-weight: 700; display: grid; place-items: center; }
 .vazio .dica { font-size: 13px; }
@@ -76,3 +76,18 @@ progress { width: 150px; height: 8px; accent-color: var(--acento); }
 .acoes { margin-top: auto; display: flex; flex-direction: column; gap: 10px; padding-top: 6px; border-top: 1px solid var(--borda); }
 .acoes { padding-top: 16px; }
 [hidden] { display: none !important; }
+
+/* tela inicial: só o centro; trabalhando: lista, prévia e painel */
+body:not([data-estado="pronto"]) .area { grid-template-columns: 1fr; }
+body:not([data-estado="pronto"]) #coluna-capas { display: none; }
+.vazio { background: none; border: 0; padding: 0; max-width: 560px; width: 100%; }
+.zona { text-align: center; padding: 34px 28px; background: var(--superficie); border: 2px dashed #ccd0e0; border-radius: 16px; cursor: pointer; transition: border-color .12s, background .12s; }
+.zona:hover, .zona:focus-visible { border-color: var(--acento); background: #fafaff; outline: none; }
+.arrastando .zona { border-color: var(--acento); background: var(--acento-claro); }
+.em-andamento { margin-top: 22px; text-align: left; }
+.em-andamento .titulo-coluna { padding: 0 2px 8px; }
+.trabalho { display: flex; align-items: center; gap: 12px; padding: 10px 14px; margin-bottom: 8px; background: var(--superficie); border: 1px solid var(--borda); border-radius: 10px; box-shadow: var(--sombra); }
+.trabalho .nome { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trabalho .qtd { color: var(--suave); font-size: 12px; }
+.centro { overflow-y: auto; }
+.trabalho .nome { color: var(--texto); }

@@ -10,6 +10,11 @@ export type EstadoAtualizacao =
   | { tipo: 'pronta'; versao: string }
   | { tipo: 'atualizado'; manual: boolean }
   | { tipo: 'erro'; mensagem: string; manual: boolean };
+export interface ArquivoPdf {
+  nome: string;
+  caminho: string;
+  bytes: Uint8Array;
+}
 export interface MockupApi {
   versao(): Promise<string>;
   estadoAtualizacao(): Promise<EstadoAtualizacao>;
@@ -17,8 +22,10 @@ export interface MockupApi {
   instalarAtualizacao(): Promise<void>;
   aoMudarAtualizacao(cb: (estado: EstadoAtualizacao) => void): void;
   carregarPacote(): Promise<{ json: string; camadas: Record<string, CamadaBruta> }>;
-  escolherPdf(): Promise<{ nome: string; bytes: Uint8Array } | null>;
-  escolherPasta(): Promise<string | null>;
+  escolherPdf(): Promise<ArquivoPdf | null>;
+  lerPdf(caminho: string): Promise<ArquivoPdf>;
+  caminhoDoArquivo(arquivo: File): string;
+  prepararMkp(caminhoDoPdf: string): Promise<string>;
   existe(caminho: string): Promise<boolean>;
   gravarArquivo(caminho: string, bytes: Uint8Array): Promise<void>;
   renomearArquivo(de: string, para: string): Promise<void>;

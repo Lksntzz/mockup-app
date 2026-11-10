@@ -1,9 +1,9 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import { EventEmitter } from 'node:events';
-import { readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
-import { basename, join } from 'node:path';
+import { mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
+import { basename, extname, join } from 'node:path';
 import { PNG } from 'pngjs';
-import { caminhoPermitido } from './paths';
+import { caminhoPermitido, pastaMkp } from './paths';
 import { criarAtualizador, type AtualizadorLike } from './updater';
 
 export interface CamadaBruta {
@@ -32,6 +32,11 @@ ipcMain.handle('carregar-pacote', async () => {
   return { json, camadas };
 });
 
+async function lerPdf(caminho: string) {
+  if (extname(caminho).toLowerCase() !== '.pdf') throw new Error('Esse arquivo não é um PDF.');
+  return { nome: basename(caminho), caminho, bytes: new Uint8Array(await readFile(caminho)) };
+}
+
 ipcMain.handle('escolher-pdf', async () => {
   const r = await dialog.showOpenDialog({
     title: 'Escolher o PDF das capas',
@@ -40,22 +45,25 @@ ipcMain.handle('escolher-pdf', async () => {
   });
   const caminho = r.filePaths[0];
   if (r.canceled || !caminho) return null;
-  return { nome: basename(caminho), bytes: new Uint8Array(await readFile(caminho)) };
+  return lerPdf(caminho);
 });
 
-/** Só a pasta que o usuário escolheu na caixa de diálogo aceita gravação. */
+/** Arrastar e soltar: o app só recebe o caminho do arquivo. */
+ipcMain.handle('ler-pdf', (_e, caminho: string) => lerPdf(caminho));
+
+/** Só a pasta MKP (criada ao lado do PDF) aceita gravação. */
 let pastaEscolhida: string | null = null;
 
 function exigirPermitido(caminho: string): void {
   if (!pastaEscolhida || !caminhoPermitido(pastaEscolhida, caminho)) {
-    throw new Error('Caminho fora da pasta escolhida.');
+    throw new Error('Caminho fora da pasta MKP.');
   }
 }
 
-ipcMain.handle('escolher-pasta', async () => {
-  const r = await dialog.showOpenDialog({ title: 'Escolher a pasta dos mockups', properties: ['openDirectory', 'createDirectory'] });
-  const pasta = r.filePaths[0];
-  if (r.canceled || !pasta) return null;
+ipcMain.handle('preparar-mkp', async (_e, caminhoDoPdf: string) => {
+  const pasta = pastaMkp(caminhoDoPdf);
+  await stat(caminhoDoPdf); // o PDF precisa existir; senão não há de onde tirar a pasta
+  await mkdir(pasta, { recursive: true });
   pastaEscolhida = pasta;
   return pasta;
 });

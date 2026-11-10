@@ -12,7 +12,7 @@
   <body data-estado="carregando-pacote">
     <header class="topo">
       <div class="marca" aria-hidden="true"><span class="marca-icone">M</span><span class="marca-nome">Mockup da Agenda</span></div>
-      <button id="abrir" class="primario" type="button" disabled>Abrir PDF</button>
+      <button id="voltar" class="secundario" type="button" hidden>← Voltar ao início</button>
       <span id="nome-pdf" class="nome-pdf"></span>
       <span id="mensagem" class="mensagem" role="status"></span>
       <progress id="progresso" max="1" value="0" hidden></progress>
@@ -24,15 +24,22 @@
       <button id="reiniciar" class="primario" type="button" hidden>Reiniciar e atualizar</button>
     </div>
     <main class="area">
-      <aside class="coluna lista-coluna" aria-label="Capas do PDF">
+      <aside id="coluna-capas" class="coluna lista-coluna" aria-label="Capas do PDF">
         <h2 class="titulo-coluna">Capas</h2>
         <div id="lista" class="lista"></div>
       </aside>
       <section class="centro">
         <div id="vazio" class="vazio">
-          <div class="vazio-icone" aria-hidden="true">PDF</div>
-          <p><strong>Arraste um PDF aqui</strong> ou clique em <em>Abrir PDF</em>.</p>
-          <p class="dica">Só as páginas ímpares viram capa (1, 3, 5...). As pares são o verso e são ignoradas.</p>
+          <div id="zona" class="zona" role="button" tabindex="0" aria-label="Escolher um PDF ou arrastar para cá">
+            <div class="vazio-icone" aria-hidden="true">PDF</div>
+            <p><strong>Arraste um PDF aqui</strong> ou <em>clique para escolher o arquivo</em>.</p>
+            <p class="dica">Só as páginas ímpares viram capa (1, 3, 5...). As pares são o verso e são ignoradas.</p>
+            <p class="dica">Os mockups serão salvos na pasta <strong>MKP</strong>, ao lado do PDF.</p>
+          </div>
+          <section id="em-andamento" class="em-andamento" hidden>
+            <h2 class="titulo-coluna">Em andamento</h2>
+            <div id="trabalhos"></div>
+          </section>
         </div>
         <canvas id="previa" class="previa" hidden></canvas>
       </section>
@@ -41,7 +48,7 @@
         <div id="grupos"></div>
         <div class="acoes">
           <button id="copiar" class="secundario" type="button">Copiar estas cores para todas as capas</button>
-          <button id="exportar" class="primario grande" type="button">Exportar</button>
+          <button id="exportar" class="primario grande" type="button">Concluir e salvar</button>
         </div>
       </aside>
     </main>

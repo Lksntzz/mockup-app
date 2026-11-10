@@ -8,7 +8,8 @@ import { cropMargins, cropToBox, widthForArt } from '../pdf/crop';
 import { coverCrop } from '../pdf/fit';
 import { capaPageNumbers } from '../pdf/pages';
 import { openPdf, PdfError } from '../pdf/reader';
-import type { EstadoAtualizacao, MockupApi } from './global';
+import type { ArquivoPdf, EstadoAtualizacao, MockupApi } from './global';
+import { criarTrabalhos } from '../app/trabalhos';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('./pdf.worker.mjs', document.baseURI).href;
 
@@ -31,6 +32,8 @@ let estado: AppState | null = null;
 let info: InfoDaCapa[] = [];
 let contadorDePrevias = 0;
 let nomeDoPdf = '';
+let caminhoDoPdf = '';
+const trabalhos = criarTrabalhos<AppState, InfoDaCapa[]>();
 
 const proximoQuadro = () => new Promise<void>((r) => setTimeout(r, 0));
 
@@ -57,7 +60,8 @@ function definirEstado(e: 'carregando-pacote' | 'vazio' | 'carregando' | 'pronto
   $('vazio').hidden = e === 'pronto';
   $('previa').hidden = e !== 'pronto';
   $('painel').hidden = e !== 'pronto';
-  $<HTMLButtonElement>('abrir').disabled = e === 'carregando-pacote' || e === 'carregando';
+  $('voltar').hidden = e !== 'pronto';
+  $('zona').toggleAttribute('aria-disabled', e !== 'vazio');
 }
 
 function textoDoErro(e: unknown): string {
@@ -66,7 +70,9 @@ function textoDoErro(e: unknown): string {
     if (e.code === 'password') return 'Esse PDF tem senha. Tire a senha e tente de novo.';
     return 'Não consegui ler esse PDF: ele parece corrompido ou incompleto.';
   }
-  return `Não consegui abrir o PDF: ${e instanceof Error ? e.message : String(e)}`;
+  const msg = (e instanceof Error ? e.message : String(e)).replace(/^Error invoking remote method '[^']+': (Error: )?/, '');
+  if (msg === 'Esse arquivo não é um PDF.') return msg;
+  return `Não consegui abrir o PDF: ${msg}`;
 }
 
 const agendador = createPreviewScheduler(
@@ -169,9 +175,16 @@ function desenharPainel(): void {
   }
 }
 
-async function abrirPdfDeBytes(nome: string, bytes: Uint8Array): Promise<void> {
+async function abrirPdf(arquivo: ArquivoPdf): Promise<void> {
   if (!pacote) return;
-  const antes = estado ? 'pronto' : 'vazio';
+  const { nome, bytes, caminho } = arquivo;
+  const salvo = trabalhos.buscar(caminho);
+  if (salvo) {
+    retomar(salvo.caminho);
+    mensagem('Retomando de onde você parou.');
+    return;
+  }
+  const antes = 'vazio';
   definirEstado('carregando');
   mensagem('Lendo o PDF…');
   progresso(0);
@@ -202,6 +215,8 @@ async function abrirPdfDeBytes(nome: string, bytes: Uint8Array): Promise<void> {
     estado = createState(pacote.pack, artes);
     info = novaInfo;
     nomeDoPdf = nome;
+    caminhoDoPdf = caminho;
+    trabalhos.guardar({ caminho, nome, estado, info });
     $('nome-pdf').textContent = nome;
     progresso(null);
     mensagem(artes.length === 1 ? '1 capa carregada.' : `${artes.length} capas carregadas.`);
@@ -216,6 +231,68 @@ async function abrirPdfDeBytes(nome: string, bytes: Uint8Array): Promise<void> {
   }
 }
 
+function guardarAtual(): void {
+  if (estado && caminhoDoPdf) trabalhos.guardar({ caminho: caminhoDoPdf, nome: nomeDoPdf, estado, info });
+}
+
+function desenharEmAndamento(): void {
+  const lista = trabalhos.todos();
+  $('em-andamento').hidden = lista.length === 0;
+  const alvo = $('trabalhos');
+  alvo.replaceChildren();
+  for (const t of lista) {
+    const linha = document.createElement('div');
+    linha.className = 'trabalho';
+    const nome = document.createElement('span');
+    nome.className = 'nome';
+    nome.textContent = t.nome;
+    const qtd = document.createElement('span');
+    qtd.className = 'qtd';
+    qtd.textContent = t.estado.capas.length === 1 ? '1 capa' : `${t.estado.capas.length} capas`;
+    const continuar = document.createElement('button');
+    continuar.type = 'button';
+    continuar.className = 'primario continuar';
+    continuar.textContent = 'Continuar';
+    continuar.addEventListener('click', () => retomar(t.caminho));
+    const descartar = document.createElement('button');
+    descartar.type = 'button';
+    descartar.className = 'discreto descartar';
+    descartar.textContent = 'Descartar';
+    descartar.addEventListener('click', () => {
+      if (!window.confirm(`Descartar "${t.nome}"? As cores escolhidas serão perdidas.`)) return;
+      trabalhos.remover(t.caminho);
+      desenharEmAndamento();
+    });
+    linha.append(nome, qtd, continuar, descartar);
+    alvo.append(linha);
+  }
+}
+
+function irParaInicio(): void {
+  estado = null;
+  info = [];
+  nomeDoPdf = '';
+  caminhoDoPdf = '';
+  $('nome-pdf').textContent = '';
+  definirEstado('vazio');
+  desenharEmAndamento();
+}
+
+function retomar(caminho: string): void {
+  const t = trabalhos.buscar(caminho);
+  if (!t) return;
+  estado = t.estado;
+  info = t.info;
+  nomeDoPdf = t.nome;
+  caminhoDoPdf = t.caminho;
+  $('nome-pdf').textContent = t.nome;
+  mensagem('');
+  definirEstado('pronto');
+  desenharLista();
+  desenharPainel();
+  pedirPrevia();
+}
+
 async function iniciar(): Promise<void> {
   try {
     const { json, camadas } = await api.carregarPacote();
@@ -224,15 +301,32 @@ async function iniciar(): Promise<void> {
       layers.set(arquivo, { width: c.width, height: c.height, data: new Uint8ClampedArray(c.data.buffer, c.data.byteOffset, c.data.length) });
     }
     pacote = { pack: JSON.parse(json) as Pack, layers };
-    definirEstado('vazio');
+    irParaInicio();
   } catch (e) {
     mensagem(`Não consegui carregar o pacote do mockup: ${e instanceof Error ? e.message : String(e)}`, true);
   }
 }
 
-$('abrir').addEventListener('click', async () => {
-  const arquivo = await api.escolherPdf();
-  if (arquivo) await abrirPdfDeBytes(arquivo.nome, arquivo.bytes);
+async function escolherEAbrir(): Promise<void> {
+  if (document.body.dataset.estado !== 'vazio') return;
+  try {
+    const arquivo = await api.escolherPdf();
+    if (arquivo) await abrirPdf(arquivo);
+  } catch (e) {
+    mensagem(textoDoErro(e), true);
+  }
+}
+$('zona').addEventListener('click', () => void escolherEAbrir());
+$('zona').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    void escolherEAbrir();
+  }
+});
+$('voltar').addEventListener('click', () => {
+  guardarAtual();
+  mensagem('');
+  irParaInicio();
 });
 $('copiar').addEventListener('click', () => {
   if (!estado) return;
@@ -253,10 +347,9 @@ $('exportar').addEventListener('click', async () => {
   if (!estado || !pacote) return;
   const botao = $<HTMLButtonElement>('exportar');
   try {
-    const pasta = await api.escolherPasta();
-    if (!pasta) return;
+    const pasta = await api.prepararMkp(caminhoDoPdf);
     botao.disabled = true;
-    mensagem('Exportando…');
+    mensagem('Salvando…');
     progresso(0);
     const r = await exportAll({
       pdfName: nomeDoPdf,
@@ -272,14 +365,20 @@ $('exportar').addEventListener('click', async () => {
       confirmOverwrite: (a) => api.confirmarSobrescrever(a),
       onProgress: (feito, total) => {
         progresso(feito / total);
-        mensagem(`Exportando ${feito} de ${total}…`);
+        mensagem(`Salvando ${feito} de ${total}…`);
       },
     });
     progresso(null);
-    mensagem(r.written.length === 0 ? 'Exportação cancelada. Nada foi gravado.' : `${r.written.length} ${r.written.length === 1 ? 'mockup exportado' : 'mockups exportados'} em ${pasta}.`);
+    if (r.written.length === 0) {
+      mensagem('Nada foi gravado. Você continua trabalhando nesta arte.');
+    } else {
+      trabalhos.remover(caminhoDoPdf);
+      irParaInicio();
+      mensagem(`${r.written.length} ${r.written.length === 1 ? 'mockup salvo' : 'mockups salvos'} em ${pasta}`);
+    }
   } catch (e) {
     progresso(null);
-    mensagem(`A exportação falhou. ${e instanceof Error ? e.message : String(e)}`, true);
+    mensagem(`Não consegui salvar os mockups. ${e instanceof Error ? e.message : String(e)}`, true);
   } finally {
     botao.disabled = false;
   }
@@ -297,7 +396,16 @@ for (const tipo of ['dragleave', 'drop']) {
 document.addEventListener('drop', async (e) => {
   e.preventDefault();
   const arquivo = e.dataTransfer?.files[0];
-  if (arquivo) await abrirPdfDeBytes(arquivo.name, new Uint8Array(await arquivo.arrayBuffer()));
+  if (!arquivo) return;
+  if (document.body.dataset.estado !== 'vazio') {
+    mensagem('Volte ao início para abrir outro PDF.', true);
+    return;
+  }
+  try {
+    await abrirPdf(await api.lerPdf(api.caminhoDoArquivo(arquivo)));
+  } catch (err) {
+    mensagem(textoDoErro(err), true);
+  }
 });
 
 function mostrarAtualizacao(e: EstadoAtualizacao): void {
