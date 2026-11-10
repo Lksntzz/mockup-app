@@ -9,6 +9,7 @@ import json
 import sys
 import warnings
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 from PIL import Image
@@ -92,7 +93,7 @@ def _imagem_base(camada):
     return camada.topil(), (camada.left, camada.top)
 
 
-def _renderizar(camada, largura: int, altura: int):
+def _renderizar(camada, largura: int, altura: int, em_branco: bool = False):
     """Devolve (imagem RGBA com os efeitos de camada, (x, y)) cortada ao canvas, ou None.
 
     A opacidade da camada NÃO é aplicada aqui: o motor aplica `opacity` sobre a camada inteira, efeitos inclusos
@@ -102,6 +103,9 @@ def _renderizar(camada, largura: int, altura: int):
     if img is None:
         return None
     img = img.convert("RGBA")
+    if em_branco:
+        # a arte que o PSD tem dentro da camada vira papel branco; a forma (alfa) e os efeitos continuam
+        img = Image.merge("RGBA", (*(Image.new("L", img.size, 255),) * 3, img.getchannel("A")))
     efeitos = _efeitos_ativos(camada)
     if efeitos:
         img, margem = aplicar_efeitos(img, efeitos)
@@ -163,7 +167,9 @@ def _fio_laranja_sem_aneis(stack, camadas_dir: Path, largura: int, altura: int) 
         )
 
 
-def export_pack(psd_path, out_dir) -> dict:
+def export_pack(psd_path, out_dir, ignorados=IGNORADOS, extras=None, contra_capa_em_branco=False) -> dict:
+    """`extras(camada, nome_maiusculo, ctx)` trata camadas de nível superior que este exportador não conhece
+    (usado pelo mockup de especificação); devolve True se tratou."""
     psd = PSDImage.open(str(psd_path))
     out = Path(out_dir)
     camadas_dir = out / "layers"
@@ -174,14 +180,14 @@ def export_pack(psd_path, out_dir) -> dict:
     contador = {}
     estado = {"arte": None, "verso": None}
 
-    def adicionar(camada, prefixo: str, when=None, id_fixo=None, mesmo_desligada=False):
+    def adicionar(camada, prefixo: str, when=None, id_fixo=None, mesmo_desligada=False, variante=None, em_branco=False):
         if not camada.visible and not mesmo_desligada:
             return
         if camada.kind not in ("pixel", "smartobject"):
             raise ValueError(f"camada '{camada.name}' do tipo {camada.kind} não é suportada")
         if camada.blend_mode.name not in BLEND:
             raise ValueError(f"modo de mistura {camada.blend_mode.name} da camada '{camada.name}' não é suportado")
-        r = _renderizar(camada, largura, altura)
+        r = _renderizar(camada, largura, altura, em_branco)
         if r is None:
             return
         img, (x, y) = r
@@ -199,7 +205,10 @@ def export_pack(psd_path, out_dir) -> dict:
         }
         if when:
             entrada["when"] = dict(when)
+        if variante:
+            entrada["variant"] = variante
         stack.append(entrada)
+        return entrada
 
     def tratar_fixo(grupo, prefixo, nomear=False):
         for c in grupo:
@@ -214,7 +223,7 @@ def export_pack(psd_path, out_dir) -> dict:
 
     for grupo in psd:
         nome = grupo.name.strip().upper()
-        if nome in IGNORADOS:
+        if nome in ignorados:
             continue
         if nome == "FUNDO":
             tratar_fixo(grupo, "fundo")
@@ -236,7 +245,7 @@ def export_pack(psd_path, out_dir) -> dict:
             stack.append({"id": "arte", "role": "art", "opacity": 1.0, "blend": "normal", "offset": [0, 0]})
         elif nome == "CONTRA CAPA":
             for c in grupo:
-                adicionar(c, "contracapa")
+                adicionar(c, "contracapa", em_branco=contra_capa_em_branco and c.kind == "smartobject")
             so = next(c for c in grupo if c.kind == "smartobject")
             caixa = so.smart_object.transform_box
             interno = PSDImage.open(io.BytesIO(so.smart_object.data))
@@ -257,6 +266,8 @@ def export_pack(psd_path, out_dir) -> dict:
                     adicionar(c, "rose-extra", when={"wireo": "rose-gold"})
         elif nome == "NÃO MEXER 01":
             tratar_fixo(grupo, "luz", nomear=True)
+        elif extras is not None and extras(grupo, nome, SimpleNamespace(adicionar=adicionar, renderizar=lambda c: _renderizar(c, largura, altura), stack=stack, camadas_dir=camadas_dir, largura=largura, altura=altura)):
+            pass
         else:
             raise ValueError(f"grupo de nível superior desconhecido: '{grupo.name}'")
 
