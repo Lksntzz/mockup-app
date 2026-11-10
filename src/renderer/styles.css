@@ -112,3 +112,11 @@ body:not([data-estado="pronto"]) #coluna-capas { display: none; }
 
 .cortina { position: fixed; inset: 0; background: rgba(20, 24, 50, .35); z-index: 9; }
 .salvo-botoes { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
+.abas-lista { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.abas .seta { padding: 6px 12px; border-radius: 999px; }
+
+.centro { flex-direction: column; }
+.abas { flex-shrink: 0; align-items: center; }
+.abas button { white-space: nowrap; }
+.centro .previa { flex: 0 1 auto; min-height: 0; }

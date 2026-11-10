@@ -4,7 +4,7 @@ export interface PreviewRequest {
   capa: number;
   choices: Choices;
   /** Qual mockup mostrar; sem isso, a frente. */
-  modo?: 'frente' | 'verso';
+  modo?: 'frente' | 'verso' | 'vt' | 'sem-canguru';
 }
 
 /**

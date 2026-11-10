@@ -1,6 +1,7 @@
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { createPreviewScheduler } from '../app/scheduler';
 import { copyToAll, createState, select, setColor, type AppState, type CapaState } from '../app/state';
+import { abasVisiveis, ROTULOS, vizinha, type Modo } from '../app/abas';
 import { escolhasDoVerso, paraRazao } from '../app/verso';
 import { compose, isAvailable } from '../engine/compose';
 import { exportAll, type ExportCapa, type ExportExtra } from '../export/exporter';
@@ -30,7 +31,7 @@ interface InfoDaCapa {
 
 let pacote: { pack: Pack; layers: Map<string, Raster> } | null = null;
 let estado: AppState | null = null;
-let modoPrevia: 'frente' | 'verso' = 'frente';
+let modoPrevia: Modo = 'frente';
 let info: InfoDaCapa[] = [];
 let contadorDePrevias = 0;
 let nomeDoPdf = '';
@@ -98,23 +99,43 @@ const razaoDaFaixa = (p: Pack): number => (p.backArt ? p.backArt.size.width / p.
 const versoDaFrente = (back: Raster | undefined): Raster | undefined =>
   back && pacote ? paraRazao(back, razaoDaFaixa(pacote.pack)) : back;
 
-function atualizarAbas(): void {
+function abasAgora(): Modo[] {
   const capa = estado?.capas[estado.selecionada];
-  const temVerso = !!capa?.back;
-  const verso = modoPrevia === 'verso' && temVerso;
-  $<HTMLButtonElement>('aba-verso').disabled = !temVerso;
-  $('aba-verso').title = temVerso ? '' : 'Esta capa não tem página par no PDF.';
-  $('aba-frente').setAttribute('aria-pressed', String(!verso));
-  $('aba-verso').setAttribute('aria-pressed', String(verso));
+  return abasVisiveis({
+    temVerso: !!capa?.back,
+    vt: $<HTMLInputElement>('saida-vt').checked,
+    semCanguru: $<HTMLInputElement>('saida-sem-canguru').checked,
+  });
+}
+
+function atualizarAbas(): void {
+  const abas = abasAgora();
+  if (!abas.includes(modoPrevia)) modoPrevia = 'frente';
+  const lista = $('abas-lista');
+  lista.replaceChildren();
+  for (const modo of abas) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.id = `aba-${modo}`;
+    b.textContent = ROTULOS[modo];
+    b.setAttribute('aria-pressed', String(modo === modoPrevia));
+    b.addEventListener('click', () => {
+      modoPrevia = modo;
+      pedirPrevia();
+    });
+    lista.append(b);
+  }
+  $<HTMLButtonElement>('aba-anterior').disabled = abas.length < 2;
+  $<HTMLButtonElement>('aba-proxima').disabled = abas.length < 2;
   const algumVerso = !!estado?.capas.some((c) => c.back);
   const caixaVerso = $<HTMLInputElement>('saida-verso');
   caixaVerso.disabled = !algumVerso;
   if (!algumVerso) caixaVerso.checked = false;
   caixaVerso.title = algumVerso ? '' : 'Este PDF não tem páginas pares.';
 }
-for (const [id, modo] of [['aba-frente', 'frente'], ['aba-verso', 'verso']] as const) {
+for (const [id, passo] of [['aba-anterior', -1], ['aba-proxima', 1]] as const) {
   $(id).addEventListener('click', () => {
-    modoPrevia = modo;
+    modoPrevia = vizinha(abasAgora(), modoPrevia, passo);
     pedirPrevia();
   });
 }
@@ -124,6 +145,10 @@ const agendador = createPreviewScheduler(
     await proximoQuadro();
     const capa = estado?.capas[req.capa];
     if (!pacote || !capa) throw new Error('capa não encontrada');
+    if (req.modo === 'vt' || req.modo === 'sem-canguru') {
+      const e = await carregarPacoteNomeado('especificacao');
+      return compose(e.pack, e.layers, capa.art, req.choices, versoDaFrente(capa.back), req.modo);
+    }
     if (req.modo === 'verso' && capa.back) {
       const v = await carregarPacoteNomeado('verso');
       return compose(v.pack, v.layers, capa.back, escolhasDoVerso(v.pack, req.choices), paraRazao(capa.art, razaoDaFaixa(v.pack)));
@@ -142,9 +167,8 @@ function pedirPrevia(): void {
   if (!estado) return;
   const capa = estado.capas[estado.selecionada];
   if (!capa) return;
-  const modo = modoPrevia === 'verso' && capa.back ? 'verso' : 'frente';
-  agendador.request({ capa: estado.selecionada, choices: { ...capa.choices }, modo });
   atualizarAbas();
+  agendador.request({ capa: estado.selecionada, choices: { ...capa.choices }, modo: modoPrevia });
 }
 
 function desenharLista(): void {
@@ -446,6 +470,13 @@ for (const id of IDS_SAIDAS) {
       mensagem('Deixe ao menos uma imagem marcada.', true);
     } else {
       mensagem('');
+      // marcou uma especificação: já mostra ela na prévia; desmarcou a que estava aparecendo: volta para a frente
+      if (id === 'saida-vt' || id === 'saida-sem-canguru') {
+        const modo: Modo = id === 'saida-vt' ? 'vt' : 'sem-canguru';
+        if (caixa(id).checked) modoPrevia = modo;
+        else if (modoPrevia === modo) modoPrevia = 'frente';
+        pedirPrevia();
+      }
     }
   });
 }

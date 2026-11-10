@@ -158,6 +158,13 @@ app.on('browser-window-created', (_e, win) => {
       await marcar('saida-sem-canguru', true);
       await marcar('saida-frente', false);
       conferir(!(await marcada('saida-frente')), 'com outra marcada, dá para desmarcar a Frente');
+      await ate("document.getElementById('aba-sem-canguru') && document.getElementById('aba-sem-canguru').getAttribute('aria-pressed') === 'true'", 'prévia da especificação ao marcar');
+      conferir((await js("document.querySelectorAll('#abas-lista button').length")) === 4, 'as abas mostram Frente, VT, Sem canguru e Verso');
+      const antesSeta = await js('document.body.dataset.previa');
+      await js("document.getElementById('aba-anterior').click()");
+      await ate(`document.body.dataset.previa !== ${JSON.stringify(antesSeta)}`, 'prévia depois da seta');
+      conferir((await js("document.getElementById('aba-vt').getAttribute('aria-pressed')")) === 'true', 'a seta ◀ leva do Sem canguru para a Especificação VT');
+      await foto('6a-previa-vt.png');
       await js("document.getElementById('exportar').click()");
       await ate("!document.getElementById('salvo').hidden", 'conclusão com especificação', 240000);
       await foto('6-especificacao.png');
