@@ -11,6 +11,7 @@ import { criarRascunhos } from './rascunhos';
 import { criarConfigDesigner } from './config-designer';
 import { moverParaAprovar } from './pasta-fluxo';
 import { atualizarVistos, buscarFinalizados, listarClientes } from './clientes';
+import { criarPortaoDePin } from './pin';
 import { arquivoAbrivel } from './abrir-arquivo';
 import { deveEsconderAoFechar, iniciaOculto } from './segundo-plano';
 import { caminhoPermitido, pastaMkp } from './paths';
@@ -192,8 +193,13 @@ function garantirBandeja(): void {
   }
 }
 
-ipcMain.handle('designer-ligar', async (_e, ligado: unknown) => {
+const portaoDePin = criarPortaoDePin();
+ipcMain.handle('designer-ligar', async (_e, ligado: unknown, pin?: unknown) => {
   if (typeof ligado !== 'boolean') throw new Error('Valor inválido.');
+  if (ligado) {
+    const r = portaoDePin.tentar(pin);
+    if (!r.ok) throw new Error(r.bloqueado ? 'Muitas tentativas. Espere 30 segundos.' : 'PIN incorreto.');
+  }
   const c = await configDoDesigner().salvar({ designer: ligado });
   designerLigado = c.designer;
   if (designerLigado) garantirBandeja();

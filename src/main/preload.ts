@@ -15,7 +15,7 @@ contextBridge.exposeInMainWorld('mockupApi', {
   salvarRascunho: (r: unknown) => ipcRenderer.invoke('rascunhos-salvar', r),
   removerRascunho: (caminho: string) => ipcRenderer.invoke('rascunhos-remover', caminho),
   designerEstado: () => ipcRenderer.invoke('designer-estado'),
-  designerLigar: (ligado: boolean) => ipcRenderer.invoke('designer-ligar', ligado),
+  designerLigar: (ligado: boolean, pin?: string) => ipcRenderer.invoke('designer-ligar', ligado, pin),
   designerEscolherPasta: (qual: 'pasta1' | 'pasta2' | 'pasta3' | 'pasta4') => ipcRenderer.invoke('designer-escolher-pasta', qual),
   iniciarComWindowsEstado: () => ipcRenderer.invoke('iniciar-windows-estado'),
   iniciarComWindows: (ligado: boolean) => ipcRenderer.invoke('iniciar-windows-definir', ligado),

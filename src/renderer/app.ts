@@ -723,9 +723,50 @@ const esperar = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 let trocandoModo = false;
 
 /** Shift+D liga (ou desliga) o Modo designer, com uma tela de "carregando" e as boas-vindas. */
+function pedirPin(): Promise<string | null> {
+  const tela = $('tela-pin');
+  const campo = $<HTMLInputElement>('pin-campo');
+  const erro = $('pin-erro');
+  return new Promise((resolver) => {
+    const fechar = (valor: string | null): void => {
+      tela.hidden = true;
+      $('pin-form').removeEventListener('submit', enviar);
+      $('pin-cancelar').removeEventListener('click', cancelar);
+      document.removeEventListener('keydown', esc, true);
+      campo.value = '';
+      resolver(valor);
+    };
+    const enviar = (e: Event): void => {
+      e.preventDefault();
+      if (campo.value.length === 0) return;
+      fechar(campo.value);
+    };
+    const cancelar = (): void => fechar(null);
+    const esc = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') fechar(null);
+    };
+    erro.textContent = '';
+    campo.value = '';
+    tela.hidden = false;
+    $('pin-form').addEventListener('submit', enviar);
+    $('pin-cancelar').addEventListener('click', cancelar);
+    document.addEventListener('keydown', esc, true);
+    campo.focus();
+  });
+}
+
 async function trocarModoDesigner(): Promise<void> {
   if (trocandoModo) return;
   trocandoModo = true;
+  let pin: string | undefined;
+  if (!designer.designer) {
+    const digitado = await pedirPin();
+    if (digitado === null) {
+      trocandoModo = false;
+      return;
+    }
+    pin = digitado;
+  }
   const tela = $('tela-designer');
   const titulo = $('designer-titulo');
   const giro = $('designer-giro');
@@ -734,7 +775,7 @@ async function trocarModoDesigner(): Promise<void> {
     giro.hidden = false;
     titulo.textContent = ligar ? 'Carregando modo designer…' : 'Saindo do modo designer…';
     tela.hidden = false;
-    const [config] = await Promise.all([api.designerLigar(ligar), esperar(1200)]);
+    const [config] = await Promise.all([api.designerLigar(ligar, pin), esperar(1200)]);
     aplicarDesigner(config);
     if (ligar) {
       await desenharPasta1();

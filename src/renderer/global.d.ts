@@ -30,7 +30,7 @@ export interface MockupApi {
   salvarRascunho(r: Rascunho): Promise<void>;
   removerRascunho(caminho: string): Promise<void>;
   designerEstado(): Promise<ConfigDesigner>;
-  designerLigar(ligado: boolean): Promise<ConfigDesigner>;
+  designerLigar(ligado: boolean, pin?: string): Promise<ConfigDesigner>;
   designerEscolherPasta(qual: 'pasta1' | 'pasta2' | 'pasta3' | 'pasta4'): Promise<ConfigDesigner>;
   iniciarComWindowsEstado(): Promise<boolean>;
   iniciarComWindows(ligado: boolean): Promise<boolean>;

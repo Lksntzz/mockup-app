@@ -102,6 +102,15 @@
       <div id="designer-giro" class="giro" aria-hidden="true"></div>
       <div id="designer-titulo" class="designer-titulo"></div>
     </div>
+    <div id="tela-pin" class="tela-designer" role="dialog" aria-label="PIN do Modo designer" hidden>
+      <div class="designer-titulo">Modo designer</div>
+      <form id="pin-form" class="pin-form">
+        <input id="pin-campo" type="password" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="PIN" />
+        <button class="primario" type="submit">Entrar</button>
+        <button id="pin-cancelar" class="discreto" type="button">Cancelar</button>
+      </form>
+      <div id="pin-erro" class="pin-erro" role="alert"></div>
+    </div>
     <div id="alerta-arte" class="alerta-arte" role="alert" hidden>
       <strong>Arte para fazer</strong> <span id="alerta-arte-nomes"></span>
       <button id="alerta-arte-ver" class="primario" type="button">Ver</button>
