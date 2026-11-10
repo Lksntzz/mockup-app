@@ -2,29 +2,20 @@
 
 Objetivo: confirmar, num Windows "limpo" (sem Node, sem Photoshop obrigatório, sem nada de programação instalado), que o app instala, abre o PDF, troca as cores e exporta os PNGs corretos.
 
-> **Importante:** o instalador `.exe` **não pôde ser gerado no ambiente onde o app foi desenvolvido** (ele é Linux e o instalador do Windows precisa do programa Wine). O que foi verificado lá: o app empacotado abre, acha o pacote do mockup, lê o PDF, troca cores e exporta 5 PNGs 1200×1200. O que **só você consegue verificar** é a instalação no Windows em si. Por isso este teste existe.
+> **Importante:** o instalador `.exe` é gerado pelo GitHub (servidor Windows), mas **ainda não foi aberto num Windows de verdade**. No ambiente de desenvolvimento (Linux) foi verificado: o app empacotado abre, acha o pacote do mockup, lê o PDF, troca cores e exporta 5 PNGs 1200×1200. O que **só você consegue verificar** é a instalação no Windows em si. Por isso este teste existe.
 
 ---
 
-## Parte A — Gerar o instalador (uma vez só, num computador com Windows)
+## Parte A — Baixar o instalador (não precisa instalar Node nem digitar comandos)
 
-Precisa de um computador Windows com internet. Esta parte é a mais "técnica"; se preferir, peça a alguém de TI para fazer só a Parte A.
+O GitHub gera o instalador sozinho num servidor Windows a cada envio de código.
 
-1. Instale o **Node.js 22 (LTS)**: entre em https://nodejs.org, baixe o botão "LTS", rode o instalador e vá clicando em "Next" até o fim.
-   - **Resultado esperado:** ao final, abrir o menu Iniciar → digitar `cmd` → Enter → digitar `node --version` e ver algo como `v22.x.x`.
-2. Copie a pasta do projeto `mockup-agenda` para o Windows (por exemplo para `C:\mockup-agenda`).
-3. Abra o menu Iniciar, digite `cmd`, Enter. Na janela preta digite:
-   ```
-   cd C:\mockup-agenda
-   npm install
-   ```
-   - **Resultado esperado:** demora alguns minutos e termina sem a palavra `ERR!` em vermelho. Avisos amarelos (`WARN`) podem ser ignorados.
-4. Ainda na mesma janela:
-   ```
-   npm run dist
-   ```
-   - **Resultado esperado:** ao final aparece a pasta `C:\mockup-agenda\release` com o arquivo **`Mockup-da-Agenda-Setup-0.1.0.exe`** (deve ter algumas dezenas a poucas centenas de MB; o Electron embute o navegador Chromium).
-   - **Se aparecer erro:** copie o texto inteiro da janela e me envie.
+1. Abra https://github.com/Lksntzz/mockup-app/actions (entre com sua conta do GitHub se pedir).
+2. Clique na execução **mais recente com ✅ verde**.
+   - **Se estiver com ❌ vermelho:** me mande um print.
+3. Role até **Artifacts** e clique em **Mockup-da-Agenda-Setup**.
+   - **Resultado esperado:** baixa um `.zip` de uns 120 MB. Extraia (botão direito → Extrair tudo) e dentro está **`Mockup-da-Agenda-Setup-0.1.0.exe`**.
+   - Os arquivos ficam disponíveis por alguns dias; se sumirem, me peça para gerar de novo.
 
 ---
 
