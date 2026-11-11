@@ -1557,7 +1557,16 @@ async function iniciarAtualizacoes(): Promise<void> {
   $('versao').textContent = `v${await api.versao()}`;
   api.aoMudarAtualizacao(mostrarAtualizacao);
   $('verificar').addEventListener('click', () => void api.verificarAtualizacao());
-  $('reiniciar').addEventListener('click', () => void api.instalarAtualizacao());
+  $('reiniciar').addEventListener('click', () => {
+    // mostra a tela de "atualizando" antes de fechar; o app reabre sozinho
+    $('tela-atualizando').hidden = false;
+    window.setTimeout(() => {
+      void api.instalarAtualizacao().catch((e) => {
+        $('tela-atualizando').hidden = true;
+        mensagem(textoDoErro(e), true);
+      });
+    }, 1200);
+  });
   mostrarAtualizacao(await api.estadoAtualizacao());
 }
 

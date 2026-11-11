@@ -97,6 +97,12 @@ describe('atualizador: instalar', () => {
     at.instalar();
     expect(updater.instalou).toBe(1);
   });
+  test('o botão Reiniciar instala em silêncio e reabre o app sozinho (sem o assistente de instalação)', () => {
+    const { updater, at } = montar();
+    updater.emit('update-downloaded', { version: '0.3.0' });
+    at.instalar();
+    expect(updater.argumentos).toEqual([true, true]);
+  });
   test('não verifica de novo enquanto está baixando ou com a atualização pronta', async () => {
     const { updater, at } = montar();
     updater.emit('update-available', { version: '0.3.0' });

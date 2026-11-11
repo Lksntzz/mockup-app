@@ -314,3 +314,11 @@ body:not([data-estado="pronto"]) #coluna-capas { display: none; }
   .cliente-linha.entra, .cliente-linha.entra .etapa::before, .resumo-item, .selo-situacao.arte-a-fazer::before, .cc-menu-itens { animation: none !important; }
   .cliente-linha, .resumo-item, .cc-acoes button { transition: none; }
 }
+
+.tela-atualizando { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: rgba(28, 32, 51, .92); color: #fff; text-align: center; padding: 24px; animation: sobe .25s ease-out both; }
+.tela-atualizando[hidden] { display: none; }
+.tela-atualizando strong { font-size: 22px; }
+.tela-atualizando span { color: #c9cdea; max-width: 420px; }
+.tela-atualizando .spinner { width: 46px; height: 46px; border-radius: 50%; border: 4px solid rgba(255,255,255,.22); border-top-color: #fff; animation: gira 0.9s linear infinite; margin-bottom: 6px; }
+@keyframes gira { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .tela-atualizando .spinner { animation-duration: 3s; } }

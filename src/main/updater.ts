@@ -75,7 +75,7 @@ export function criarAtualizador({ updater, ativo, enviar, ocioso = () => false 
     },
     instalarSeOcioso,
     instalar(): void {
-      if (estado.tipo === 'pronta') updater.quitAndInstall();
+      if (estado.tipo === 'pronta') updater.quitAndInstall(true, true);
     },
     estado: () => estado,
   };
