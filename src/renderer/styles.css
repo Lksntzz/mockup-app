@@ -326,3 +326,7 @@ body:not([data-estado="pronto"]) #coluna-capas { display: none; }
 .config-titulo { font-size: 15px; font-weight: 700; margin: 4px 0 8px; }
 #config .config-pastas { background: var(--superficie); border: 1px solid var(--borda); border-radius: 14px; padding: 18px 20px; box-shadow: var(--sombra); grid-template-columns: 1fr; }
 #config .pastas-config { grid-template-columns: 1fr; gap: 14px; }
+
+/* seletores de frente e verso do molde (no card do cliente) */
+.cc-fonte { display: flex; align-items: center; gap: 6px; flex: 1 1 260px; min-width: 0; font-size: 13px; color: var(--texto-suave, #475467); }
+.cc-fonte .cc-select { flex: 1 1 140px; }

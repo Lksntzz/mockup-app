@@ -126,3 +126,8 @@ export async function achouArquivoNovo(pasta: string, depoisDe: number, padrao: 
   }
   return false;
 }
+
+/** Texto que o macro lê: destino do .cdr, arte da frente e arte do verso (uma por linha; vazia quando não há). */
+export function linhasDoMolde(e: { destino: string; frente?: string; verso?: string }): string {
+  return [e.destino, e.frente ?? '', e.verso ?? ''].join('\r\n');
+}

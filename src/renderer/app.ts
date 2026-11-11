@@ -4,6 +4,7 @@ import { aplicarEscolhas, contarIgnoradas, descreverSaidas, formatarData, type E
 import { copyToAll, createState, select, setColor, type AppState, type CapaState } from '../app/state';
 import { abasVisiveis, ROTULOS, vizinha, type Modo } from '../app/abas';
 import { escolhasDoVerso, paraRazao } from '../app/verso';
+import { fontesDaArte, frenteEVersoPadrao, rotuloDaFonte, type Fonte } from '../app/frente-verso';
 import { compose, isAvailable } from '../engine/compose';
 import { exportAll, type ExportCapa, type ExportExtra } from '../export/exporter';
 import type { Accessory, Choices, Pack, Raster } from '../engine/types';
@@ -277,7 +278,7 @@ const paginaInteiraEm = new Set<string>();
 let paginaInteiraAtual = false;
 
 /** Renderiza a página e fica só com a arte (sem margens nem o fundo esticado de alguns PDFs). */
-async function lerArteDaPagina(doc: PdfAberto, n: number): Promise<Raster> {
+async function lerArteDaPagina(doc: PdfAberto, n: number, larguraDaArte = 1200): Promise<Raster> {
   if (paginaInteiraAtual) {
     const molde = caixaDoMolde();
     const pagina = await doc.renderPage(n, widthForArt(1500, molde));
@@ -285,8 +286,61 @@ async function lerArteDaPagina(doc: PdfAberto, n: number): Promise<Raster> {
     // página que não é A4: o molde não está onde esperamos, então volta ao modo automático
   }
   const caixa = await doc.artBox(n);
-  const pagina = await doc.renderPage(n, widthForArt(1200, caixa));
+  const pagina = await doc.renderPage(n, widthForArt(larguraDaArte, caixa));
   return cropMargins(caixa ? cropToBox(pagina, caixa) : pagina);
+}
+
+/** PNG (bytes) a partir dos pixels, para entregar ao Corel uma página de PDF já recortada na arte. */
+async function rasterParaPng(r: Raster): Promise<Uint8Array> {
+  const c = document.createElement('canvas');
+  c.width = r.width;
+  c.height = r.height;
+  c.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(r.data), r.width, r.height), 0, 0);
+  const blob = await new Promise<Blob | null>((ok) => c.toBlob(ok, 'image/png'));
+  if (!blob) throw new Error('Não consegui preparar a imagem da página.');
+  return new Uint8Array(await blob.arrayBuffer());
+}
+
+/**
+ * Deixa cada arte escolhida (frente, verso) num arquivo que o Corel consegue importar:
+ * imagem vai como está; página de PDF vira PNG só da arte (sem margens). PDF de uma página só não tem verso (volta undefined).
+ */
+async function prepararFontesParaOMolde(fontes: (Fonte | undefined)[]): Promise<(string | undefined)[]> {
+  const abertos = new Map<string, PdfAberto>();
+  try {
+    const saida: (string | undefined)[] = [];
+    for (const f of fontes) {
+      if (!f) {
+        saida.push(undefined);
+        continue;
+      }
+      if (!f.pagina) {
+        saida.push(f.caminho);
+        continue;
+      }
+      let doc = abertos.get(f.caminho);
+      if (!doc) {
+        doc = await openPdf((await api.lerPdf(f.caminho)).bytes);
+        abertos.set(f.caminho, doc);
+      }
+      if (f.pagina > doc.pageCount) {
+        saida.push(undefined);
+        continue;
+      }
+      const antes = paginaInteiraAtual;
+      paginaInteiraAtual = false; // arte do cliente: modo automático (só a arte), não o recorte do molde do Corel
+      let raster: Raster;
+      try {
+        raster = await lerArteDaPagina(doc, f.pagina, 2400);
+      } finally {
+        paginaInteiraAtual = antes;
+      }
+      saida.push(await api.salvarTemporario(`${nomeDoCaminho(f.caminho)}-p${f.pagina}`, await rasterParaPng(raster)));
+    }
+    return saida;
+  } finally {
+    for (const d of abertos.values()) await d.close().catch(() => undefined);
+  }
 }
 
 const ehImagem = (nome: string) => /\.(png|jpe?g)$/i.test(nome);
@@ -1035,25 +1089,76 @@ function linhaDoCliente(c: Cliente): HTMLElement {
         lista.addEventListener('change', () => (escolhida = lista.value));
         acoes.append(lista);
       }
-      botao('Abrir no molde (Corel)', 'secundario', 'Abre o CorelDRAW com a arte já encaixada no molde', (ev) => {
-        if (doCorel.includes(escolhida)) {
-          mensagem('Escolha a arte do cliente, não o PDF do Corel.', true);
-          return;
-        }
-        const b = ev.currentTarget as HTMLButtonElement;
-        b.disabled = true;
-        mensagem('Abrindo no Corel… pode levar alguns segundos.');
-        void api.corelArteNoMolde(escolhida).then(
-          (r) => {
-            b.disabled = false;
-            mensagem(r.ok ? 'Arte no molde. Ajuste no Corel e depois use "Gerar PDF".' : `${r.motivo} (copiei o caminho da arte: no Corel, rode o macro e cole)`, !r.ok);
-          },
-          (e) => {
-            b.disabled = false;
-            mensagem(textoDoErro(e), true);
-          },
-        );
-      });
+      if (doCliente.length > 0) {
+        // frente e verso: o chute inicial vem dos nomes e do PDF (página 1 frente, página 2 verso); dá para trocar
+        const fontes = fontesDaArte(doCliente);
+        const padrao = frenteEVersoPadrao(doCliente);
+        const seletor = (rotulo: string, inicial: Fonte | undefined, vazio: string) => {
+          const caixa = document.createElement('label');
+          caixa.className = 'cc-fonte';
+          caixa.append(`${rotulo}: `);
+          const lista = document.createElement('select');
+          lista.className = 'cc-select';
+          const sem = document.createElement('option');
+          sem.value = '';
+          sem.textContent = vazio;
+          lista.append(sem);
+          fontes.forEach((f, i) => {
+            const o = document.createElement('option');
+            o.value = String(i);
+            o.textContent = rotuloDaFonte(f);
+            lista.append(o);
+          });
+          const ini = inicial ? fontes.findIndex((f) => f.caminho === inicial.caminho && f.pagina === inicial.pagina) : -1;
+          lista.value = ini >= 0 ? String(ini) : '';
+          caixa.append(lista);
+          acoes.append(caixa);
+          return () => (lista.value === '' ? undefined : fontes[Number(lista.value)]);
+        };
+        const frenteEscolhida = seletor('Frente', padrao.frente, '(sem arte)');
+        const versoEscolhido = seletor('Verso', padrao.verso, '(sem arte: criar depois)');
+        botao('Abrir no molde (Corel)', 'secundario', 'Abre o CorelDRAW com a frente (página 1) e o verso (página 2) já encaixados no molde', (ev) => {
+          const frente = frenteEscolhida();
+          const verso = versoEscolhido();
+          if (!frente && !verso) {
+            mensagem('Escolha a arte da frente ou do verso.', true);
+            return;
+          }
+          const b = ev.currentTarget as HTMLButtonElement;
+          b.disabled = true;
+          void (async () => {
+            try {
+              mensagem('Preparando as artes…');
+              const [pf, pv] = await prepararFontesParaOMolde([frente, verso]);
+              if (!pf && !pv) {
+                mensagem('Não achei páginas para colocar no molde.', true);
+                return;
+              }
+              mensagem('Abrindo no Corel… pode levar alguns segundos.');
+              const principal = (frente ?? verso)!.caminho;
+              const nomeBase = nomeDoCaminho(principal).replace(/\.[^.]+$/, '');
+              const sep = c.caminho.includes('\\') ? '\\' : '/';
+              const r = await api.corelArteNoMolde({
+                ...(pf ? { frente: pf } : {}),
+                ...(pv ? { verso: pv } : {}),
+                destino: `${c.caminho}${sep}${nomeBase} - MOLDE.cdr`,
+                copiar: principal,
+              });
+              const faltou = !pf ? 'frente' : !pv ? 'verso' : '';
+              mensagem(
+                r.ok
+                  ? `Arte no molde${faltou ? ` (sem ${faltou}: crie no Corel)` : ''}. Ajuste e depois use "Gerar PDF".`
+                  : `${r.motivo} (copiei o caminho da arte: no Corel, rode o macro e cole)`,
+                !r.ok,
+              );
+            } catch (e) {
+              mensagem(textoDoErro(e), true);
+            } finally {
+              b.disabled = false;
+            }
+          })();
+        });
+      }
       botao('Gerar PDF (Corel)', 'secundario', 'Manda o Corel salvar o PDF do documento aberto, na pasta do cliente', (ev) => {
         const b = ev.currentTarget as HTMLButtonElement;
         b.disabled = true;

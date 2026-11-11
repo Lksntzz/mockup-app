@@ -2,7 +2,7 @@ Attribute VB_Name = "MKP"
 Option Explicit
 
 ' Macros do Mockup da Agenda para o CorelDRAW.
-'  - ArteDoClienteNoMolde: abre uma COPIA do molde, encaixa a arte do cliente (sem distorcer) e salva "<arte> - MOLDE.cdr" na pasta da arte.
+'  - ArteDoClienteNoMolde: abre uma COPIA do molde, encaixa a frente (pagina 1) e o verso (pagina 2) sem distorcer e salva "<arte> - MOLDE.cdr" na pasta do cliente.
 '  - ExportarPDFparaMKP:   salva o PDF (predefinicao "MKP") ao lado do .cdr aberto.
 ' O app chama os dois por um botao; rodando a mao tambem funciona.
 
@@ -13,11 +13,13 @@ Const CENTRO_X As Double = 104.951
 Const CENTRO_Y As Double = 148.343
 Const IDADE_MAXIMA_MIN As Long = 10
 
-' Le a primeira linha do arquivo que o app deixou na pasta temporaria e apaga o arquivo.
+' Le o arquivo que o app deixou na pasta temporaria (uma informacao por linha) e apaga o arquivo.
 ' Arquivo velho (mais de 10 minutos) e ignorado, para nunca usar um caminho de outra hora.
-Private Function LerEApagar(nome As String) As String
-    Dim caminho As String, linha As String, n As Integer
+Private Function LerLinhasEApagar(nome As String) As String()
+    Dim caminho As String, linha As String, n As Integer, i As Integer
+    Dim r(0 To 2) As String
     caminho = Environ("TEMP") & "\" & nome
+    LerLinhasEApagar = r
     If Dir(caminho) = "" Then Exit Function
     If DateDiff("n", FileDateTime(caminho), Now) > IDADE_MAXIMA_MIN Then
         On Error Resume Next
@@ -26,11 +28,21 @@ Private Function LerEApagar(nome As String) As String
     End If
     n = FreeFile
     Open caminho For Input As #n
-    If Not EOF(n) Then Line Input #n, linha
+    Do While Not EOF(n) And i <= 2
+        Line Input #n, linha
+        r(i) = Trim(linha)
+        i = i + 1
+    Loop
     Close #n
     On Error Resume Next
     Kill caminho
-    LerEApagar = Trim(linha)
+    LerLinhasEApagar = r
+End Function
+
+Private Function LerEApagar(nome As String) As String
+    Dim l() As String
+    l = LerLinhasEApagar(nome)
+    LerEApagar = l(0)
 End Function
 
 Private Function SemBarraFinal(ByVal s As String) As String
@@ -53,10 +65,30 @@ Private Function EscolherArte() As String
     EscolherArte = Replace(r, Chr(34), "")
 End Function
 
+' Importa a arte na pagina indicada do molde (1 = frente, 2 = verso), encaixa sem distorcer e centraliza.
+Private Sub ColocarArte(doc As Document, pagina As Long, arquivo As String)
+    Dim s As Shape, f As Double, f2 As Double
+    If doc.Pages.Count < pagina Then Err.Raise vbObjectError + 1, , "O molde nao tem a pagina " & pagina & "."
+    doc.Pages(pagina).Activate
+    doc.Pages(pagina).ActiveLayer.Import arquivo
+    Set s = ActiveSelection
+    f = LARGURA / s.SizeWidth
+    f2 = ALTURA / s.SizeHeight
+    If f2 < f Then f = f2
+    s.SetSize s.SizeWidth * f, s.SizeHeight * f
+    s.CenterX = CENTRO_X
+    s.CenterY = CENTRO_Y
+    s.OrderToBack
+End Sub
+
+' Arquivo do app: linha 1 = onde salvar o .cdr, linha 2 = arte da frente (pagina 1), linha 3 = arte do verso (pagina 2).
+' Rodando a mao: pergunta a frente e o verso, e salva na pasta da frente.
 Sub ArteDoClienteNoMolde()
-    Dim arte As String, pasta As String, nomeBase As String, destino As String
-    Dim doc As Document, s As Shape
-    Dim pos As Long, f As Double, f2 As Double
+    Dim l() As String
+    Dim destino As String, frente As String, verso As String
+    Dim pasta As String, nomeBase As String
+    Dim doc As Document
+    Dim pos As Long
     Dim doApp As Boolean
 
     If Dir(MOLDE) = "" Then
@@ -64,21 +96,37 @@ Sub ArteDoClienteNoMolde()
         Exit Sub
     End If
 
-    arte = LerEApagar("mockup-arte.txt")
-    doApp = (arte <> "")
-    If Not doApp Then arte = EscolherArte()
-    If arte = "" Then Exit Sub
-    If Dir(arte) = "" Then
-        MsgBox "Nao achei o arquivo: " & arte, vbExclamation, "Arte no molde"
-        Exit Sub
+    l = LerLinhasEApagar("mockup-arte.txt")
+    destino = l(0)
+    frente = l(1)
+    verso = l(2)
+    doApp = (destino <> "")
+
+    If Not doApp Then
+        frente = EscolherArte()
+        If frente = "" Then Exit Sub
+        verso = Replace(Trim(InputBox("Cole o caminho da arte do VERSO (ou deixe vazio para criar o verso depois):", "Arte no molde")), Chr(34), "")
+        pos = InStrRev(frente, "\")
+        pasta = Left(frente, pos)
+        nomeBase = Mid(frente, pos + 1)
+        pos = InStrRev(nomeBase, ".")
+        If pos > 1 Then nomeBase = Left(nomeBase, pos - 1)
+        destino = pasta & nomeBase & " - MOLDE.cdr"
     End If
 
-    pos = InStrRev(arte, "\")
-    pasta = Left(arte, pos)
-    nomeBase = Mid(arte, pos + 1)
-    pos = InStrRev(nomeBase, ".")
-    If pos > 1 Then nomeBase = Left(nomeBase, pos - 1)
-    destino = pasta & nomeBase & " - MOLDE.cdr"
+    If frente <> "" Then
+        If Dir(frente) = "" Then
+            MsgBox "Nao achei o arquivo da frente: " & frente, vbExclamation, "Arte no molde"
+            Exit Sub
+        End If
+    End If
+    If verso <> "" Then
+        If Dir(verso) = "" Then
+            MsgBox "Nao achei o arquivo do verso: " & verso, vbExclamation, "Arte no molde"
+            Exit Sub
+        End If
+    End If
+    If frente = "" And verso = "" Then Exit Sub
 
     If Dir(destino) <> "" Then
         If Not doApp Then MsgBox "Ja existe: " & destino & vbCrLf & "Vou abrir o que ja existe, sem alterar.", vbInformation, "Arte no molde"
@@ -90,18 +138,9 @@ Sub ArteDoClienteNoMolde()
     Set doc = OpenDocument(MOLDE)
     doc.SaveAs destino
     doc.Unit = cdrMillimeter
-
-    doc.ActivePage.ActiveLayer.Import arte
-    Set s = ActiveSelection
-
-    f = LARGURA / s.SizeWidth
-    f2 = ALTURA / s.SizeHeight
-    If f2 < f Then f = f2
-    s.SetSize s.SizeWidth * f, s.SizeHeight * f
-    s.CenterX = CENTRO_X
-    s.CenterY = CENTRO_Y
-    s.OrderToBack
-
+    If frente <> "" Then ColocarArte doc, 1, frente
+    If verso <> "" Then ColocarArte doc, 2, verso
+    doc.Pages(1).Activate
     doc.Save
     If Not doApp Then MsgBox "Pronto: " & destino, vbInformation, "Arte no molde"
     Exit Sub

@@ -386,8 +386,10 @@ app.on('browser-window-created', (_e, win) => {
       for (const n of ['capa.pdf', 'frente.png', 'verso.jpg']) fs.writeFileSync(path.join(varias, n), 'x');
       await js("document.getElementById('atualizar-pasta1').click()");
       await ate("[...document.querySelectorAll('#pasta1-lista .cliente-linha .nome')].some(n => n.textContent === 'MUITAS ARTES')", 'cliente com várias artes');
-      const opcoes = await js("(() => { const l = [...document.querySelectorAll('#pasta1-lista .cliente-linha')].find(x => x.querySelector('.nome').textContent === 'MUITAS ARTES'); return [[...l.querySelectorAll('select.cc-select option')].map(o => o.textContent).join(','), [...l.querySelectorAll('button')].filter(b => b.textContent.startsWith('Fazer MKP')).length]; })()");
+      const opcoes = await js("(() => { const l = [...document.querySelectorAll('#pasta1-lista .cliente-linha')].find(x => x.querySelector('.nome').textContent === 'MUITAS ARTES'); return [[...l.querySelector('select.cc-select').querySelectorAll('option')].map(o => o.textContent).join(','), [...l.querySelectorAll('button')].filter(b => b.textContent.startsWith('Fazer MKP')).length]; })()");
       conferir(opcoes[1] === 1 && opcoes[0] === 'frente.png,verso.jpg,capa.pdf', `com várias artes aparece uma lista (imagens primeiro, PDF por último) e um botão só (${opcoes.join(' | ')})`);
+      const fv = await js("(() => { const l = [...document.querySelectorAll('#pasta1-lista .cliente-linha')].find(x => x.querySelector('.nome').textContent === 'MUITAS ARTES'); return [...l.querySelectorAll('.cc-fonte')].map(f => f.firstChild.textContent + f.querySelector('select').selectedOptions[0].textContent).join(' | ') + ' | ' + [...l.querySelectorAll('button')].filter(b => b.textContent.startsWith('Abrir no molde') || b.textContent.startsWith('Gerar PDF')).length; })()");
+      conferir(fv === 'Frente: frente.png | Verso: verso.jpg | 2', `o card tem os seletores Frente e Verso já preenchidos pelo nome, e os botões do Corel (${fv})`);
       await js("[...document.querySelectorAll('#filtro-chips .chip')].find(b => b.textContent.startsWith('Prontas')).click()");
       conferir(await js("![...document.querySelectorAll('#pasta1-lista .cliente-linha .nome')].some(n => n.textContent === 'MUITAS ARTES') && [...document.querySelectorAll('#pasta1-lista .cliente-linha .nome')].some(n => n.textContent.startsWith('EXPRESSO'))"), 'o filtro "Prontas" esconde quem ainda precisa de arte e mostra quem está pronto');
       await js("[...document.querySelectorAll('#filtro-chips .chip')].find(b => b.textContent.startsWith('Todos')).click()");
@@ -464,6 +466,22 @@ app.on('browser-window-created', (_e, win) => {
       conferir(await ate("[...document.querySelectorAll('#pasta1-lista .cliente-linha')].find(l => l.textContent.includes('CLIENTE A'))?.textContent.includes('Voltou da Pasta 2 para a Pasta 1')", 'aviso de volta'), 'pasta movida para trás mostra "Voltou da Pasta 2 para a Pasta 1"');
       await js("[...document.querySelectorAll('#pasta1-lista .cliente-linha')].find(l => l.textContent.includes('CLIENTE A'))?.querySelector('button:not(.primario)') && [...document.querySelectorAll('#pasta1-lista .cliente-linha button')].find(b => b.textContent === 'Já vi')?.click()");
       conferir(await ate("!document.getElementById('pasta1-lista').textContent.includes('Voltou da Pasta')", 'aviso de volta some'), '"Já vi" tira o aviso de pasta que voltou');
+      // "Abrir no molde" com um PDF de verdade: as páginas viram PNG (frente = página 1, verso = página 2) e o app tenta chamar o Corel
+      // (aqui no Linux ele responde que só funciona no Windows; o que se prova é que nada quebrou no caminho e que os temporários foram apagados)
+      const comPdf = path.join(p1, 'CLIENTE COM PDF');
+      fs.mkdirSync(comPdf, { recursive: true });
+      fs.copyFileSync(pdfDoTrabalho, path.join(comPdf, 'arte.pdf'));
+      await js("document.getElementById('tab-pasta1').click()");
+      await js("document.getElementById('atualizar-pasta1').click()");
+      await ate("[...document.querySelectorAll('#pasta1-lista .cliente-linha .nome')].some(n => n.textContent === 'CLIENTE COM PDF')", 'cliente com PDF');
+      const fvPdf = await js("(() => { const l = [...document.querySelectorAll('#pasta1-lista .cliente-linha')].find(x => x.querySelector('.nome').textContent === 'CLIENTE COM PDF'); return [...l.querySelectorAll('.cc-fonte select')].map(s => s.selectedOptions[0].textContent).join(' | '); })()");
+      conferir(fvPdf === 'arte.pdf — página 1 | arte.pdf — página 2', `PDF sozinho: frente é a página 1 e verso é a página 2 (${fvPdf})`);
+      await js("[...document.querySelectorAll('#pasta1-lista .cliente-linha')].find(x => x.querySelector('.nome').textContent === 'CLIENTE COM PDF').querySelectorAll('button').forEach(b => { if (b.textContent.startsWith('Abrir no molde')) b.click(); })");
+      conferir(await ate("document.getElementById('mensagem').textContent.includes('Windows')", 'resposta do Corel'), 'abrir no molde com PDF renderiza as páginas e chega até a chamada do Corel');
+      const msgMolde = await js("document.getElementById('mensagem').textContent");
+      conferir(!/inválid|Não consegui preparar|erro/i.test(msgMolde), `sem erro ao preparar as páginas (${msgMolde.slice(0, 90)})`);
+      const tempDoApp = path.join(require('node:os').tmpdir(), 'mockup-agenda');
+      conferir(fs.existsSync(tempDoApp) && fs.readdirSync(tempDoApp).length === 0, 'as imagens temporárias foram criadas e apagadas depois');
     } catch (e) {
       conferir(false, `exceção no roteiro: ${e}`);
     }

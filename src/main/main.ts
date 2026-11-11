@@ -2,8 +2,8 @@ import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage, Noti
 import { EventEmitter } from 'node:events';
 import { mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { homedir, userInfo } from 'node:os';
-import { basename, dirname, extname, join, resolve } from 'node:path';
+import { homedir, tmpdir, userInfo } from 'node:os';
+import { basename, dirname, extname, isAbsolute, join, relative, resolve } from 'node:path';
 import { PNG } from 'pngjs';
 import { entradaValida } from '../app/historico';
 import { criarHistorico, nomeSeguro } from './historico';
@@ -16,7 +16,7 @@ import { atualizarVistos, buscarFinalizados, chaveDe, listarClientes, norm, ulti
 import { criarPortaoDePin } from './pin';
 import { acharPastasDoFluxo } from './achar-pastas';
 import { arquivoAbrivel } from './abrir-arquivo';
-import { achouArquivoNovo, rodarMacroDoCorel } from './corel';
+import { achouArquivoNovo, linhasDoMolde, rodarMacroDoCorel } from './corel';
 import { atualizacaoPodeInstalarSozinha, deveEsconderAoFechar, iniciaOculto } from './segundo-plano';
 import { caminhoPermitido, pastaMkp } from './paths';
 import { criarAtualizador, type AtualizadorLike } from './updater';
@@ -333,26 +333,54 @@ ipcMain.handle('fluxo-mover', async (_e, caminhoCliente: unknown) => {
   if (r.ok) await registrarEnvio(chaveDe({ nome: basename(caminhoCliente), ...(origem.grupo ? { grupo: origem.grupo } : {}) }));
   return r;
 });
-ipcMain.handle('corel-arte-no-molde', async (_e, caminhoArte: unknown) => {
+/** Pasta onde o app deixa, por pouco tempo, as páginas de PDF viradas em PNG para o Corel importar. */
+const PASTA_TEMPORARIA_DO_COREL = join(tmpdir(), 'mockup-agenda');
+const dentroDaTemporaria = (caminho: string) => {
+  const rel = relative(PASTA_TEMPORARIA_DO_COREL, resolve(caminho));
+  return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel);
+};
+ipcMain.handle('salvar-temporario', async (_e, nome: unknown, bytes: unknown) => {
+  await exigirDesigner();
+  if (typeof nome !== 'string' || !(bytes instanceof Uint8Array)) throw new Error('Arquivo temporário inválido.');
+  const ehPng = bytes.length > 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+  if (!ehPng || bytes.length > 120 * 1024 * 1024) throw new Error('Imagem temporária inválida.');
+  await mkdir(PASTA_TEMPORARIA_DO_COREL, { recursive: true });
+  const caminho = join(PASTA_TEMPORARIA_DO_COREL, `${Date.now()}-${nomeSeguro(nome).replace(/\.png$/i, '')}.png`);
+  await writeFile(caminho, bytes);
+  return caminho;
+});
+ipcMain.handle('corel-arte-no-molde', async (_e, entrada: unknown) => {
   const c = await exigirDesigner();
-  if (typeof caminhoArte !== 'string') throw new Error('Arquivo inválido.');
-  if (!arquivoAbrivel([c.pasta1 ?? '', c.pasta2 ?? '', c.pasta3 ?? ''], caminhoArte)) {
-    return { ok: false, motivo: 'Esse arquivo não está nas pastas do fluxo.' };
-  }
-  const r = await rodarMacroDoCorel('ArteDoClienteNoMolde', caminhoArte);
-  if (r.ok) {
-    // o Corel diz "rodou" até quando o macro mostrou um aviso de erro: confere se o .cdr do molde existe na pasta
-    const base = basename(caminhoArte, extname(caminhoArte)).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const existe = await achouArquivoNovo(dirname(caminhoArte), 0, new RegExp(`^${base} - MOLDE\\.cdr$`, 'i'));
-    if (!existe) {
-      clipboard.writeText(caminhoArte);
-      return { ok: false, motivo: 'O Corel rodou o macro, mas o arquivo do molde não apareceu na pasta. Veja se ficou algum aviso na tela do Corel' };
+  const e = entrada as { frente?: unknown; verso?: unknown; destino?: unknown; copiar?: unknown } | null;
+  const texto = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
+  const frente = texto(e?.frente);
+  const verso = texto(e?.verso);
+  const destino = texto(e?.destino);
+  const copiar = texto(e?.copiar);
+  if (!destino || (!frente && !verso)) throw new Error('Escolha pelo menos uma arte (frente ou verso).');
+  const raizes = [c.pasta1 ?? '', c.pasta2 ?? '', c.pasta3 ?? ''];
+  const temporarios = [frente, verso].filter((x): x is string => !!x && dentroDaTemporaria(x));
+  try {
+    for (const a of [frente, verso]) {
+      if (a && !dentroDaTemporaria(a) && !arquivoAbrivel(raizes, a)) return { ok: false as const, motivo: 'Essa arte não está nas pastas do fluxo.' };
     }
+    const pastaDoCliente = dirname(destino);
+    const nasPastas = [c.pasta1, c.pasta2, c.pasta3].some((raiz) => raiz && origemDoCliente(raiz, pastaDoCliente));
+    if (!nasPastas || !/ - MOLDE\.cdr$/i.test(destino)) return { ok: false as const, motivo: 'O destino do molde precisa ser a pasta do cliente.' };
+    const r = await rodarMacroDoCorel('ArteDoClienteNoMolde', linhasDoMolde({ destino, ...(frente ? { frente } : {}), ...(verso ? { verso } : {}) }));
+    if (r.ok) {
+      // o Corel diz "rodou" até quando o macro mostrou um aviso de erro: confere se o .cdr do molde existe na pasta
+      const base = basename(destino).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (await achouArquivoNovo(pastaDoCliente, 0, new RegExp(`^${base}$`, 'i'))) return r;
+      if (copiar && arquivoAbrivel(raizes, copiar)) clipboard.writeText(copiar);
+      return { ok: false as const, motivo: 'O Corel rodou o macro, mas o arquivo do molde não apareceu na pasta. Veja se ficou algum aviso na tela do Corel' };
+    }
+    // plano B: com o caminho copiado, o macro do Corel aceita colar quando rodado à mão
+    if (copiar && arquivoAbrivel(raizes, copiar)) clipboard.writeText(copiar);
     return r;
+  } finally {
+    for (const t of temporarios) await unlink(t).catch(() => undefined);
   }
-  // plano B: com o caminho copiado, o macro do Corel aceita colar quando rodado à mão
-  clipboard.writeText(caminhoArte);
-  return r;
 });
 ipcMain.handle('corel-gerar-pdf', async (_e, caminhoCliente: unknown) => {
   const c = await exigirDesigner();

@@ -134,3 +134,16 @@ describe('achouArquivoNovo', () => {
     expect(await achouArquivoNovo(join(tmp, 'nao-existe'), 0, /\.pdf$/i)).toBe(false);
   });
 });
+
+describe('linhasDoMolde', () => {
+  test('três linhas: destino, frente e verso (vazia quando não há)', async () => {
+    const { linhasDoMolde } = await import('../../src/main/corel');
+    expect(linhasDoMolde({ destino: 'C:\\c\\a - MOLDE.cdr', frente: 'C:\\c\\a.png', verso: 'C:\\c\\b.png' })).toBe('C:\\c\\a - MOLDE.cdr\r\nC:\\c\\a.png\r\nC:\\c\\b.png');
+    expect(linhasDoMolde({ destino: 'C:\\c\\a - MOLDE.cdr', frente: 'C:\\c\\a.png' })).toBe('C:\\c\\a - MOLDE.cdr\r\nC:\\c\\a.png\r\n');
+    expect(linhasDoMolde({ destino: 'C:\\c\\a - MOLDE.cdr', verso: 'C:\\c\\b.png' })).toBe('C:\\c\\a - MOLDE.cdr\r\n\r\nC:\\c\\b.png');
+  });
+  test('o app aceita o texto de três linhas (quebra de linha não atrapalha a checagem de letras)', async () => {
+    const { linhasDoMolde, caminhoServeParaOCorel } = await import('../../src/main/corel');
+    expect(caminhoServeParaOCorel(linhasDoMolde({ destino: 'I:\\OPERAÇÃO\\a - MOLDE.cdr', frente: 'I:\\OPERAÇÃO\\a.png' }))).toBe(true);
+  });
+});

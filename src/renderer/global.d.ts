@@ -32,7 +32,8 @@ export interface MockupApi {
   designerEstado(): Promise<ConfigDesigner>;
   fluxoConferido(caminho: string): Promise<boolean>;
   fluxoVoltouVisto(caminho: string): Promise<boolean>;
-  corelArteNoMolde(caminho: string): Promise<ResultadoMover>;
+  salvarTemporario(nome: string, bytes: Uint8Array): Promise<string>;
+  corelArteNoMolde(entrada: { frente?: string; verso?: string; destino: string; copiar?: string }): Promise<ResultadoMover>;
   corelGerarPdf(caminho: string): Promise<ResultadoMover>;
   notificacaoTestar(): Promise<{ suportada: boolean }>;
   designerProcurarPastas(substituir: boolean): Promise<{ config: ConfigDesigner; achou: number; avisos: string[] }>;
