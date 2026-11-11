@@ -223,3 +223,12 @@ body:not([data-estado="pronto"]) #coluna-capas { display: none; }
 .cc-arquivos ul { margin: 6px 0 0; padding-left: 18px; max-height: 140px; overflow-y: auto; }
 .cc-arquivos li { overflow-wrap: anywhere; }
 .historico-linha { max-width: none; }
+
+.filtros { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
+.filtros input { width: 260px; padding: 7px 12px; border: 1px solid var(--borda); border-radius: 8px; font: inherit; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { padding: 5px 12px; border-radius: 999px; font-size: 13px; background: var(--superficie); border: 1px solid var(--borda); color: var(--suave); font-weight: 600; }
+.chip[aria-pressed="true"] { background: var(--acento); border-color: var(--acento); color: #fff; }
+.cc-select { max-width: 100%; min-width: 0; flex: 1 1 220px; padding: 6px 8px; font: inherit; font-size: 13px; border: 1px solid var(--borda); border-radius: 8px; background: #fff; }
+.grade-clientes { align-items: start; }
+.filtros { margin-top: 14px; }

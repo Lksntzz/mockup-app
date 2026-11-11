@@ -929,13 +929,27 @@ function linhaDoCliente(c: Cliente): HTMLElement {
   }
   // só oferece fazer o MKP enquanto ele ainda não está pronto; nomes MKP* já são o mockup pronto
   if (c.etapa === 1 && c.situacao !== 'pronta-para-aprovar') {
-    for (const arte of c.artes) {
-      const nomeArte = nomeDoCaminho(arte);
-      if (/^mkp\b/i.test(nomeArte)) continue;
-      botao(c.artes.length === 1 ? 'Fazer MKP' : `Fazer MKP: ${nomeArte}`, 'primario', `Abre ${nomeArte} no gerador de MKP`, () => {
+    // imagens primeiro (costumam ser a arte do cliente), PDFs depois
+    const artes = c.artes.filter((a) => !/^mkp\b/i.test(nomeDoCaminho(a))).sort((x, y) => Number(/\.pdf$/i.test(x)) - Number(/\.pdf$/i.test(y)));
+    if (artes.length > 0) {
+      let escolhida = artes[0]!;
+      if (artes.length > 1) {
+        const lista = document.createElement('select');
+        lista.className = 'cc-select';
+        lista.title = 'Qual arquivo usar para o MKP';
+        for (const a of artes) {
+          const o = document.createElement('option');
+          o.value = a;
+          o.textContent = nomeDoCaminho(a);
+          lista.append(o);
+        }
+        lista.addEventListener('change', () => (escolhida = lista.value));
+        acoes.append(lista);
+      }
+      botao('Fazer MKP', 'primario', 'Abre o arquivo escolhido no gerador de MKP', () => {
         void (async () => {
           try {
-            const arquivo = await api.lerPdf(arte);
+            const arquivo = await api.lerPdf(escolhida);
             if (document.body.dataset.estado === 'pronto') {
               guardarAtual();
               irParaInicio();
@@ -1011,11 +1025,62 @@ async function desenharPasta1(): Promise<void> {
   alvo.replaceChildren();
   avisos.replaceChildren();
   for (const a of resultado.avisos) texto(avisos, a);
-  if (resultado.clientes.length === 0) return texto(alvo, 'Nenhum cliente nas Pastas 1, 2 e 3.');
+  ultimaLista = resultado.clientes;
+  desenharListaPasta1();
+}
+
+type FiltroSituacao = 'todos' | 'arte-a-fazer' | 'em-andamento' | 'pronta-para-aprovar';
+let ultimaLista: Cliente[] = [];
+let filtroSituacao: FiltroSituacao = 'todos';
+const semAcentoR = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const ORDEM_SITUACAO: Record<string, number> = { 'arte-a-fazer': 0, 'em-andamento': 1, 'pronta-para-aprovar': 2 };
+
+/** Desenha a lista a partir do último resultado (sem ir ao disco): filtros e ordem do que precisa de ação primeiro. */
+function desenharListaPasta1(): void {
+  const alvo = $('pasta1-lista');
+  const filtros = $('pasta1-filtros');
+  alvo.replaceChildren();
+  filtros.hidden = ultimaLista.length === 0;
+  if (ultimaLista.length === 0) {
+    const p = document.createElement('p');
+    p.className = 'historico-vazio';
+    p.textContent = 'Nenhum cliente nas Pastas 1, 2 e 3.';
+    alvo.append(p);
+    return;
+  }
+  const doEtapa1 = ultimaLista.filter((c) => c.etapa === 1);
+  const contagem = (s: FiltroSituacao) => (s === 'todos' ? doEtapa1.length : doEtapa1.filter((c) => c.situacao === s).length);
+  const chips = $('filtro-chips');
+  chips.replaceChildren();
+  const ROTULOS: [FiltroSituacao, string][] = [
+    ['todos', 'Todos'],
+    ['arte-a-fazer', 'Arte para fazer'],
+    ['em-andamento', 'Em andamento'],
+    ['pronta-para-aprovar', 'Prontas'],
+  ];
+  for (const [valor, rotulo] of ROTULOS) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip';
+    b.setAttribute('aria-pressed', String(filtroSituacao === valor));
+    b.textContent = `${rotulo} (${contagem(valor)})`;
+    b.addEventListener('click', () => {
+      filtroSituacao = valor;
+      desenharListaPasta1();
+    });
+    chips.append(b);
+  }
+  const termo = semAcentoR($<HTMLInputElement>('filtro-nome').value.trim());
+  const passa = (c: Cliente) =>
+    (!termo || semAcentoR(`${c.grupo ?? ''} ${c.nome}`).includes(termo)) && (c.etapa !== 1 || filtroSituacao === 'todos' || c.situacao === filtroSituacao);
   const TITULOS = ['1 · Aguarda arte', '2 · Aprovar', '3 · Aguarda impressão'];
+  let mostrou = 0;
   for (const etapa of [1, 2, 3] as const) {
-    const doGrupo = resultado.clientes.filter((c) => c.etapa === etapa);
+    const doGrupo = ultimaLista
+      .filter((c) => c.etapa === etapa && passa(c))
+      .sort((x, y) => (etapa === 1 ? (ORDEM_SITUACAO[x.situacao] ?? 9) - (ORDEM_SITUACAO[y.situacao] ?? 9) : 0) || x.nome.localeCompare(y.nome, 'pt-BR'));
     if (doGrupo.length === 0) continue;
+    mostrou += doGrupo.length;
     const secao = document.createElement('section');
     secao.className = 'secao-etapa';
     const t = document.createElement('h3');
@@ -1027,7 +1092,14 @@ async function desenharPasta1(): Promise<void> {
     secao.append(t, grade);
     alvo.append(secao);
   }
+  if (mostrou === 0) {
+    const p = document.createElement('p');
+    p.className = 'historico-vazio';
+    p.textContent = 'Nenhum cliente com esse filtro.';
+    alvo.append(p);
+  }
 }
+$('filtro-nome').addEventListener('input', () => desenharListaPasta1());
 
 async function buscarFinalizados(): Promise<void> {
   const alvo = $('busca-resultado');

@@ -373,6 +373,21 @@ app.on('browser-window-created', (_e, win) => {
       await espera(600);
       await foto('10-cliente.png');
       conferir(await js("document.getElementById('tab-novo').getBoundingClientRect().top >= 0 && document.getElementById('tab-novo').offsetParent !== null"), 'o menu MKP / Histórico / Cliente continua visível na aba Cliente');
+      // vários arquivos de arte: uma lista para escolher e um botão só; filtros por situação e por nome
+      const varias = path.join(p1, 'MUITAS ARTES');
+      fs.mkdirSync(varias, { recursive: true });
+      for (const n of ['capa.pdf', 'frente.png', 'verso.jpg']) fs.writeFileSync(path.join(varias, n), 'x');
+      await js("document.getElementById('atualizar-pasta1').click()");
+      await ate("[...document.querySelectorAll('#pasta1-lista .cliente-linha .nome')].some(n => n.textContent === 'MUITAS ARTES')", 'cliente com várias artes');
+      const opcoes = await js("(() => { const l = [...document.querySelectorAll('#pasta1-lista .cliente-linha')].find(x => x.querySelector('.nome').textContent === 'MUITAS ARTES'); return [[...l.querySelectorAll('select.cc-select option')].map(o => o.textContent).join(','), [...l.querySelectorAll('button')].filter(b => b.textContent.startsWith('Fazer MKP')).length]; })()");
+      conferir(opcoes[1] === 1 && opcoes[0] === 'frente.png,verso.jpg,capa.pdf', `com várias artes aparece uma lista (imagens primeiro, PDF por último) e um botão só (${opcoes.join(' | ')})`);
+      await js("[...document.querySelectorAll('#filtro-chips .chip')].find(b => b.textContent.startsWith('Prontas')).click()");
+      conferir(await js("![...document.querySelectorAll('#pasta1-lista .cliente-linha .nome')].some(n => n.textContent === 'MUITAS ARTES') && [...document.querySelectorAll('#pasta1-lista .cliente-linha .nome')].some(n => n.textContent.startsWith('EXPRESSO'))"), 'o filtro "Prontas" esconde quem ainda precisa de arte e mostra quem está pronto');
+      await js("[...document.querySelectorAll('#filtro-chips .chip')].find(b => b.textContent.startsWith('Todos')).click()");
+      await js("(() => { const i = document.getElementById('filtro-nome'); i.value = 'muitas'; i.dispatchEvent(new Event('input')); })()");
+      conferir(await js("document.querySelectorAll('#pasta1-lista .cliente-linha').length === 1"), 'o filtro por nome mostra só o cliente digitado');
+      await js("(() => { const i = document.getElementById('filtro-nome'); i.value = ''; i.dispatchEvent(new Event('input')); })()");
+      fs.rmSync(varias, { recursive: true, force: true });
       await js("document.getElementById('tab-novo').click()");
       conferir(await js("!document.querySelector('.area').hidden && document.getElementById('paginas').hidden"), 'clicar em MKP no menu do topo volta para a tela do MKP');
       await js("document.getElementById('tab-pasta1').click()");
