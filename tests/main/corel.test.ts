@@ -21,6 +21,16 @@ describe('scriptVbs', () => {
     expect(vbs).toContain('WScript.Echo "OK"');
     expect(vbs).toContain('WScript.Echo "ERRO:');
   });
+  test('quando o Corel precisa ser aberto pelo script, espera ele ficar pronto antes de desistir', () => {
+    const vbs = scriptVbs('ArteDoClienteNoMolde');
+    expect(vbs).toContain('WScript.Sleep');
+    expect(vbs).toMatch(/If criado Then maximo = \d+/);
+  });
+  test('a mensagem de erro traz o motivo de cada tentativa, não só o da última', () => {
+    const vbs = scriptVbs('ExportarPDFparaMKP');
+    expect(vbs).toContain('erro1');
+    expect(vbs).toContain('erro2');
+  });
 });
 
 describe('caminhoServeParaOCorel', () => {
