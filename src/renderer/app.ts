@@ -8,6 +8,7 @@ import { compose, isAvailable } from '../engine/compose';
 import { exportAll, type ExportCapa, type ExportExtra } from '../export/exporter';
 import type { Accessory, Choices, Pack, Raster } from '../engine/types';
 import { cropMargins, cropToBox, widthForArt } from '../pdf/crop';
+import { caixaDoMolde, ehPaginaA4 } from '../pdf/molde';
 import { coverCrop, reduzir } from '../pdf/fit';
 import { capaPageNumbers } from '../pdf/pages';
 import { openPdf, PdfError } from '../pdf/reader';
@@ -271,13 +272,19 @@ function desenharPainel(): void {
 
 type PdfAberto = Awaited<ReturnType<typeof openPdf>>;
 
-// PDFs exportados do Corel (escolhidos no card do cliente): a página inteira É a arte, então não se procura "a imagem de cima".
+// PDFs exportados do Corel (escolhidos no card do cliente): a arte é cortada na área do molde (150 × 210 mm no centro da A4).
 const paginaInteiraEm = new Set<string>();
 let paginaInteiraAtual = false;
 
 /** Renderiza a página e fica só com a arte (sem margens nem o fundo esticado de alguns PDFs). */
 async function lerArteDaPagina(doc: PdfAberto, n: number): Promise<Raster> {
-  const caixa = paginaInteiraAtual ? null : await doc.artBox(n);
+  if (paginaInteiraAtual) {
+    const molde = caixaDoMolde();
+    const pagina = await doc.renderPage(n, widthForArt(1500, molde));
+    if (ehPaginaA4(pagina.width, pagina.height)) return cropToBox(pagina, molde);
+    // página que não é A4: o molde não está onde esperamos, então volta ao modo automático
+  }
+  const caixa = await doc.artBox(n);
   const pagina = await doc.renderPage(n, widthForArt(1200, caixa));
   return cropMargins(caixa ? cropToBox(pagina, caixa) : pagina);
 }
