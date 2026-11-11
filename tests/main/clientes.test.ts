@@ -194,6 +194,16 @@ describe('PDF com o mesmo nome do .cdr', () => {
   });
 });
 
+describe('exportações do Corel oferecidas à parte', () => {
+  test('com arte do cliente na pasta, o PDF do Corel vem separado em exportacoesCorel (para o designer poder escolher)', async () => {
+    await pasta('1', 'A');
+    for (const n of ['CAPA.cdr', 'CAPA.pdf', 'Ideias.jpg']) await arq('1', 'A', n);
+    const { clientes } = await listarClientes(pastas(), agoraLonge(), 0);
+    expect(clientes[0]?.artes.map((a) => a.split(/[\\/]/).pop())).toEqual(['Ideias.jpg']);
+    expect(clientes[0]?.exportacoesCorel?.map((a) => a.split(/[\\/]/).pop())).toEqual(['CAPA.pdf']);
+  });
+});
+
 describe('pasta só com o trabalho do Corel', () => {
   test('sem nenhuma arte do cliente, o PDF exportado do Corel volta a ser oferecido para fazer o MKP', async () => {
     await pasta('1', 'SO COREL');

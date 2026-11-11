@@ -975,7 +975,10 @@ function linhaDoCliente(c: Cliente): HTMLElement {
   // só oferece fazer o MKP enquanto ele ainda não está pronto; nomes MKP* já são o mockup pronto
   if (c.etapa === 1 && c.situacao !== 'pronta-para-aprovar') {
     // imagens primeiro (costumam ser a arte do cliente), PDFs depois
-    const artes = c.artes.filter((a) => !/^mkp\b/i.test(nomeDoCaminho(a))).sort((x, y) => Number(/\.pdf$/i.test(x)) - Number(/\.pdf$/i.test(y)));
+    const doCliente = c.artes.filter((a) => !/^mkp\b/i.test(nomeDoCaminho(a))).sort((x, y) => Number(/\.pdf$/i.test(x)) - Number(/\.pdf$/i.test(y)));
+    // o PDF que o Corel exportou também pode ser a fonte do MKP; fica no fim da lista, com a etiqueta
+    const doCorel = (c.exportacoesCorel ?? []).filter((a) => !doCliente.includes(a));
+    const artes = [...doCliente, ...doCorel];
     if (artes.length > 0) {
       let escolhida = artes[0]!;
       if (artes.length > 1) {
@@ -985,7 +988,7 @@ function linhaDoCliente(c: Cliente): HTMLElement {
         for (const a of artes) {
           const o = document.createElement('option');
           o.value = a;
-          o.textContent = nomeDoCaminho(a);
+          o.textContent = doCorel.includes(a) ? `${nomeDoCaminho(a)} (PDF do Corel)` : nomeDoCaminho(a);
           lista.append(o);
         }
         lista.addEventListener('change', () => (escolhida = lista.value));

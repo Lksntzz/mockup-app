@@ -16,6 +16,8 @@ export interface Cliente {
   faltando: string[];
   /** Caminhos completos de PDF/JPG/PNG na pasta do cliente. */
   artes: string[];
+  /** PDFs com o mesmo nome de um .cdr (exportação do Corel) que não entraram em `artes`, para o designer poder escolher um deles. */
+  exportacoesCorel?: string[];
   /** Nomes de todos os arquivos soltos na pasta do cliente. */
   arquivos: string[];
   /** Mexida há pouco tempo: os arquivos podem ainda estar subindo. */
@@ -48,6 +50,12 @@ function artesDoCliente(arquivos: { nome: string; caminho: string }[]): string[]
   const nomes = arquivos.map((a) => a.nome);
   const doCliente = candidatas.filter((i) => !ehExportacaoDoCorel(i.nome, nomes));
   return (doCliente.length > 0 ? doCliente : candidatas).map((i) => i.caminho);
+}
+
+/** PDFs exportados do Corel que ficaram de fora de `artes` (quando há arte do cliente na pasta). */
+function exportacoesFora(arquivos: { nome: string; caminho: string }[], artes: string[]): string[] {
+  const nomes = arquivos.map((a) => a.nome);
+  return arquivos.filter((i) => ehExportacaoDoCorel(i.nome, nomes) && !artes.includes(i.caminho)).map((i) => i.caminho);
 }
 
 /** Arquivos que o Windows, o Mac e o Office criam sozinhos e que não são do trabalho. */
@@ -96,6 +104,7 @@ export async function listarClientes(
     for (const c of pastasDeCliente) {
       const itens = await nomesEm(c.caminho);
       const arquivos = itens.filter((i) => !i.pasta && !ARQUIVO_DE_SISTEMA.test(i.nome));
+      const artes = artesDoCliente(arquivos);
       let situacao: Situacao = 'em-etapa';
       let faltando: string[] = [];
       if (etapa === 1) {
@@ -116,7 +125,8 @@ export async function listarClientes(
         etapa,
         situacao,
         faltando,
-        artes: artesDoCliente(arquivos),
+        artes,
+        exportacoesCorel: exportacoesFora(arquivos, artes),
         arquivos: arquivos.map((i) => i.nome),
         chegando: agora - maisRecente < esperaMs,
         ...(alterado === undefined ? {} : { alteradoDepoisDoEnvio: alterado }),
