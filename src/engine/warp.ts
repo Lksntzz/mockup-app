@@ -69,14 +69,25 @@ function areaDoQuadrilatero(q: Quad): number {
 /**
  * Deforma `art` para o quadrilátero `corners` (TL, TR, BR, BL) dentro de um raster do tamanho `size`.
  * Fora do quadrilátero o alfa é 0; a borda é suavizada em cerca de 1 px.
+ * `ajuste` (zoom e deslocamento da arte, em fração dela) é aplicado na mesma passada, sem criar outra imagem:
+ * a arte nunca passa para fora do quadrilátero original e o que fica sem arte é transparente.
  */
-export function warpToQuad(art: Raster, corners: Quad, size: { width: number; height: number }): Raster {
+export function warpToQuad(
+  art: Raster,
+  corners: Quad,
+  size: { width: number; height: number },
+  ajuste?: { zoom: number; x: number; y: number },
+): Raster {
   const out = newRaster(size.width, size.height);
   const W = art.width;
   const H = art.height;
   const retangulo: Quad = [[0, 0], [W, 0], [W, H], [0, H]];
   const inversa = solveHomography(corners, retangulo); // tela → arte
   const fonteSobreTela = Math.sqrt((W * H) / areaDoQuadrilatero(corners));
+  const zoom = ajuste?.zoom ?? 1;
+  const dx = ajuste?.x ?? 0;
+  const dy = ajuste?.y ?? 0;
+  const ajustada = zoom !== 1 || dx !== 0 || dy !== 0;
 
   const xs = corners.map((p) => p[0]);
   const ys = corners.map((p) => p[1]);
@@ -86,10 +97,24 @@ export function warpToQuad(art: Raster, corners: Quad, size: { width: number; he
   const y1 = Math.min(size.height - 1, Math.ceil(Math.max(...ys)) + 2);
 
   const s = art.data;
+  const o8 = out.data;
+  const h0 = inversa[0] as number, h1 = inversa[1] as number, h2 = inversa[2] as number;
+  const h3 = inversa[3] as number, h4 = inversa[4] as number, h5 = inversa[5] as number;
+  const h6 = inversa[6] as number, h7 = inversa[7] as number, h8 = inversa[8] as number;
   for (let y = y0; y <= y1; y++) {
     for (let x = x0; x <= x1; x++) {
-      const [u, v] = applyHomography(inversa, [x + 0.5, y + 0.5]);
-      const distancia = Math.min(u, W - u, v, H - v) / fonteSobreTela;
+      const px = x + 0.5;
+      const py = y + 0.5;
+      const w = h6 * px + h7 * py + h8;
+      let u = (h0 * px + h1 * py + h2) / w;
+      let v = (h3 * px + h4 * py + h5) / w;
+      let distancia = Math.min(u, W - u, v, H - v) / fonteSobreTela;
+      if (ajustada) {
+        // posição na arte ajustada: desfaz o deslocamento e o zoom em volta do centro
+        u = ((u / W - 0.5 - dx) / zoom + 0.5) * W;
+        v = ((v / H - 0.5 - dy) / zoom + 0.5) * H;
+        distancia = Math.min(distancia, (Math.min(u, W - u, v, H - v) * zoom) / fonteSobreTela);
+      }
       if (!(distancia > -0.5)) continue;
       const cobertura = Math.min(1, distancia + 0.5);
 
@@ -102,30 +127,24 @@ export function warpToQuad(art: Raster, corners: Quad, size: { width: number; he
       const ty = fy - iy;
       const jx = Math.min(ix + 1, W - 1);
       const jy = Math.min(iy + 1, H - 1);
-      const pesos: [number, number, number][] = [
-        [ix, iy, (1 - tx) * (1 - ty)],
-        [jx, iy, tx * (1 - ty)],
-        [ix, jy, (1 - tx) * ty],
-        [jx, jy, tx * ty],
-      ];
-      let r = 0;
-      let g = 0;
-      let b = 0;
-      let a = 0;
-      for (const [px, py, peso] of pesos) {
-        const i = (py * W + px) * 4;
-        const alfa = ((s[i + 3] as number) / 255) * peso;
-        r += (s[i] as number) * alfa;
-        g += (s[i + 1] as number) * alfa;
-        b += (s[i + 2] as number) * alfa;
-        a += alfa;
-      }
+      const i00 = (iy * W + ix) * 4;
+      const i10 = (iy * W + jx) * 4;
+      const i01 = (jy * W + ix) * 4;
+      const i11 = (jy * W + jx) * 4;
+      const a00 = ((s[i00 + 3] as number) / 255) * ((1 - tx) * (1 - ty));
+      const a10 = ((s[i10 + 3] as number) / 255) * (tx * (1 - ty));
+      const a01 = ((s[i01 + 3] as number) / 255) * ((1 - tx) * ty);
+      const a11 = ((s[i11 + 3] as number) / 255) * (tx * ty);
+      const a = a00 + a10 + a01 + a11;
       if (a <= 0) continue;
+      const r = (s[i00] as number) * a00 + (s[i10] as number) * a10 + (s[i01] as number) * a01 + (s[i11] as number) * a11;
+      const g = (s[i00 + 1] as number) * a00 + (s[i10 + 1] as number) * a10 + (s[i01 + 1] as number) * a01 + (s[i11 + 1] as number) * a11;
+      const b = (s[i00 + 2] as number) * a00 + (s[i10 + 2] as number) * a10 + (s[i01 + 2] as number) * a01 + (s[i11 + 2] as number) * a11;
       const o = (y * size.width + x) * 4;
-      out.data[o] = Math.round(r / a);
-      out.data[o + 1] = Math.round(g / a);
-      out.data[o + 2] = Math.round(b / a);
-      out.data[o + 3] = Math.round(a * cobertura * 255);
+      o8[o] = Math.round(r / a);
+      o8[o + 1] = Math.round(g / a);
+      o8[o + 2] = Math.round(b / a);
+      o8[o + 3] = Math.round(a * cobertura * 255);
     }
   }
   return out;

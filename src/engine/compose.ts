@@ -1,3 +1,4 @@
+import { chaveDoAjuste, type Ajuste } from './ajuste';
 import { blendOver, newRaster } from './blend';
 import type { Accessory, Choices, Pack, Raster, StackLayer } from './types';
 import { warpToQuad } from './warp';
@@ -29,8 +30,9 @@ function prepararArte(
   corners: Pack['artCorners'],
   mask: { file: string; offset: [number, number] },
   canal: 0 | 3,
+  ajuste?: Ajuste,
 ): Raster {
-  const warped = warpToQuad(art, corners, pack.canvas);
+  const warped = warpToQuad(art, corners, pack.canvas, ajuste);
   const mascara = camadaOuErro(layers, mask.file);
   const [ox, oy] = mask.offset;
   for (let y = 0; y < warped.height; y++) {
@@ -47,14 +49,15 @@ function prepararArte(
 }
 
 // A prévia refaz a composição a cada troca de cor com a mesma arte: guarda a arte já preparada.
-const cacheDaFrente = new WeakMap<Raster, { pack: Pack; pronta: Raster }>();
+const cacheDaFrente = new WeakMap<Raster, { pack: Pack; chave: string; pronta: Raster }>();
 const cacheDoVerso = new WeakMap<Raster, { pack: Pack; pronta: Raster }>();
 
-function arteProntaDe(pack: Pack, layers: Map<string, Raster>, art: Raster): Raster {
+function arteProntaDe(pack: Pack, layers: Map<string, Raster>, art: Raster, ajuste?: Ajuste): Raster {
+  const chave = chaveDoAjuste(ajuste);
   const guardada = cacheDaFrente.get(art);
-  if (guardada && guardada.pack === pack) return guardada.pronta;
-  const pronta = prepararArte(pack, layers, art, pack.artCorners, pack.artMask, 0);
-  cacheDaFrente.set(art, { pack, pronta });
+  if (guardada && guardada.pack === pack && guardada.chave === chave) return guardada.pronta;
+  const pronta = prepararArte(pack, layers, art, pack.artCorners, pack.artMask, 0, ajuste);
+  cacheDaFrente.set(art, { pack, chave, pronta });
   return pronta;
 }
 
@@ -104,6 +107,7 @@ interface CacheDoPacote {
   verso: Raster | null;
   layers: Map<string, Raster>;
   variante: string | undefined;
+  chaveAjuste: string;
   pontos: Map<string, Raster>;
 }
 let caches = new WeakMap<Pack, CacheDoPacote>();
@@ -136,14 +140,15 @@ function copia(r: Raster): Raster {
 }
 
 /** Monta o mockup: percorre o stack de baixo para cima e pula as camadas cujo `when` não bate. */
-export function compose(pack: Pack, layers: Map<string, Raster>, art: Raster, choices: Choices, verso?: Raster | null, variante?: string): Raster {
+export function compose(pack: Pack, layers: Map<string, Raster>, art: Raster, choices: Choices, verso?: Raster | null, variante?: string, ajuste?: Ajuste): Raster {
   if (!isAvailable(pack, choices)) throw new Error('combinação indisponível');
-  const arteDeformada = arteProntaDe(pack, layers, art);
+  const arteDeformada = arteProntaDe(pack, layers, art, ajuste);
+  const chaveAjuste = chaveDoAjuste(ajuste);
   const versoDeformado = verso ? versoProntoDe(pack, layers, verso) : null;
 
   let cache = caches.get(pack);
-  if (!cache || cache.art !== art || cache.verso !== (verso ?? null) || cache.layers !== layers || cache.variante !== variante) {
-    cache = { art, verso: verso ?? null, layers, variante, pontos: new Map() };
+  if (!cache || cache.art !== art || cache.verso !== (verso ?? null) || cache.layers !== layers || cache.variante !== variante || cache.chaveAjuste !== chaveAjuste) {
+    cache = { art, verso: verso ?? null, layers, variante, chaveAjuste, pontos: new Map() };
     caches.set(pack, cache);
   }
   const paradasDoPack = pontosDeParada(pack);

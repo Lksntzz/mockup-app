@@ -7,7 +7,7 @@ import { escolhasDoVerso, paraRazao } from '../app/verso';
 import { fontesDaArte, frenteEVersoPadrao, rotuloDaFonte, type Fonte } from '../app/frente-verso';
 import { compose, isAvailable } from '../engine/compose';
 import { arrastarCanto, arrastarCorpo, cantoPerto, cantosDoAjuste, criarMapa, pontoDentro, zoomDaRoda } from '../app/guia';
-import { AJUSTE_NULO, DESLOCAMENTO_MAX, ZOOM_MAX, ZOOM_MIN, ajusteEhNulo, ajusteValido, ajustarArte, chaveDoAjuste } from '../engine/ajuste';
+import { AJUSTE_NULO, ajusteValido } from '../engine/ajuste';
 import { exportAll, type ExportCapa, type ExportExtra } from '../export/exporter';
 import type { Accessory, Choices, Pack, Raster } from '../engine/types';
 import { cropMargins, cropToBox, widthForArt } from '../pdf/crop';
@@ -152,18 +152,6 @@ for (const [id, passo] of [['aba-anterior', -1], ['aba-proxima', 1]] as const) {
   });
 }
 
-// A arte com o zoom e a posição ajustados à mão; guarda o último cálculo de cada arte para não refazer a cada prévia.
-const artesAjustadas = new WeakMap<Raster, { chave: string; arte: Raster }>();
-function artDaCapa(c: CapaState): Raster {
-  if (ajusteEhNulo(c.ajuste)) return c.art;
-  const chave = chaveDoAjuste(c.ajuste);
-  const guardada = artesAjustadas.get(c.art);
-  if (guardada?.chave === chave) return guardada.arte;
-  const arte = ajustarArte(c.art, c.ajuste);
-  artesAjustadas.set(c.art, { chave, arte });
-  return arte;
-}
-
 // ---- Arrastar a arte direto na prévia (mover pelo corpo, redimensionar pelos cantos, roda do mouse para o tamanho) ----
 let ultimaPrevia: Raster | null = null;
 let mouseNaPrevia = false;
@@ -233,11 +221,11 @@ function aplicarAjusteDaGuia(novo: import('../engine/ajuste').Ajuste): void {
   temporizadorDoPainel = window.setTimeout(() => {
     if (arrasto) return;
     salvarRascunho();
-    desenharPainel();
   }, 250);
 }
 {
   const canvas = $<HTMLCanvasElement>('previa');
+  canvas.title = 'Frente: arraste a arte para mover, arraste os cantos para mudar o tamanho, use a roda do mouse para aproximar ou afastar. Duplo clique volta ao original.';
   const raioDoCanto = 0.06;
   canvas.addEventListener('pointerenter', () => {
     mouseNaPrevia = true;
@@ -287,10 +275,15 @@ function aplicarAjusteDaGuia(novo: import('../engine/ajuste').Ajuste): void {
     }
     window.clearTimeout(temporizadorDoPainel);
     salvarRascunho();
-    desenharPainel();
   };
   canvas.addEventListener('pointerup', soltar);
   canvas.addEventListener('pointercancel', soltar);
+  // duplo clique na prévia: volta a arte para o tamanho e a posição originais
+  canvas.addEventListener('dblclick', (ev) => {
+    if (!guiaAtiva()) return;
+    ev.preventDefault();
+    aplicarAjusteDaGuia(AJUSTE_NULO);
+  });
   canvas.addEventListener(
     'wheel',
     (ev) => {
@@ -309,13 +302,13 @@ const agendador = createPreviewScheduler(
     if (!pacote || !capa) throw new Error('capa não encontrada');
     if (req.modo === 'vt' || req.modo === 'sem-canguru') {
       const e = await carregarPacoteNomeado('especificacao');
-      return compose(e.pack, e.layers, artDaCapa(capa), req.choices, versoDaFrente(capa.back), req.modo);
+      return compose(e.pack, e.layers, capa.art, req.choices, versoDaFrente(capa.back), req.modo, capa.ajuste);
     }
     if (req.modo === 'verso' && capa.back) {
       const v = await carregarPacoteNomeado('verso');
       return compose(v.pack, v.layers, capa.back, escolhasDoVerso(v.pack, req.choices), paraRazao(capa.art, razaoDaFaixa(v.pack)));
     }
-    return compose(pacote.pack, pacote.layers, artDaCapa(capa), req.choices, versoDaFrente(capa.back));
+    return compose(pacote.pack, pacote.layers, capa.art, req.choices, versoDaFrente(capa.back), undefined, capa.ajuste);
   },
   (capa, resultado) => {
     if (!estado || capa !== estado.selecionada) return;
@@ -423,71 +416,7 @@ function desenharPainel(): void {
     bloco.append(titulo, bolinhas, escolhida);
     grupos.append(bloco);
   }
-  grupos.append(blocoDoAjuste(capa));
   desenharQualidade();
-}
-
-/** Controles de zoom e posição da arte da frente da capa selecionada. */
-function blocoDoAjuste(capa: CapaState): HTMLElement {
-  const bloco = document.createElement('div');
-  bloco.className = 'grupo ajuste';
-  const titulo = document.createElement('h3');
-  titulo.textContent = 'Posição e tamanho da arte';
-  bloco.append(titulo);
-  const atual = ajusteValido(capa.ajuste ?? AJUSTE_NULO);
-  const campos = [
-    { chave: 'zoom' as const, nome: 'Tamanho', min: Math.round(ZOOM_MIN * 100), max: Math.round(ZOOM_MAX * 100), valor: Math.round(atual.zoom * 100), sufixo: '%' },
-    { chave: 'x' as const, nome: 'Horizontal', min: -Math.round(DESLOCAMENTO_MAX * 100), max: Math.round(DESLOCAMENTO_MAX * 100), valor: Math.round(atual.x * 100), sufixo: '%' },
-    { chave: 'y' as const, nome: 'Vertical', min: -Math.round(DESLOCAMENTO_MAX * 100), max: Math.round(DESLOCAMENTO_MAX * 100), valor: Math.round(atual.y * 100), sufixo: '%' },
-  ];
-  const lidos = { ...atual };
-  const restaurar = document.createElement('button');
-  const entradas = new Map<string, { campo: HTMLInputElement; rotulo: HTMLSpanElement }>();
-  for (const c of campos) {
-    const linha = document.createElement('label');
-    linha.className = 'ajuste-linha';
-    const nome = document.createElement('span');
-    nome.textContent = c.nome;
-    const campo = document.createElement('input');
-    campo.type = 'range';
-    campo.min = String(c.min);
-    campo.max = String(c.max);
-    campo.step = '1';
-    campo.value = String(c.valor);
-    campo.dataset.ajuste = c.chave;
-    campo.setAttribute('aria-label', `${c.nome} da arte`);
-    const rotulo = document.createElement('span');
-    rotulo.className = 'ajuste-valor';
-    rotulo.textContent = `${c.valor}${c.sufixo}`;
-    campo.addEventListener('input', () => {
-      if (!estado) return;
-      lidos[c.chave] = Number(campo.value) / 100;
-      rotulo.textContent = `${campo.value}${c.sufixo}`;
-      estado = setAjuste(estado, estado.selecionada, lidos);
-      restaurar.disabled = ajusteEhNulo(estado.capas[estado.selecionada]?.ajuste);
-      pedirPrevia();
-    });
-    campo.addEventListener('change', () => salvarRascunho());
-    entradas.set(c.chave, { campo, rotulo });
-    linha.append(nome, campo, rotulo);
-    bloco.append(linha);
-  }
-  restaurar.type = 'button';
-  restaurar.className = 'discreto';
-  restaurar.textContent = 'Restaurar posição e tamanho';
-  restaurar.disabled = ajusteEhNulo(capa.ajuste);
-  restaurar.addEventListener('click', () => {
-    if (!estado) return;
-    estado = setAjuste(estado, estado.selecionada, AJUSTE_NULO);
-    salvarRascunho();
-    desenharPainel();
-    pedirPrevia();
-  });
-  const dica = document.createElement('p');
-  dica.className = 'dica';
-  dica.textContent = 'Dica: na prévia da frente, arraste a arte para mover, os cantos para mudar o tamanho, ou use a roda do mouse. O que ficar sem arte fica transparente.';
-  bloco.append(restaurar, dica);
-  return bloco;
 }
 
 type PdfAberto = Awaited<ReturnType<typeof openPdf>>;
@@ -1903,7 +1832,7 @@ $('exportar').addEventListener('click', async () => {
     // a contra capa da frente e da especificação usa a proporção dela; o verso usa a página par inteira como face grande
     const originais = new Map<ExportCapa, CapaState>();
     const capasParaFrente = estado.capas.map((c) => {
-      const pronta: ExportCapa = { art: artDaCapa(c), ...(c.back ? { back: versoDaFrente(c.back) as Raster } : {}), choices: c.choices };
+      const pronta: ExportCapa = { art: c.art, ...(c.ajuste ? { ajuste: c.ajuste } : {}), ...(c.back ? { back: versoDaFrente(c.back) as Raster } : {}), choices: c.choices };
       originais.set(pronta, c);
       return pronta;
     });

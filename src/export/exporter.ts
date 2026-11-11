@@ -1,3 +1,4 @@
+import type { Ajuste } from '../engine/ajuste';
 import { compose } from '../engine/compose';
 import type { Choices, Pack, Raster } from '../engine/types';
 
@@ -5,6 +6,8 @@ export interface ExportCapa {
   art: Raster;
   back?: Raster;
   choices: Choices;
+  /** Zoom e posição da arte da frente, ajustados à mão. */
+  ajuste?: Ajuste;
 }
 
 /** Imagem extra por capa (mockup de especificação): outro pacote, outra variante e um sufixo no nome. */
@@ -89,7 +92,7 @@ export async function exportAll(opts: ExportOptions): Promise<{ written: string[
     const { destino, capa, pack, layers, variant } = tarefas[i] as Tarefa;
     const tmp = destino.replace(/\.png$/i, '.parcial.png');
     try {
-      const raster = compose(pack, layers, capa.art, capa.choices, capa.back, variant);
+      const raster = compose(pack, layers, capa.art, capa.choices, capa.back, variant, capa.ajuste);
       const bytes = await opts.encodePng(raster);
       await opts.write(tmp, bytes);
       await opts.rename(tmp, destino);
