@@ -299,12 +299,14 @@ app.on('browser-window-created', (_e, win) => {
       for (const n of ['1 AGUARDA ARTE', '2 APROVAR', '3 AGUARDA IMPRESSÃO', '4 FINALIZADOS']) fs.mkdirSync(path.join(achar, n), { recursive: true });
       await js("document.getElementById('procurar-pastas').click()");
       conferir(await ate("document.getElementById('caminho-pasta1').textContent.endsWith('1 AGUARDA ARTE') && document.getElementById('caminho-pasta4').textContent.endsWith('4 FINALIZADOS')", 'pastas achadas', 20000), 'o botão "Procurar as pastas sozinho" preenche as pastas 1 a 4');
+      await ate("!document.getElementById('procurar-pastas').disabled && document.getElementById('mensagem').textContent.includes('Achei')", 'busca terminou', 20000);
+      await espera(800);
       pastaDoDialogo = p1;
       await js("document.getElementById('escolher-pasta1').click()");
-      await espera(400);
+      await ate(`document.getElementById('caminho-pasta1').textContent === ${JSON.stringify(p1)}`, 'pasta 1 escolhida', 15000);
       pastaDoDialogo = p2;
       await js("document.getElementById('escolher-pasta2').click()");
-      await espera(400);
+      await ate(`document.getElementById('caminho-pasta2').textContent === ${JSON.stringify(p2)}`, 'pasta 2 escolhida', 15000);
       await js("document.getElementById('tab-pasta1').click()");
       await ate("document.querySelectorAll('#pasta1-lista .cliente-linha').length === 1", 'cliente listado');
       conferir((await js("document.querySelectorAll('#pasta1-lista .cliente-linha').length")) === 1, 'a Pasta 1 lista o cliente que ainda não tem MKP');
@@ -317,10 +319,10 @@ app.on('browser-window-created', (_e, win) => {
       fs.mkdirSync(path.join(p4, 'ANTIGO CLIENTE'), { recursive: true });
       pastaDoDialogo = p3;
       await js("document.getElementById('escolher-pasta3').click()");
-      await espera(400);
+      await ate(`document.getElementById('caminho-pasta3').textContent === ${JSON.stringify(p3)}`, 'pasta 3 escolhida', 15000);
       pastaDoDialogo = p4;
       await js("document.getElementById('escolher-pasta4').click()");
-      await espera(400);
+      await ate(`document.getElementById('caminho-pasta4').textContent === ${JSON.stringify(p4)}`, 'pasta 4 escolhida', 15000);
       await ate("document.querySelectorAll('#pasta1-lista .cliente-linha').length === 2", 'cliente da etapa 3');
       conferir(await js("[...document.querySelectorAll('#pasta1-lista .cliente-linha')].some(l => l.textContent.includes('CLIENTE IMPRIMINDO') && l.querySelector('.etapa.atual').textContent.startsWith('3'))"), 'cliente da Pasta 3 aparece com a etapa 3 marcada');
       await js("document.getElementById('busca-finalizados').value = 'antigo'; document.getElementById('buscar-finalizados').click()");
@@ -414,6 +416,22 @@ app.on('browser-window-created', (_e, win) => {
       await js("document.getElementById('salvo-aprovar').click()");
       await ate("document.body.dataset.estado === 'vazio'", 'voltar ao início depois de mover');
       conferir(!fs.existsSync(cliente) && fs.existsSync(path.join(p2, 'CLIENTE A', 'MKP')), 'completa, a pasta do cliente foi para a Pasta 2 com o MKP dentro');
+      // botão "Enviar para Aprovar" direto no card (cliente da SHOPEE com tudo pronto, pastas falsas)
+      const pronta = path.join(p1, 'SHOPEE', 'LOJA PRONTA');
+      fs.mkdirSync(path.join(pronta, 'MKP'), { recursive: true });
+      for (const [n, c] of [['capa.cdr', 'x'], ['capa.pdf', 'x'], [path.join('MKP', 'x-01.png'), 'x']]) fs.writeFileSync(path.join(pronta, n), c);
+      const antigo = new Date(Date.now() - 60 * 60 * 1000);
+      for (const n of ['capa.cdr', 'capa.pdf', path.join('MKP', 'x-01.png'), 'MKP', '']) fs.utimesSync(path.join(pronta, n), antigo, antigo);
+      await js("document.getElementById('tab-pasta1').click()");
+      await js("document.getElementById('atualizar-pasta1').click()");
+      const achaBotao = "[...document.querySelectorAll('#pasta1-lista .cliente-linha')].find(l => l.querySelector('.nome')?.textContent === 'LOJA PRONTA')?.querySelector('button.primario')";
+      conferir(await ate(`(${achaBotao})?.textContent === 'Enviar para Aprovar'`, 'botão no card'), 'o card de cliente pronto tem o botão "Enviar para Aprovar"');
+      await js(`(${achaBotao}).click()`);
+      conferir((await js(`(${achaBotao}).textContent`)).startsWith('Confirmar'), 'o primeiro clique só pede confirmação');
+      conferir(fs.existsSync(pronta), 'depois do primeiro clique a pasta continua na Pasta 1');
+      await js(`(${achaBotao}).click()`);
+      conferir(await (async () => { for (let i = 0; i < 50; i++) { if (!fs.existsSync(pronta)) return true; await espera(200); } return false; })(), 'no segundo clique a pasta sai da Pasta 1');
+      conferir(fs.existsSync(path.join(p2, 'SHOPEE', 'LOJA PRONTA', 'MKP', 'x-01.png')), 'e vai para 2 APROVAR/SHOPEE/LOJA PRONTA com o MKP dentro');
       // alteração depois do envio
       await js("document.getElementById('tab-pasta1').click()");
       await js("document.getElementById('atualizar-pasta1').click()");

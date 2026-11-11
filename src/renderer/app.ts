@@ -927,6 +927,51 @@ function linhaDoCliente(c: Cliente): HTMLElement {
       );
     });
   }
+  // MKP pronto e arquivos já chegaram: dá para mandar a pasta para a Pasta 2 direto do card (com confirmação em 2 cliques)
+  if (c.etapa === 1 && c.situacao === 'pronta-para-aprovar' && !c.chegando) {
+    const destino = c.grupo ? `2 APROVAR / ${c.grupo}` : '2 APROVAR';
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'primario';
+    b.textContent = 'Enviar para Aprovar';
+    b.title = `Move a pasta do cliente para ${destino}`;
+    let pedindo = false;
+    let timer = 0;
+    const normal = () => {
+      pedindo = false;
+      b.textContent = 'Enviar para Aprovar';
+      b.classList.remove('confirmando');
+    };
+    b.addEventListener('click', () => {
+      if (!pedindo) {
+        pedindo = true;
+        b.textContent = `Confirmar: mover para ${destino}`;
+        b.classList.add('confirmando');
+        timer = window.setTimeout(normal, 6000);
+        return;
+      }
+      window.clearTimeout(timer);
+      b.disabled = true;
+      void api.fluxoMover(c.caminho).then(
+        async (r) => {
+          if (!r.ok) {
+            mensagem(r.motivo, true);
+            b.disabled = false;
+            normal();
+            return;
+          }
+          mensagem(`${c.nome} enviada para Aprovar.`);
+          await desenharPasta1();
+        },
+        (e) => {
+          mensagem(textoDoErro(e), true);
+          b.disabled = false;
+          normal();
+        },
+      );
+    });
+    acoes.append(b);
+  }
   // só oferece fazer o MKP enquanto ele ainda não está pronto; nomes MKP* já são o mockup pronto
   if (c.etapa === 1 && c.situacao !== 'pronta-para-aprovar') {
     // imagens primeiro (costumam ser a arte do cliente), PDFs depois

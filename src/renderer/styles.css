@@ -232,3 +232,5 @@ body:not([data-estado="pronto"]) #coluna-capas { display: none; }
 .cc-select { max-width: 100%; min-width: 0; flex: 1 1 220px; padding: 6px 8px; font: inherit; font-size: 13px; border: 1px solid var(--borda); border-radius: 8px; background: #fff; }
 .grade-clientes { align-items: start; }
 .filtros { margin-top: 14px; }
+
+.cc-acoes button.confirmando { background: #b45309; border-color: #b45309; }
