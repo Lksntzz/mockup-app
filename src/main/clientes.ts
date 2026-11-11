@@ -42,6 +42,14 @@ function ehExportacaoDoCorel(nome: string, todos: string[]): boolean {
   return todos.some((n) => extname(n).toLowerCase() === '.cdr' && n.slice(0, -4).toLowerCase() === base);
 }
 
+/** A arte do cliente: arquivos de arte, sem a exportação do Corel. Se só sobrou o trabalho do Corel, ele é o que há para fazer o MKP. */
+function artesDoCliente(arquivos: { nome: string; caminho: string }[]): string[] {
+  const candidatas = arquivos.filter((i) => EXT_ARTE.has(extname(i.nome).toLowerCase()));
+  const nomes = arquivos.map((a) => a.nome);
+  const doCliente = candidatas.filter((i) => !ehExportacaoDoCorel(i.nome, nomes));
+  return (doCliente.length > 0 ? doCliente : candidatas).map((i) => i.caminho);
+}
+
 /** Arquivos que o Windows, o Mac e o Office criam sozinhos e que não são do trabalho. */
 const ARQUIVO_DE_SISTEMA = /^(desktop\.ini|thumbs\.db|\.ds_store|~\$.*)$/i;
 
@@ -108,7 +116,7 @@ export async function listarClientes(
         etapa,
         situacao,
         faltando,
-        artes: arquivos.filter((i) => EXT_ARTE.has(extname(i.nome).toLowerCase()) && !ehExportacaoDoCorel(i.nome, arquivos.map((a) => a.nome))).map((i) => i.caminho),
+        artes: artesDoCliente(arquivos),
         arquivos: arquivos.map((i) => i.nome),
         chegando: agora - maisRecente < esperaMs,
         ...(alterado === undefined ? {} : { alteradoDepoisDoEnvio: alterado }),
