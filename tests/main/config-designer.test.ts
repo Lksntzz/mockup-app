@@ -76,3 +76,27 @@ describe('trocar a Pasta 1', () => {
     expect((await c.ler()).vistos).toBeUndefined();
   });
 });
+
+describe('gravações ao mesmo tempo', () => {
+  test('vários salvar em paralelo não se atropelam: nenhum erro e nenhum campo se perde', async () => {
+    const c = criarConfigDesigner(arquivo);
+    await c.salvar({ designer: true });
+    await Promise.all([
+      c.salvar({ pasta1: 'a' }),
+      c.salvar({ pasta2: 'b' }),
+      c.salvar({ pasta3: 'c' }),
+      c.salvar({ pasta4: 'd' }),
+      c.salvar({ vistos: ['x'] }),
+      c.salvar({ enviados: { Y: 1 } }),
+    ]);
+    expect(await c.ler()).toEqual({ designer: true, pasta1: 'a', pasta2: 'b', pasta3: 'c', pasta4: 'd', vistos: ['x'], enviados: { Y: 1 } });
+  });
+});
+
+describe('mesma configuração criada mais de uma vez', () => {
+  test('duas instâncias do mesmo arquivo gravando ao mesmo tempo também não se atropelam', async () => {
+    await criarConfigDesigner(arquivo).salvar({ designer: true });
+    await Promise.all(['pasta1', 'pasta2', 'pasta3', 'pasta4'].map((k, i) => criarConfigDesigner(arquivo).salvar({ [k]: String(i) })));
+    expect(await criarConfigDesigner(arquivo).ler()).toEqual({ designer: true, pasta1: '0', pasta2: '1', pasta3: '2', pasta4: '3' });
+  });
+});

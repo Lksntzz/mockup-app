@@ -14,8 +14,21 @@ export interface ConfigDesigner {
   enviados?: Record<string, number>;
 }
 
-/** Configuração do Modo designer, num arquivo só desta máquina (nunca vai para o GitHub). */
+const instancias = new Map<string, ReturnType<typeof montar>>();
+
+/** Configuração do Modo designer, num arquivo só desta máquina (nunca vai para o GitHub). Um arquivo, uma fila de gravação. */
 export function criarConfigDesigner(arquivo: string) {
+  let c = instancias.get(arquivo);
+  if (!c) {
+    c = montar(arquivo);
+    instancias.set(arquivo, c);
+  }
+  return c;
+}
+
+function montar(arquivo: string) {
+  // gravações uma de cada vez: duas ao mesmo tempo usavam o mesmo arquivo temporário e uma delas falhava
+  let fila: Promise<unknown> = Promise.resolve();
   async function ler(): Promise<ConfigDesigner> {
     try {
       const b = JSON.parse(await readFile(arquivo, 'utf-8')) as Record<string, unknown>;
@@ -37,16 +50,20 @@ export function criarConfigDesigner(arquivo: string) {
   }
   return {
     ler,
-    async salvar(parcial: Partial<ConfigDesigner>): Promise<ConfigDesigner> {
-      const atual = await ler();
-      const novo = { ...atual, ...parcial };
-      // outra Pasta 1 = outra lista de clientes: recomeça o "já visto" para não alertar todos de uma vez
-      if (parcial.pasta1 !== undefined && parcial.pasta1 !== atual.pasta1 && parcial.vistos === undefined) delete novo.vistos;
-      await mkdir(dirname(arquivo), { recursive: true });
-      const tmp = `${arquivo}.tmp`;
-      await writeFile(tmp, JSON.stringify(novo, null, 2), 'utf-8');
-      await rename(tmp, arquivo);
-      return novo;
+    salvar(parcial: Partial<ConfigDesigner>): Promise<ConfigDesigner> {
+      const tarefa = fila.then(async () => {
+        const atual = await ler();
+        const novo = { ...atual, ...parcial };
+        // outra Pasta 1 = outra lista de clientes: recomeça o "já visto" para não alertar todos de uma vez
+        if (parcial.pasta1 !== undefined && parcial.pasta1 !== atual.pasta1 && parcial.vistos === undefined) delete novo.vistos;
+        await mkdir(dirname(arquivo), { recursive: true });
+        const tmp = `${arquivo}.tmp`;
+        await writeFile(tmp, JSON.stringify(novo, null, 2), 'utf-8');
+        await rename(tmp, arquivo);
+        return novo;
+      });
+      fila = tarefa.catch(() => undefined);
+      return tarefa;
     },
   };
 }

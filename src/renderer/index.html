@@ -12,7 +12,12 @@
   <body data-estado="carregando-pacote">
     <header class="topo">
       <div class="marca" aria-hidden="true"><span class="marca-icone">M</span><span class="marca-nome">Mockup da Agenda</span></div>
-      <button id="voltar" class="secundario" type="button" hidden>← Voltar ao início</button>
+      <nav class="nav" aria-label="Seções">
+        <button id="tab-novo" type="button" aria-pressed="true">MKP</button>
+        <button id="tab-historico" type="button" aria-pressed="false">Histórico</button>
+        <button id="tab-pasta1" type="button" aria-pressed="false" hidden>Cliente <span id="badge-cliente" class="badge" hidden></span></button>
+      </nav>
+      <button id="voltar" class="secundario" type="button" hidden>← Fechar este PDF</button>
       <span id="nome-pdf" class="nome-pdf"></span>
       <span id="mensagem" class="mensagem" role="status"></span>
       <progress id="progresso" max="1" value="0" hidden></progress>
@@ -31,11 +36,6 @@
       </aside>
       <section class="centro">
         <div id="vazio" class="vazio">
-          <div class="abas-inicio" role="group" aria-label="Início">
-            <button id="tab-novo" type="button" aria-pressed="true">MKP</button>
-            <button id="tab-historico" type="button" aria-pressed="false">Histórico</button>
-            <button id="tab-pasta1" type="button" aria-pressed="false" hidden>Cliente <span id="badge-cliente" class="badge" hidden></span></button>
-          </div>
           <div id="inicio-novo">
           <div id="zona" class="zona" role="button" tabindex="0" aria-label="Escolher um PDF ou arrastar para cá">
             <div class="vazio-icone" aria-hidden="true">PDF</div>
@@ -48,32 +48,6 @@
             <div id="trabalhos"></div>
           </section>
           </div>
-          <section id="pasta1" class="historico" hidden>
-            <h2 class="titulo-coluna">Clientes</h2>
-            <details class="config-pastas">
-              <summary>Pastas do fluxo</summary>
-              <div class="pastas-config">
-                <div><button id="procurar-pastas" class="primario" type="button">Procurar as pastas sozinho</button> <span class="caminho">Acha as pastas 1 a 4 no seu Drive. As que você já escolheu serão trocadas.</span></div>
-                <div><button id="escolher-pasta1" class="secundario" type="button">Escolher Pasta 1 (Aguarda arte)</button> <span id="caminho-pasta1" class="caminho"></span></div>
-                <div><button id="escolher-pasta2" class="secundario" type="button">Escolher Pasta 2 (Aprovar)</button> <span id="caminho-pasta2" class="caminho"></span></div>
-                <div><button id="escolher-pasta3" class="secundario" type="button">Escolher Pasta 3 (Aguarda impressão)</button> <span id="caminho-pasta3" class="caminho"></span></div>
-                <label class="iniciar-windows"><input id="iniciar-windows" type="checkbox" /> Iniciar o app junto com o Windows (escondido, para não perder o alerta)</label>
-                <div><button id="escolher-pasta4" class="secundario" type="button">Escolher Pasta 4 (Finalizados)</button> <span id="caminho-pasta4" class="caminho"></span></div>
-              </div>
-            </details>
-            <div class="busca">
-              <input id="busca-finalizados" type="search" placeholder="Buscar cliente nos finalizados (Pasta 4)" />
-              <button id="buscar-finalizados" class="secundario" type="button">Buscar</button>
-              <button id="atualizar-pasta1" class="discreto" type="button">Atualizar lista</button>
-            </div>
-            <div id="busca-resultado"></div>
-            <div id="pasta1-avisos"></div>
-            <div id="pasta1-lista"></div>
-          </section>
-          <section id="historico" class="historico" hidden>
-            <h2 class="titulo-coluna">Histórico de <span id="historico-operador"></span></h2>
-            <div id="historico-lista"></div>
-          </section>
         </div>
         <div id="abas" class="abas" role="group" aria-label="Qual mockup mostrar" hidden>
           <button id="aba-anterior" class="seta" type="button" aria-label="Mockup anterior">◀</button>
@@ -98,6 +72,35 @@
           <button id="exportar" class="primario grande" type="button">Concluir e salvar</button>
         </div>
       </aside>
+    </main>
+    <main id="paginas" class="paginas" hidden>
+      <section id="pasta1" class="pagina" hidden>
+            <div class="pagina-topo"><h2 class="pagina-titulo">Clientes</h2>
+              <div class="busca">
+                <input id="busca-finalizados" type="search" placeholder="Buscar cliente nos finalizados (Pasta 4)" />
+                <button id="buscar-finalizados" class="secundario" type="button">Buscar</button>
+                <button id="atualizar-pasta1" class="discreto" type="button">↻ Atualizar lista</button>
+              </div>
+            </div>
+            <details class="config-pastas">
+              <summary>Pastas do fluxo</summary>
+              <div class="pastas-config">
+                <div><button id="procurar-pastas" class="primario" type="button">Procurar as pastas sozinho</button> <span class="caminho">Acha as pastas 1 a 4 no seu Drive. As que você já escolheu serão trocadas.</span></div>
+                <div><button id="escolher-pasta1" class="secundario" type="button">Escolher Pasta 1 (Aguarda arte)</button> <span id="caminho-pasta1" class="caminho"></span></div>
+                <div><button id="escolher-pasta2" class="secundario" type="button">Escolher Pasta 2 (Aprovar)</button> <span id="caminho-pasta2" class="caminho"></span></div>
+                <div><button id="escolher-pasta3" class="secundario" type="button">Escolher Pasta 3 (Aguarda impressão)</button> <span id="caminho-pasta3" class="caminho"></span></div>
+                <label class="iniciar-windows"><input id="iniciar-windows" type="checkbox" /> Iniciar o app junto com o Windows (escondido, para não perder o alerta)</label>
+                <div><button id="escolher-pasta4" class="secundario" type="button">Escolher Pasta 4 (Finalizados)</button> <span id="caminho-pasta4" class="caminho"></span></div>
+              </div>
+            </details>
+            <div id="busca-resultado"></div>
+            <div id="pasta1-avisos"></div>
+            <div id="pasta1-lista"></div>
+          </section>
+      <section id="historico" class="pagina estreita" hidden>
+            <div class="pagina-topo"><h2 class="pagina-titulo">Histórico de <span id="historico-operador"></span></h2></div>
+            <div id="historico-lista"></div>
+          </section>
     </main>
     <div id="tela-designer" class="tela-designer" role="status" aria-live="polite" hidden>
       <div id="designer-giro" class="giro" aria-hidden="true"></div>

@@ -686,7 +686,9 @@ async function desenharHistorico(): Promise<void> {
 
 function mostrarAba(aba: 'novo' | 'historico' | 'pasta1'): void {
   if (aba === 'pasta1' && !designer.designer) aba = 'novo';
-  $('inicio-novo').hidden = aba !== 'novo';
+  const pagina = aba !== 'novo';
+  document.querySelector<HTMLElement>('.area')!.hidden = pagina;
+  $('paginas').hidden = !pagina;
   $('historico').hidden = aba !== 'historico';
   $('pasta1').hidden = aba !== 'pasta1';
   $('tab-novo').setAttribute('aria-pressed', String(aba === 'novo'));
@@ -848,85 +850,35 @@ function desenharQualidade(): void {
 const ROTULOS_ETAPAS = ['Arte', 'Aprovar', 'Impressão', 'Finalizado'];
 
 function linhaDoCliente(c: Cliente): HTMLElement {
-  const linha = document.createElement('div');
-  linha.className = 'cliente-linha';
-  const topo = document.createElement('div');
-  topo.className = 'topo-linha';
-  const nome = document.createElement('span');
+  const linha = document.createElement('article');
+  linha.className = `cliente-linha${c.alteradoDepoisDoEnvio ? ' com-alteracao' : ''}`;
+
+  // 1) nome do cliente em cima (e a pasta de grupo, se houver)
+  const cabeca = document.createElement('header');
+  cabeca.className = 'cc-cabeca';
+  const nome = document.createElement('h3');
   nome.className = 'nome';
-  nome.textContent = c.grupo ? `${c.grupo} · ${c.nome}` : c.nome;
-  topo.append(nome);
-  const nota = (texto: string) => {
-    const e = document.createElement('span');
-    e.className = 'chegando';
-    e.textContent = texto;
-    topo.append(e);
-  };
-  if (c.duplicado) nota('mesmo nome em mais de uma etapa');
-  if (c.alteradoDepoisDoEnvio) {
-    const aviso = document.createElement('span');
-    aviso.className = 'alterado';
-    aviso.textContent = 'Alterado depois do envio: confira com a admin';
-    topo.append(aviso);
-    const ok = document.createElement('button');
-    ok.type = 'button';
-    ok.className = 'secundario';
-    ok.textContent = 'Já avisei a admin';
-    ok.addEventListener('click', () => {
-      void api.fluxoConferido(c.caminho).then(
-        () => desenharPasta1(),
-        (e) => mensagem(textoDoErro(e), true),
-      );
-    });
-    topo.append(ok);
+  nome.textContent = c.nome;
+  nome.title = c.nome;
+  cabeca.append(nome);
+  if (c.grupo) {
+    const g = document.createElement('span');
+    g.className = 'grupo-chip';
+    g.textContent = c.grupo;
+    cabeca.append(g);
   }
-  if (c.chegando) nota('chegando… (arquivos ainda sendo enviados)');
-  if (c.etapa === 1 && c.artes.length === 0) nota('sem PDF/JPG/PNG na pasta');
-  for (const arte of c.artes) {
-    // só oferece fazer o MKP enquanto ele ainda não está pronto
-    if (c.etapa !== 1 || c.situacao === 'pronta-para-aprovar') break;
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'primario';
-    b.textContent = c.artes.length === 1 ? 'Fazer MKP com a arte' : `Fazer MKP: ${nomeDoCaminho(arte)}`;
-    b.title = nomeDoCaminho(arte);
-    b.addEventListener('click', () => {
-      void (async () => {
-        try {
-          const arquivo = await api.lerPdf(arte);
-          mostrarAba('novo');
-          await abrirPdf(arquivo);
-        } catch (e) {
-          mensagem(textoDoErro(e), true);
-        }
-      })();
-    });
-    topo.append(b);
+  const selo = document.createElement('span');
+  selo.className = 'selo-situacao';
+  if (c.etapa === 1) {
+    selo.classList.add(c.situacao);
+    selo.textContent = c.situacao === 'arte-a-fazer' ? 'Arte para fazer' : c.situacao === 'pronta-para-aprovar' ? 'Pronta para aprovar' : 'Em andamento';
+  } else {
+    selo.textContent = ROTULOS_ETAPAS[c.etapa - 1] ?? '';
   }
-  linha.append(topo);
-  // as cópias de segurança que o Corel cria sozinho não viram botão (continuam na lista de arquivos)
-  const abrivel = c.arquivos.filter((n) => /\.(cdr|pdf)$/i.test(n) && !/^c[oó]pia_de_seguran[cç]a/i.test(n));
-  if (abrivel.length > 0) {
-    const acoes = document.createElement('div');
-    acoes.className = 'topo-linha';
-    for (const nomeArq of abrivel) {
-      const ehCdr = /\.cdr$/i.test(nomeArq);
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'secundario';
-      b.textContent = abrivel.length <= 2 && abrivel.filter((n) => /\.cdr$/i.test(n) === ehCdr).length === 1 ? (ehCdr ? 'Abrir no Corel' : 'Abrir PDF') : `${ehCdr ? 'Corel' : 'PDF'}: ${nomeArq}`;
-      b.title = nomeArq;
-      b.addEventListener('click', () => {
-        const sep = c.caminho.includes('\\') ? '\\' : '/';
-        void api.abrirArquivoCliente(`${c.caminho}${sep}${nomeArq}`).then(
-          (r) => mensagem(r.ok ? `Abrindo ${nomeArq}…` : r.motivo, !r.ok),
-          (e) => mensagem(textoDoErro(e), true),
-        );
-      });
-      acoes.append(b);
-    }
-    linha.append(acoes);
-  }
+  cabeca.append(selo);
+  linha.append(cabeca);
+
+  // 2) em que etapa está
   const barra = document.createElement('div');
   barra.className = 'etapas';
   barra.setAttribute('aria-label', `Etapa ${c.etapa} de 4: ${ROTULOS_ETAPAS[c.etapa - 1]}`);
@@ -937,24 +889,105 @@ function linhaDoCliente(c: Cliente): HTMLElement {
     barra.append(e);
   });
   linha.append(barra);
-  if (c.etapa === 1) {
-    const s = document.createElement('div');
-    s.className = 'situacao';
-    s.textContent =
-      c.situacao === 'arte-a-fazer' ? 'Arte para fazer o MKP' : c.situacao === 'pronta-para-aprovar' ? 'Pronta para enviar para Aprovar' : `Em andamento: falta ${c.faltando.join(', ')}`;
-    linha.append(s);
+
+  // 3) o que está acontecendo / o que falta
+  const avisos = document.createElement('div');
+  avisos.className = 'cc-avisos';
+  const aviso = (texto: string, classe = '') => {
+    const e = document.createElement('span');
+    e.className = `cc-aviso ${classe}`.trim();
+    e.textContent = texto;
+    avisos.append(e);
+    return e;
+  };
+  if (c.etapa === 1 && c.situacao === 'em-andamento') aviso(`Falta: ${c.faltando.join(', ')}`);
+  if (c.duplicado) aviso('Mesmo nome em mais de uma etapa');
+  if (c.chegando) aviso('Chegando… (arquivos ainda sendo enviados)', 'suave');
+  if (c.etapa === 1 && c.artes.length === 0) aviso('Sem PDF/JPG/PNG na pasta', 'suave');
+  if (c.alteradoDepoisDoEnvio) aviso('Alterado depois do envio: confira com a admin', 'alterado');
+  if (avisos.childElementCount > 0) linha.append(avisos);
+
+  // 4) ações
+  const acoes = document.createElement('div');
+  acoes.className = 'cc-acoes';
+  const botao = (texto: string, classe: string, titulo: string, aoClicar: () => void) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = classe;
+    b.textContent = texto;
+    b.title = titulo;
+    b.addEventListener('click', aoClicar);
+    acoes.append(b);
+  };
+  if (c.alteradoDepoisDoEnvio) {
+    botao('Já avisei a admin', 'secundario', 'Tira o aviso de alteração', () => {
+      void api.fluxoConferido(c.caminho).then(
+        () => desenharPasta1(),
+        (e) => mensagem(textoDoErro(e), true),
+      );
+    });
   }
+  // só oferece fazer o MKP enquanto ele ainda não está pronto; nomes MKP* já são o mockup pronto
+  if (c.etapa === 1 && c.situacao !== 'pronta-para-aprovar') {
+    for (const arte of c.artes) {
+      const nomeArte = nomeDoCaminho(arte);
+      if (/^mkp\b/i.test(nomeArte)) continue;
+      botao(c.artes.length === 1 ? 'Fazer MKP' : `Fazer MKP: ${nomeArte}`, 'primario', `Abre ${nomeArte} no gerador de MKP`, () => {
+        void (async () => {
+          try {
+            const arquivo = await api.lerPdf(arte);
+            if (document.body.dataset.estado === 'pronto') {
+              guardarAtual();
+              irParaInicio();
+            }
+            mostrarAba('novo');
+            await abrirPdf(arquivo);
+          } catch (e) {
+            mensagem(textoDoErro(e), true);
+          }
+        })();
+      });
+    }
+  }
+  // as cópias de segurança que o Corel cria sozinho não viram botão (continuam na lista de arquivos)
+  const abrivel = c.arquivos.filter((n) => /\.(cdr|pdf)$/i.test(n) && !/^c[oó]pia_de_seguran[cç]a/i.test(n));
+  for (const nomeArq of abrivel) {
+    const ehCdr = /\.cdr$/i.test(nomeArq);
+    const unico = abrivel.filter((n) => /\.cdr$/i.test(n) === ehCdr).length === 1;
+    const texto = unico ? (ehCdr ? 'Abrir no Corel' : 'Abrir PDF') : `${ehCdr ? 'Corel' : 'PDF'}: ${nomeArq}`;
+    botao(texto, 'secundario', nomeArq, () => {
+      const sep = c.caminho.includes('\\') ? '\\' : '/';
+      void api.abrirArquivoCliente(`${c.caminho}${sep}${nomeArq}`).then(
+        (r) => mensagem(r.ok ? `Abrindo ${nomeArq}…` : r.motivo, !r.ok),
+        (e) => mensagem(textoDoErro(e), true),
+      );
+    });
+  }
+  if (acoes.childElementCount > 0) linha.append(acoes);
+
+  // 5) arquivos: recolhidos, para o card não crescer
   if (c.arquivos.length > 0) {
-    const f = document.createElement('div');
-    f.className = 'arquivos';
-    f.textContent = `${c.arquivos.length} ${c.arquivos.length === 1 ? 'arquivo' : 'arquivos'}: ${c.arquivos.join(' · ')}`;
-    f.title = c.arquivos.join('\n');
-    linha.append(f);
+    const d = document.createElement('details');
+    d.className = 'cc-arquivos';
+    const r = document.createElement('summary');
+    r.textContent = `${c.arquivos.length} ${c.arquivos.length === 1 ? 'arquivo' : 'arquivos'}`;
+    d.append(r);
+    const ul = document.createElement('ul');
+    for (const n of c.arquivos) {
+      const li = document.createElement('li');
+      li.textContent = n;
+      ul.append(li);
+    }
+    d.append(ul);
+    linha.append(d);
   }
   return linha;
 }
 
+// Duas atualizações da lista ao mesmo tempo desenhavam os clientes em dobro; só a mais recente pode desenhar.
+let geracaoPasta1 = 0;
 async function desenharPasta1(): Promise<void> {
+  const minha = ++geracaoPasta1;
   const alvo = $('pasta1-lista');
   for (const n of [1, 2, 3, 4] as const) $(`caminho-pasta${n}`).textContent = designer[`pasta${n}`] ?? 'não escolhida';
   const avisos = $('pasta1-avisos');
@@ -971,11 +1004,29 @@ async function desenharPasta1(): Promise<void> {
   try {
     resultado = await api.clientesListar();
   } catch (e) {
+    if (minha !== geracaoPasta1) return;
     return texto(alvo, textoDoErro(e));
   }
+  if (minha !== geracaoPasta1) return;
+  alvo.replaceChildren();
+  avisos.replaceChildren();
   for (const a of resultado.avisos) texto(avisos, a);
   if (resultado.clientes.length === 0) return texto(alvo, 'Nenhum cliente nas Pastas 1, 2 e 3.');
-  for (const c of resultado.clientes) alvo.append(linhaDoCliente(c));
+  const TITULOS = ['1 · Aguarda arte', '2 · Aprovar', '3 · Aguarda impressão'];
+  for (const etapa of [1, 2, 3] as const) {
+    const doGrupo = resultado.clientes.filter((c) => c.etapa === etapa);
+    if (doGrupo.length === 0) continue;
+    const secao = document.createElement('section');
+    secao.className = 'secao-etapa';
+    const t = document.createElement('h3');
+    t.className = 'secao-titulo';
+    t.textContent = `${TITULOS[etapa - 1]} (${doGrupo.length})`;
+    const grade = document.createElement('div');
+    grade.className = 'grade-clientes';
+    for (const c of doGrupo) grade.append(linhaDoCliente(c));
+    secao.append(t, grade);
+    alvo.append(secao);
+  }
 }
 
 async function buscarFinalizados(): Promise<void> {
@@ -991,7 +1042,15 @@ async function buscarFinalizados(): Promise<void> {
       p.textContent = 'Nenhum cliente com esse nome nos finalizados.';
       alvo.append(p);
     }
-    for (const c of achados) alvo.append(linhaDoCliente(c));
+    if (achados.length > 0) {
+      const t = document.createElement('h3');
+      t.className = 'secao-titulo';
+      t.textContent = `Finalizados encontrados (${achados.length})`;
+      const grade = document.createElement('div');
+      grade.className = 'grade-clientes';
+      for (const c of achados) grade.append(linhaDoCliente(c));
+      alvo.append(t, grade);
+    }
   } catch (e) {
     mensagem(textoDoErro(e), true);
   }
@@ -1013,10 +1072,6 @@ function mostrarAlertaDeArte(nomes: string[]): void {
 }
 function irParaCliente(): void {
   $('alerta-arte').hidden = true;
-  if (document.body.dataset.estado === 'pronto') {
-    guardarAtual();
-    irParaInicio();
-  }
   mostrarAba('pasta1');
 }
 $('alerta-arte-ver').addEventListener('click', irParaCliente);

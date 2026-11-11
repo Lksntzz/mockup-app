@@ -309,7 +309,7 @@ app.on('browser-window-created', (_e, win) => {
       await ate("document.querySelectorAll('#pasta1-lista .cliente-linha').length === 1", 'cliente listado');
       conferir((await js("document.querySelectorAll('#pasta1-lista .cliente-linha').length")) === 1, 'a Pasta 1 lista o cliente que ainda não tem MKP');
       conferir((await js("document.querySelector('#pasta1-lista .etapa.atual').textContent")).startsWith('1'), 'o cliente da Pasta 1 mostra a etapa 1 marcada na barra');
-      conferir((await js("document.querySelector('#pasta1-lista .situacao').textContent")).includes('Arte para fazer'), 'a situação diz "Arte para fazer o MKP"');
+      conferir((await js("document.querySelector('#pasta1-lista .selo-situacao').textContent")).includes('Arte para fazer'), 'o selo do cliente diz "Arte para fazer"');
       // etapas 3 e 4 e busca nos finalizados
       const p3 = path.join(fluxo, '3 AGUARDA IMPRESSAO');
       const p4 = path.join(fluxo, '4 FINALIZADOS');
@@ -360,7 +360,23 @@ app.on('browser-window-created', (_e, win) => {
       fs.mkdirSync(lojaShopee, { recursive: true });
       fs.writeFileSync(path.join(lojaShopee, 'arte.png'), 'x');
       await js("document.getElementById('atualizar-pasta1').click()");
-      conferir(await ate("[...document.querySelectorAll('#pasta1-lista .cliente-linha')].some(l => l.textContent.includes('SHOPEE · LOJA SMOKE')) && ![...document.querySelectorAll('#pasta1-lista .cliente-linha .nome')].some(n => n.textContent === 'SHOPEE')", 'cliente da SHOPEE na lista'), 'o cliente de dentro da pasta SHOPEE aparece como cliente (a SHOPEE em si não)');
+      conferir(await ate("[...document.querySelectorAll('#pasta1-lista .cliente-linha')].some(l => l.querySelector('.nome')?.textContent === 'LOJA SMOKE' && l.querySelector('.grupo-chip')?.textContent === 'SHOPEE') && ![...document.querySelectorAll('#pasta1-lista .cliente-linha .nome')].some(n => n.textContent === 'SHOPEE')", 'cliente da SHOPEE na lista'), 'o cliente de dentro da pasta SHOPEE aparece com o nome em cima e a etiqueta SHOPEE (a SHOPEE em si não é cliente)');
+      // foto da aba Cliente com vários clientes (para conferir o layout de computador)
+      const longo = path.join(p1, 'EXPRESSO LEAOZINHO COM NOME BEM GRANDE PARA TESTAR');
+      fs.mkdirSync(path.join(longo, 'MKP'), { recursive: true });
+      fs.writeFileSync(path.join(longo, 'MKP', 'x-01.png'), 'x');
+      for (const n of ['capa.cdr', 'capa.pdf', 'Cópia_de_segurança_de_capa.cdr', 'WhatsApp Image 2026-11-09 at 13.32.24 (4).jpeg']) fs.writeFileSync(path.join(longo, n), 'x');
+      fs.mkdirSync(path.join(p1, 'SHOPEE', 'gabriella.vaz'), { recursive: true });
+      fs.writeFileSync(path.join(p1, 'SHOPEE', 'gabriella.vaz', 'br-11134231-820lr-mrg2tox2p3if5d.jpg'), 'x');
+      await js("document.getElementById('atualizar-pasta1').click()");
+      await ate("document.querySelectorAll('#pasta1-lista .cliente-linha').length >= 4", 'vários clientes na lista');
+      await espera(600);
+      await foto('10-cliente.png');
+      conferir(await js("document.getElementById('tab-novo').getBoundingClientRect().top >= 0 && document.getElementById('tab-novo').offsetParent !== null"), 'o menu MKP / Histórico / Cliente continua visível na aba Cliente');
+      await js("document.getElementById('tab-novo').click()");
+      conferir(await js("!document.querySelector('.area').hidden && document.getElementById('paginas').hidden"), 'clicar em MKP no menu do topo volta para a tela do MKP');
+      await js("document.getElementById('tab-pasta1').click()");
+      fs.rmSync(longo, { recursive: true, force: true });
       fs.rmSync(path.join(p1, 'SHOPEE'), { recursive: true, force: true });
       await js("document.getElementById('tab-pasta1').click()");
       await ate("document.querySelectorAll('#pasta1-lista .cliente-linha').length === 2", 'lista sem o cliente de teste');
