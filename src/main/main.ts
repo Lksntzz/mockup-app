@@ -16,7 +16,7 @@ import { atualizarVistos, buscarFinalizados, chaveDe, listarClientes, norm, ulti
 import { criarPortaoDePin } from './pin';
 import { acharPastasDoFluxo } from './achar-pastas';
 import { arquivoAbrivel } from './abrir-arquivo';
-import { achouArquivoNovo, linhasDoMolde, rodarMacroDoCorel } from './corel';
+import { achouArquivoNovo, lerResultadoDoMolde, linhasDoMolde, rodarMacroDoCorel } from './corel';
 import { atualizacaoPodeInstalarSozinha, deveEsconderAoFechar, iniciaOculto } from './segundo-plano';
 import { caminhoPermitido, pastaMkp } from './paths';
 import { criarAtualizador, type AtualizadorLike } from './updater';
@@ -367,11 +367,17 @@ ipcMain.handle('corel-arte-no-molde', async (_e, entrada: unknown) => {
     const pastaDoCliente = dirname(destino);
     const nasPastas = [c.pasta1, c.pasta2, c.pasta3].some((raiz) => raiz && origemDoCliente(raiz, pastaDoCliente));
     if (!nasPastas || !/ - MOLDE\.cdr$/i.test(destino)) return { ok: false as const, motivo: 'O destino do molde precisa ser a pasta do cliente.' };
+    await lerResultadoDoMolde(); // apaga resultado velho, para nunca mostrar o de outra vez
     const r = await rodarMacroDoCorel('ArteDoClienteNoMolde', linhasDoMolde({ destino, ...(frente ? { frente } : {}), ...(verso ? { verso } : {}) }));
     if (r.ok) {
       // o Corel diz "rodou" até quando o macro mostrou um aviso de erro: confere se o .cdr do molde existe na pasta
       const base = basename(destino).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      if (await achouArquivoNovo(pastaDoCliente, 0, new RegExp(`^${base}$`, 'i'))) return r;
+      if (await achouArquivoNovo(pastaDoCliente, 0, new RegExp(`^${base}$`, 'i'))) {
+        const detalhes = await lerResultadoDoMolde();
+        const erro = [detalhes?.frente, detalhes?.verso].find((f) => f?.estado === 'erro');
+        if (erro) return { ok: false as const, motivo: `O Corel não conseguiu importar a arte${erro.detalhe ? `: ${erro.detalhe}` : '.'}` };
+        return { ok: true as const, ...(detalhes ? { detalhes } : {}) };
+      }
       if (copiar && arquivoAbrivel(raizes, copiar)) clipboard.writeText(copiar);
       return { ok: false as const, motivo: 'O Corel rodou o macro, mas o arquivo do molde não apareceu na pasta. Veja se ficou algum aviso na tela do Corel' };
     }

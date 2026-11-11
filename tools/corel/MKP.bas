@@ -7,11 +7,24 @@ Option Explicit
 ' O app chama os dois por um botao; rodando a mao tambem funciona.
 
 Const MOLDE As String = "C:\MOLDE\MOLDE.cdr"
-Const LARGURA As Double = 195
-Const ALTURA As Double = 255
+' A arte do cliente entra no quadrado MENOR do molde (150 x 210 mm). A area maior (195 x 255, com a dobra) o designer completa a mao.
+Const LARGURA As Double = 150
+Const ALTURA As Double = 210
 Const CENTRO_X As Double = 104.951
 Const CENTRO_Y As Double = 148.343
 Const IDADE_MAXIMA_MIN As Long = 10
+
+' O que foi feito, para o app mostrar a confirmacao (frente=OK 150,0 x 210,0 mm / verso=SEM / existente=1).
+Private resultado As String
+
+Private Sub GravarResultado()
+    Dim n As Integer
+    On Error Resume Next
+    n = FreeFile
+    Open Environ("TEMP") & "\mockup-resultado.txt" For Output As #n
+    Print #n, resultado
+    Close #n
+End Sub
 
 ' Le o arquivo que o app deixou na pasta temporaria (uma informacao por linha) e apaga o arquivo.
 ' Arquivo velho (mais de 10 minutos) e ignorado, para nunca usar um caminho de outra hora.
@@ -66,7 +79,7 @@ Private Function EscolherArte() As String
 End Function
 
 ' Importa a arte na pagina indicada do molde (1 = frente, 2 = verso), encaixa sem distorcer e centraliza.
-Private Sub ColocarArte(doc As Document, pagina As Long, arquivo As String)
+Private Sub ColocarArte(doc As Document, pagina As Long, arquivo As String, chave As String)
     Dim s As Shape, f As Double, f2 As Double
     If doc.Pages.Count < pagina Then Err.Raise vbObjectError + 1, , "O molde nao tem a pagina " & pagina & "."
     doc.Pages(pagina).Activate
@@ -79,6 +92,7 @@ Private Sub ColocarArte(doc As Document, pagina As Long, arquivo As String)
     s.CenterX = CENTRO_X
     s.CenterY = CENTRO_Y
     s.OrderToBack
+    resultado = resultado & chave & "=OK " & Format(s.SizeWidth, "0.0") & " x " & Format(s.SizeHeight, "0.0") & " mm" & vbCrLf
 End Sub
 
 ' Arquivo do app: linha 1 = onde salvar o .cdr, linha 2 = arte da frente (pagina 1), linha 3 = arte do verso (pagina 2).
@@ -90,6 +104,10 @@ Sub ArteDoClienteNoMolde()
     Dim doc As Document
     Dim pos As Long
     Dim doApp As Boolean
+    Dim faceAtual As String
+
+    resultado = ""
+    faceAtual = "frente"
 
     If Dir(MOLDE) = "" Then
         MsgBox "Nao achei o molde em: " & MOLDE, vbExclamation, "Arte no molde"
@@ -131,6 +149,8 @@ Sub ArteDoClienteNoMolde()
     If Dir(destino) <> "" Then
         If Not doApp Then MsgBox "Ja existe: " & destino & vbCrLf & "Vou abrir o que ja existe, sem alterar.", vbInformation, "Arte no molde"
         OpenDocument destino
+        resultado = "existente=1"
+        If doApp Then GravarResultado
         Exit Sub
     End If
 
@@ -138,14 +158,19 @@ Sub ArteDoClienteNoMolde()
     Set doc = OpenDocument(MOLDE)
     doc.SaveAs destino
     doc.Unit = cdrMillimeter
-    If frente <> "" Then ColocarArte doc, 1, frente
-    If verso <> "" Then ColocarArte doc, 2, verso
+    faceAtual = "frente"
+    If frente <> "" Then ColocarArte doc, 1, frente, "frente" Else resultado = resultado & "frente=SEM" & vbCrLf
+    faceAtual = "verso"
+    If verso <> "" Then ColocarArte doc, 2, verso, "verso" Else resultado = resultado & "verso=SEM" & vbCrLf
     doc.Pages(1).Activate
     doc.Save
+    If doApp Then GravarResultado
     If Not doApp Then MsgBox "Pronto: " & destino, vbInformation, "Arte no molde"
     Exit Sub
 
 erro:
+    resultado = resultado & faceAtual & "=ERRO " & Replace(Err.Description, vbCrLf, " ") & vbCrLf
+    If doApp Then GravarResultado
     MsgBox "Nao consegui: " & Err.Description, vbCritical, "Arte no molde"
 End Sub
 

@@ -19,6 +19,7 @@ import type { Rascunho } from '../app/rascunhos';
 import { avaliarQualidade, AREA_PADRAO_MM, LIMITES_PADRAO, pedidoDeNovaArte } from '../app/qualidade';
 import type { ConfigDesigner } from '../main/config-designer';
 import type { Cliente } from '../main/clientes';
+import type { FaceDoMolde, ResultadoDoMolde } from '../main/corel';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('./pdf.worker.mjs', document.baseURI).href;
 
@@ -341,6 +342,61 @@ async function prepararFontesParaOMolde(fontes: (Fonte | undefined)[]): Promise<
   } finally {
     for (const d of abertos.values()) await d.close().catch(() => undefined);
   }
+}
+
+/** Tela que confirma, com o que o próprio macro do Corel anotou, o que foi importado em cada página do molde. */
+function mostrarConfirmacaoDoCorel(cliente: string, detalhes: ResultadoDoMolde | undefined): void {
+  const tela = $('tela-corel');
+  const titulo = $('tela-corel-titulo');
+  const lista = $('tela-corel-lista');
+  const nota = $('tela-corel-nota');
+  $('tela-corel-cliente').textContent = cliente;
+  lista.textContent = '';
+  const linha = (classe: string, rotulo: string, texto: string) => {
+    const li = document.createElement('li');
+    li.className = classe;
+    const b = document.createElement('b');
+    b.textContent = rotulo;
+    li.append(b, texto);
+    lista.append(li);
+  };
+  let algumOk = false;
+  const face = (rotulo: string, f: FaceDoMolde | undefined, semTexto: string) => {
+    if (!f || f.estado === 'sem') return linha('sem', rotulo, semTexto);
+    if (f.estado === 'ok') {
+      algumOk = true;
+      return linha('ok', rotulo, `✓ Importada${f.detalhe ? ` — ficou com ${f.detalhe}` : ''}`);
+    }
+    return linha('erro', rotulo, `✗ Não importou${f.detalhe ? `: ${f.detalhe}` : ''}`);
+  };
+  if (!detalhes) {
+    titulo.textContent = 'O Corel abriu o molde';
+    titulo.className = '';
+    linha('sem', 'Atenção', 'Este macro não informa o que importou. Importe o MKP.bas mais novo no Corel para ver a confirmação.');
+    nota.textContent = 'Confira a arte no Corel antes de gerar o PDF.';
+  } else if (detalhes.jaExistia) {
+    titulo.textContent = 'Esse cliente já tinha arquivo no molde';
+    titulo.className = '';
+    linha('sem', 'Arquivo', 'Abri o que já existia, sem importar nada de novo.');
+    nota.textContent = 'Se quiser refazer, apague o arquivo "… - MOLDE.cdr" da pasta do cliente e clique de novo.';
+  } else {
+    face('Frente (pág. 1)', detalhes.frente, 'Sem arte: nada importado');
+    face('Verso (pág. 2)', detalhes.verso, 'Sem arte: crie o verso no Corel');
+    titulo.textContent = algumOk ? '✓ Arte importada no Corel' : 'Nada foi importado';
+    titulo.className = algumOk ? 'ok' : 'erro';
+    nota.textContent = 'Ajuste no Corel e depois clique em "Gerar PDF (Corel)".';
+  }
+  const fechar = () => {
+    tela.hidden = true;
+    document.removeEventListener('keydown', aoTecla);
+  };
+  const aoTecla = (e: KeyboardEvent) => {
+    if (e.key === 'Escape' || e.key === 'Enter') fechar();
+  };
+  document.addEventListener('keydown', aoTecla);
+  $('tela-corel-ok').onclick = fechar;
+  tela.hidden = false;
+  $('tela-corel-ok').focus();
 }
 
 const ehImagem = (nome: string) => /\.(png|jpe?g)$/i.test(nome);
@@ -1144,13 +1200,12 @@ function linhaDoCliente(c: Cliente): HTMLElement {
                 destino: `${c.caminho}${sep}${nomeBase} - MOLDE.cdr`,
                 copiar: principal,
               });
-              const faltou = !pf ? 'frente' : !pv ? 'verso' : '';
-              mensagem(
-                r.ok
-                  ? `Arte no molde${faltou ? ` (sem ${faltou}: crie no Corel)` : ''}. Ajuste e depois use "Gerar PDF".`
-                  : `${r.motivo} (copiei o caminho da arte: no Corel, rode o macro e cole)`,
-                !r.ok,
-              );
+              if (r.ok) {
+                mensagem('Arte no molde. Ajuste e depois use "Gerar PDF".');
+                mostrarConfirmacaoDoCorel(c.nome, r.detalhes);
+              } else {
+                mensagem(`${r.motivo} (copiei o caminho da arte: no Corel, rode o macro e cole)`, true);
+              }
             } catch (e) {
               mensagem(textoDoErro(e), true);
             } finally {

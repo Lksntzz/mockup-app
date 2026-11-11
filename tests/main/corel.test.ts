@@ -157,3 +157,39 @@ describe('linhasDoMolde', () => {
     expect(caminhoServeParaOCorel(linhasDoMolde({ destino: 'I:\\OPERAÇÃO\\a - MOLDE.cdr', frente: 'I:\\OPERAÇÃO\\a.png' }))).toBe(true);
   });
 });
+
+describe('interpretarResultadoDoMolde', () => {
+  test('frente e verso importados, com o tamanho que ficaram', async () => {
+    const { interpretarResultadoDoMolde } = await import('../../src/main/corel');
+    const r = interpretarResultadoDoMolde('frente=OK 150,0 x 210,0 mm\r\nverso=OK 149,9 x 210,0 mm\r\n');
+    expect(r).toEqual({
+      frente: { estado: 'ok', detalhe: '150,0 x 210,0 mm' },
+      verso: { estado: 'ok', detalhe: '149,9 x 210,0 mm' },
+    });
+  });
+  test('uma face sem arte (SEM) e uma face que deu erro', async () => {
+    const { interpretarResultadoDoMolde } = await import('../../src/main/corel');
+    const r = interpretarResultadoDoMolde('frente=OK 150,0 x 210,0 mm\nverso=SEM\n');
+    expect(r.verso).toEqual({ estado: 'sem' });
+    const e = interpretarResultadoDoMolde('frente=ERRO O molde nao tem a pagina 1.\nverso=SEM');
+    expect(e.frente).toEqual({ estado: 'erro', detalhe: 'O molde nao tem a pagina 1.' });
+  });
+  test('arquivo que já existia é avisado; texto vazio ou estranho não derruba', async () => {
+    const { interpretarResultadoDoMolde } = await import('../../src/main/corel');
+    expect(interpretarResultadoDoMolde('existente=1').jaExistia).toBe(true);
+    expect(interpretarResultadoDoMolde('')).toEqual({});
+    expect(interpretarResultadoDoMolde('lixo\n???')).toEqual({});
+  });
+});
+
+describe('lerResultadoDoMolde', () => {
+  test('lê o arquivo, devolve e apaga; sem arquivo devolve nada', async () => {
+    const { writeFile } = await import('node:fs/promises');
+    const { lerResultadoDoMolde } = await import('../../src/main/corel');
+    expect(await lerResultadoDoMolde(tmp)).toBeUndefined();
+    await writeFile(join(tmp, 'mockup-resultado.txt'), 'frente=OK 150,0 x 210,0 mm\r\nverso=SEM\r\n', 'latin1');
+    const r = await lerResultadoDoMolde(tmp);
+    expect(r?.frente?.estado).toBe('ok');
+    expect(await readdir(tmp)).toEqual([]);
+  });
+});

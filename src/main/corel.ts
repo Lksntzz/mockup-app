@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { readdir, stat, unlink, writeFile } from 'node:fs/promises';
+import { readdir, readFile, stat, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -139,4 +139,50 @@ export async function achouArquivoNovo(pasta: string, depoisDe: number, padrao: 
 /** Texto que o macro lê: destino do .cdr, arte da frente e arte do verso (uma por linha; vazia quando não há). */
 export function linhasDoMolde(e: { destino: string; frente?: string; verso?: string }): string {
   return [e.destino, e.frente ?? '', e.verso ?? ''].join('\r\n');
+}
+
+export interface FaceDoMolde {
+  estado: 'ok' | 'sem' | 'erro';
+  /** Tamanho que a arte ficou (ok) ou o motivo (erro). */
+  detalhe?: string;
+}
+export interface ResultadoDoMolde {
+  frente?: FaceDoMolde;
+  verso?: FaceDoMolde;
+  /** O .cdr do cliente já existia: o macro só abriu, sem importar nada. */
+  jaExistia?: boolean;
+}
+
+/** Lê o que o macro anotou ("frente=OK 150,0 x 210,0 mm", "verso=SEM", "existente=1"). */
+export function interpretarResultadoDoMolde(texto: string): ResultadoDoMolde {
+  const r: ResultadoDoMolde = {};
+  for (const linha of texto.split(/\r?\n/)) {
+    const m = /^(frente|verso|existente)=(.*)$/.exec(linha.trim());
+    if (!m) continue;
+    const [, chave, valor = ''] = m;
+    if (chave === 'existente') {
+      r.jaExistia = valor.trim() === '1';
+      continue;
+    }
+    const face: FaceDoMolde = valor.startsWith('OK')
+      ? { estado: 'ok', ...(valor.slice(2).trim() ? { detalhe: valor.slice(2).trim() } : {}) }
+      : valor.startsWith('SEM')
+        ? { estado: 'sem' }
+        : { estado: 'erro', ...(valor.replace(/^ERRO\s*/, '').trim() ? { detalhe: valor.replace(/^ERRO\s*/, '').trim() } : {}) };
+    if (chave === 'frente') r.frente = face;
+    else r.verso = face;
+  }
+  return r;
+}
+
+/** Lê (e apaga) o arquivo de resultado que o macro grava na pasta temporária. */
+export async function lerResultadoDoMolde(pasta: string = tmpdir()): Promise<ResultadoDoMolde | undefined> {
+  const arquivo = join(pasta, 'mockup-resultado.txt');
+  try {
+    const texto = (await readFile(arquivo)).toString('latin1');
+    await unlink(arquivo).catch(() => undefined);
+    return interpretarResultadoDoMolde(texto);
+  } catch {
+    return undefined;
+  }
 }

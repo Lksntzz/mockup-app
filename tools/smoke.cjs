@@ -482,6 +482,13 @@ app.on('browser-window-created', (_e, win) => {
       conferir(!/inválid|Não consegui preparar|erro/i.test(msgMolde), `sem erro ao preparar as páginas (${msgMolde.slice(0, 90)})`);
       const tempDoApp = path.join(require('node:os').tmpdir(), 'mockup-agenda');
       conferir(fs.existsSync(tempDoApp) && fs.readdirSync(tempDoApp).length === 0, 'as imagens temporárias foram criadas e apagadas depois');
+      // tela de confirmação do Corel: só confere que existe, começa escondida e cabe na janela (o conteúdo vem do macro, que só roda no Windows)
+      conferir(await js("(() => { const t = document.getElementById('tela-corel'); return !!t && t.hidden; })()"), 'a tela de confirmação do Corel existe e começa escondida');
+      await js("(() => { document.getElementById('tela-corel-titulo').textContent = '✓ Arte importada no Corel'; document.getElementById('tela-corel-titulo').className = 'ok'; document.getElementById('tela-corel-cliente').textContent = 'CLIENTE DE TESTE'; const l = document.getElementById('tela-corel-lista'); l.innerHTML = '<li class=\"ok\"><b>Frente (pág. 1)</b>✓ Importada — ficou com 150,0 x 210,0 mm</li><li class=\"sem\"><b>Verso (pág. 2)</b>Sem arte: crie o verso no Corel</li>'; document.getElementById('tela-corel-nota').textContent = 'Ajuste no Corel e depois clique em \"Gerar PDF (Corel)\".'; document.getElementById('tela-corel').hidden = false; })()");
+      await espera(300);
+      await foto('11-confirmacao-corel.png');
+      conferir(await js("(() => { const r = document.querySelector('.tela-corel-caixa').getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight && r.width > 300; })()"), 'a caixa de confirmação do Corel aparece inteira na janela');
+      await js("document.getElementById('tela-corel').hidden = true");
     } catch (e) {
       conferir(false, `exceção no roteiro: ${e}`);
     }

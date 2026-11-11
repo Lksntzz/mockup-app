@@ -1,6 +1,6 @@
 {
   "name": "mockup-agenda",
-  "version": "0.9.22",
+  "version": "0.9.23",
   "private": true,
   "description": "Gera o mockup padrão da agenda a partir de um PDF de capas",
   "main": "dist/main/main.js",
