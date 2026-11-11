@@ -97,11 +97,16 @@ export type ResultadoMover = { ok: true; destino: string } | { ok: false; motivo
 export async function moverParaAprovar(pastaCliente: string, pastaAprovar: string, grupo?: string): Promise<ResultadoMover> {
   const { pronta, faltando } = await verificarProntidao(pastaCliente);
   if (!pronta) return { ok: false, motivo: `Ainda faltam: ${faltando.join(', ')}.` };
-  if (!(await ehPasta(pastaAprovar))) return { ok: false, motivo: `Não encontrei a Pasta 2 ("${pastaAprovar}"). Escolha a pasta de novo.` };
-  const destinoBase = grupo ? join(pastaAprovar, grupo) : pastaAprovar;
+  return moverParaEtapa(pastaCliente, pastaAprovar, grupo, 'Pasta 2');
+}
+
+/** Move a pasta do cliente para a pasta da próxima etapa (mantém a pasta de grupo, como SHOPEE). Nunca sobrescreve. */
+export async function moverParaEtapa(pastaCliente: string, pastaDestino: string, grupo: string | undefined, rotuloDestino: string): Promise<ResultadoMover> {
+  if (!(await ehPasta(pastaDestino))) return { ok: false, motivo: `Não encontrei a ${rotuloDestino} ("${pastaDestino}"). Escolha a pasta de novo.` };
+  const destinoBase = grupo ? join(pastaDestino, grupo) : pastaDestino;
   const destino = join(destinoBase, basename(pastaCliente));
   if (await stat(destino).then(() => true, () => false)) {
-    return { ok: false, motivo: `Já existe uma pasta "${basename(pastaCliente)}" na Pasta 2. Nada foi movido.` };
+    return { ok: false, motivo: `Já existe uma pasta "${basename(pastaCliente)}" na ${rotuloDestino}. Nada foi movido.` };
   }
   try {
     if (grupo) await mkdir(destinoBase, { recursive: true });

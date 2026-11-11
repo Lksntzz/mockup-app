@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('mockupApi', {
   clientesBuscar: (termo: string) => ipcRenderer.invoke('clientes-buscar', termo),
   aoArteParaFazer: (cb: (nomes: string[]) => void) => ipcRenderer.on('arte-para-fazer', (_e, nomes: string[]) => cb(nomes)),
   aoAbrirCliente: (cb: () => void) => ipcRenderer.on('abrir-cliente', () => cb()),
+  fluxoAvancar: (caminho: string) => ipcRenderer.invoke('fluxo-avancar', caminho),
   fluxoMover: (caminho: string) => ipcRenderer.invoke('fluxo-mover', caminho),
   estadoAtualizacao: () => ipcRenderer.invoke('estado-atualizacao'),
   verificarAtualizacao: () => ipcRenderer.invoke('verificar-atualizacao'),

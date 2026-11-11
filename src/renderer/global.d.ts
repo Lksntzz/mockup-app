@@ -42,6 +42,7 @@ export interface MockupApi {
   clientesBuscar(termo: string): Promise<Cliente[]>;
   aoArteParaFazer(cb: (nomes: string[]) => void): void;
   aoAbrirCliente(cb: () => void): void;
+  fluxoAvancar(caminho: string): Promise<ResultadoMover>;
   fluxoMover(caminho: string): Promise<ResultadoMover>;
   estadoAtualizacao(): Promise<EstadoAtualizacao>;
   verificarAtualizacao(): Promise<void>;

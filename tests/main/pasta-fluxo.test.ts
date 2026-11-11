@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readdir, rm, utimes, writeFile } from 'node:fs/promises
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { listarPendentes, moverParaAprovar, origemDoCliente, verificarProntidao } from '../../src/main/pasta-fluxo';
+import { listarPendentes, moverParaAprovar, moverParaEtapa, origemDoCliente, verificarProntidao } from '../../src/main/pasta-fluxo';
 
 let raiz = '';
 let aprovar = '';
@@ -119,6 +119,33 @@ describe('moverParaAprovar com grupo', () => {
     const r = await moverParaAprovar(join(raiz, 'SHOPEE', 'LOJA'), aprovar, 'SHOPEE');
     expect(r.ok).toBe(false);
     expect(await readdir(join(raiz, 'SHOPEE'))).toEqual(['LOJA']);
+  });
+});
+
+describe('moverParaEtapa (2 → 3 e 3 → 4: sem conferir MKP)', () => {
+  test('move qualquer pasta de cliente para a pasta de destino, mesmo sem MKP', async () => {
+    await pasta('A');
+    const destino = aprovar;
+    const r = await moverParaEtapa(join(raiz, 'A'), destino, undefined, 'Pasta 3');
+    expect(r).toEqual({ ok: true, destino: join(destino, 'A') });
+    expect(await readdir(raiz)).toEqual([]);
+  });
+  test('mantém a pasta do grupo (SHOPEE), cria se faltar e nunca sobrescreve', async () => {
+    await pasta(join('SHOPEE', 'LOJA'));
+    const destino = aprovar;
+    const r = await moverParaEtapa(join(raiz, 'SHOPEE', 'LOJA'), destino, 'SHOPEE', 'Pasta 3');
+    expect(r).toEqual({ ok: true, destino: join(destino, 'SHOPEE', 'LOJA') });
+    await pasta(join('SHOPEE', 'LOJA'));
+    const de_novo = await moverParaEtapa(join(raiz, 'SHOPEE', 'LOJA'), destino, 'SHOPEE', 'Pasta 3');
+    expect(de_novo.ok).toBe(false);
+    expect(await readdir(join(raiz, 'SHOPEE'))).toEqual(['LOJA']);
+  });
+  test('destino que não existe: erro com o nome da pasta e nada é criado', async () => {
+    await pasta('A');
+    const r = await moverParaEtapa(join(raiz, 'A'), join(raiz, '..', 'nao-existe-3'), undefined, 'Pasta 3');
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.motivo).toContain('Pasta 3');
+    expect(await readdir(raiz)).toEqual(['A']);
   });
 });
 

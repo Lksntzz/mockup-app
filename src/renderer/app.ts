@@ -696,17 +696,20 @@ async function desenharHistorico(): Promise<void> {
   }
 }
 
-function mostrarAba(aba: 'novo' | 'historico' | 'pasta1'): void {
-  if (aba === 'pasta1' && !designer.designer) aba = 'novo';
+function mostrarAba(aba: 'novo' | 'historico' | 'pasta1' | 'config'): void {
+  if ((aba === 'pasta1' || aba === 'config') && !designer.designer) aba = 'novo';
   const pagina = aba !== 'novo';
   document.querySelector<HTMLElement>('.area')!.hidden = pagina;
   $('paginas').hidden = !pagina;
   $('historico').hidden = aba !== 'historico';
   $('pasta1').hidden = aba !== 'pasta1';
+  $('config').hidden = aba !== 'config';
+  $('tab-config').setAttribute('aria-pressed', String(aba === 'config'));
   $('tab-novo').setAttribute('aria-pressed', String(aba === 'novo'));
   $('tab-historico').setAttribute('aria-pressed', String(aba === 'historico'));
   $('tab-pasta1').setAttribute('aria-pressed', String(aba === 'pasta1'));
   if (aba === 'historico') void desenharHistorico();
+  if (aba === 'config') atualizarCaminhos();
   if (aba === 'pasta1') {
     alertasNovos = 0;
     $('badge-cliente').hidden = true;
@@ -716,6 +719,12 @@ function mostrarAba(aba: 'novo' | 'historico' | 'pasta1'): void {
 $('tab-novo').addEventListener('click', () => mostrarAba('novo'));
 $('tab-historico').addEventListener('click', () => mostrarAba('historico'));
 $('tab-pasta1').addEventListener('click', () => mostrarAba('pasta1'));
+$('tab-config').addEventListener('click', () => mostrarAba('config'));
+
+/** Mostra na Configuração o caminho de cada pasta do fluxo. */
+function atualizarCaminhos(): void {
+  for (const n of [1, 2, 3, 4] as const) $(`caminho-pasta${n}`).textContent = designer[`pasta${n}`] ?? 'não escolhida';
+}
 
 // ---- Modo designer (só aparece para quem liga; desligado por padrão) ----
 let designer: ConfigDesigner = { designer: false };
@@ -728,7 +737,9 @@ function aplicarDesigner(c: ConfigDesigner): void {
   designer = c;
   if (c.designer) void api.iniciarComWindowsEstado().then((v) => ($<HTMLInputElement>('iniciar-windows').checked = v), () => undefined);
   $('tab-pasta1').hidden = !c.designer;
-  if (!c.designer && $('pasta1').hidden === false) mostrarAba('novo');
+  $('tab-config').hidden = !c.designer;
+  if (!c.designer && ($('pasta1').hidden === false || $('config').hidden === false)) mostrarAba('novo');
+  atualizarCaminhos();
   desenharQualidade();
 }
 
@@ -797,7 +808,7 @@ async function trocarModoDesigner(): Promise<void> {
         const r = await api.designerProcurarPastas(false).catch(() => null);
         if (r) {
           aplicarDesigner(r.config);
-          if (r.achou > 0) mensagem(`Achei ${r.achou} ${r.achou === 1 ? 'pasta' : 'pastas'} do fluxo. Confira em "Pastas do fluxo".`);
+          if (r.achou > 0) mensagem(`Achei ${r.achou} ${r.achou === 1 ? 'pasta' : 'pastas'} do fluxo. Confira na aba Configuração.`);
         }
       }
       await desenharPasta1();
@@ -939,32 +950,31 @@ function linhaDoCliente(c: Cliente): HTMLElement {
       );
     });
   }
-  // MKP pronto e arquivos já chegaram: dá para mandar a pasta para a Pasta 2 direto do card (com confirmação em 2 cliques)
-  if (c.etapa === 1 && c.situacao === 'pronta-para-aprovar' && !c.chegando) {
-    const destino = c.grupo ? `2 APROVAR / ${c.grupo}` : '2 APROVAR';
+  // botões de mandar a pasta para a próxima etapa (com confirmação em 2 cliques); só quando os arquivos já terminaram de chegar
+  const botaoDeEnviar = (rotulo: string, destinoTexto: string, mensagemOk: string, mover: () => Promise<{ ok: true } | { ok: false; motivo: string }>) => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'primario';
-    b.textContent = 'Enviar para Aprovar';
-    b.title = `Move a pasta do cliente para ${destino}`;
+    b.textContent = rotulo;
+    b.title = `Move a pasta do cliente para ${destinoTexto}`;
     let pedindo = false;
     let timer = 0;
     const normal = () => {
       pedindo = false;
-      b.textContent = 'Enviar para Aprovar';
+      b.textContent = rotulo;
       b.classList.remove('confirmando');
     };
     b.addEventListener('click', () => {
       if (!pedindo) {
         pedindo = true;
-        b.textContent = `Confirmar: mover para ${destino}`;
+        b.textContent = `Confirmar: mover para ${destinoTexto}`;
         b.classList.add('confirmando');
         timer = window.setTimeout(normal, 6000);
         return;
       }
       window.clearTimeout(timer);
       b.disabled = true;
-      void api.fluxoMover(c.caminho).then(
+      void mover().then(
         async (r) => {
           if (!r.ok) {
             mensagem(r.motivo, true);
@@ -972,7 +982,7 @@ function linhaDoCliente(c: Cliente): HTMLElement {
             normal();
             return;
           }
-          mensagem(`${c.nome} enviada para Aprovar.`);
+          mensagem(mensagemOk);
           await desenharPasta1();
         },
         (e) => {
@@ -983,6 +993,16 @@ function linhaDoCliente(c: Cliente): HTMLElement {
       );
     });
     acoes.append(b);
+  };
+  const comGrupo = (pasta: string) => (c.grupo ? `${pasta} / ${c.grupo}` : pasta);
+  if (!c.chegando) {
+    if (c.etapa === 1 && c.situacao === 'pronta-para-aprovar') {
+      botaoDeEnviar('Enviar para Aprovar', comGrupo('2 APROVAR'), `${c.nome} enviada para Aprovar.`, () => api.fluxoMover(c.caminho));
+    } else if (c.etapa === 2) {
+      botaoDeEnviar('Enviar para Impressão', comGrupo('3 AGUARDA IMPRESSÃO'), `${c.nome} enviada para Aguarda impressão.`, () => api.fluxoAvancar(c.caminho));
+    } else if (c.etapa === 3) {
+      botaoDeEnviar('Marcar como finalizado', comGrupo('4 FINALIZADOS'), `${c.nome} enviada para Finalizados.`, () => api.fluxoAvancar(c.caminho));
+    }
   }
   // só oferece fazer o MKP enquanto ele ainda não está pronto; nomes MKP* já são o mockup pronto
   if (c.etapa === 1 && c.situacao !== 'pronta-para-aprovar') {
@@ -1097,7 +1117,7 @@ let geracaoPasta1 = 0;
 async function desenharPasta1(): Promise<void> {
   const minha = ++geracaoPasta1;
   const alvo = $('pasta1-lista');
-  for (const n of [1, 2, 3, 4] as const) $(`caminho-pasta${n}`).textContent = designer[`pasta${n}`] ?? 'não escolhida';
+  atualizarCaminhos();
   const avisos = $('pasta1-avisos');
   avisos.replaceChildren();
   alvo.replaceChildren();
@@ -1107,7 +1127,7 @@ async function desenharPasta1(): Promise<void> {
     p.textContent = t;
     onde.append(p);
   };
-  if (!designer.pasta1) return texto(alvo, 'Abra "Pastas do fluxo" e escolha a Pasta 1 para ver os clientes.');
+  if (!designer.pasta1) return texto(alvo, 'Abra a aba Configuração e escolha a Pasta 1 para ver os clientes.');
   let resultado: Awaited<ReturnType<MockupApi['clientesListar']>>;
   try {
     resultado = await api.clientesListar();

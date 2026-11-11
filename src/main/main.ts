@@ -10,7 +10,7 @@ import { criarHistorico, nomeSeguro } from './historico';
 import { rascunhoValido } from '../app/rascunhos';
 import { criarRascunhos } from './rascunhos';
 import { criarConfigDesigner, type ConfigDesigner } from './config-designer';
-import { moverParaAprovar, origemDoCliente } from './pasta-fluxo';
+import { moverParaAprovar, moverParaEtapa, origemDoCliente } from './pasta-fluxo';
 import { atualizarVistos, buscarFinalizados, chaveDe, listarClientes, ultimaAlteracao } from './clientes';
 import { criarPortaoDePin } from './pin';
 import { acharPastasDoFluxo } from './achar-pastas';
@@ -308,6 +308,24 @@ ipcMain.handle('notificacao-testar', async () => {
   await exigirDesigner();
   avisar('Teste de notificação', 'Se você está vendo isto, o Windows está deixando o Mockup da Agenda avisar.', mostrarJanela);
   return { suportada: Notification.isSupported() };
+});
+ipcMain.handle('fluxo-avancar', async (_e, caminhoCliente: unknown) => {
+  const c = await exigirDesigner();
+  if (typeof caminhoCliente !== 'string') throw new Error('Pasta inválida.');
+  // Pasta 2 → Pasta 3 e Pasta 3 → Pasta 4; mantém a pasta de grupo (SHOPEE)
+  const passos: [string | undefined, string | undefined, string][] = [
+    [c.pasta2, c.pasta3, 'Pasta 3'],
+    [c.pasta3, c.pasta4, 'Pasta 4'],
+  ];
+  for (const [de, para, rotulo] of passos) {
+    const origem = de ? origemDoCliente(de, caminhoCliente) : null;
+    if (!origem) continue;
+    if (!para) return { ok: false, motivo: `Escolha a ${rotulo} antes.` };
+    const r = await moverParaEtapa(caminhoCliente, para, origem.grupo, rotulo);
+    if (r.ok) await registrarEnvio(chaveDe({ nome: basename(caminhoCliente), ...(origem.grupo ? { grupo: origem.grupo } : {}) }));
+    return r;
+  }
+  return { ok: false, motivo: 'Essa pasta não está na Pasta 2 nem na Pasta 3.' };
 });
 ipcMain.handle('operador', () => operador());
 ipcMain.handle('historico-listar', () => historicoDoOperador().listar());
