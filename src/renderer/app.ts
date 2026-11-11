@@ -6,6 +6,7 @@ import { abasVisiveis, ROTULOS, vizinha, type Modo } from '../app/abas';
 import { escolhasDoVerso, paraRazao } from '../app/verso';
 import { fontesDaArte, frenteEVersoPadrao, rotuloDaFonte, type Fonte } from '../app/frente-verso';
 import { compose, isAvailable } from '../engine/compose';
+import { pacoteDeRascunho } from '../engine/rascunho';
 import { arrastarCanto, arrastarCorpo, cantoPerto, cantosDoAjuste, criarMapa, pontoDentro, zoomDaRoda } from '../app/guia';
 import { AJUSTE_NULO, ajusteValido } from '../engine/ajuste';
 import { exportAll, type ExportCapa, type ExportExtra } from '../export/exporter';
@@ -167,6 +168,11 @@ function mapaAtual() {
   if (mapaDaArte?.pack !== pacote.pack) mapaDaArte = { pack: pacote.pack, mapa: criarMapa(pacote.pack.artCorners) };
   return mapaDaArte.mapa;
 }
+/** Quanto a prévia mostrada é menor que o pacote (1 = tamanho cheio, 0,5 = rascunho). */
+function escalaDaPrevia(): number {
+  const canvas = $<HTMLCanvasElement>('previa');
+  return pacote && pacote.pack.canvas.width > 0 ? canvas.width / pacote.pack.canvas.width : 1;
+}
 function ajusteAtual() {
   const capa = estado?.capas[estado.selecionada];
   return ajusteValido(capa?.ajuste ?? AJUSTE_NULO);
@@ -178,7 +184,9 @@ function pontoDaArte(ev: MouseEvent | PointerEvent): [number, number] | null {
   if (!guiaAtiva() || !mapa) return null;
   const r = canvas.getBoundingClientRect();
   if (r.width === 0 || r.height === 0) return null;
-  return mapa.paraArte([((ev.clientX - r.left) * canvas.width) / r.width, ((ev.clientY - r.top) * canvas.height) / r.height]);
+  // a prévia de rascunho tem metade do tamanho: o mapa é em coordenadas do pacote inteiro
+  const e = escalaDaPrevia();
+  return mapa.paraArte([(((ev.clientX - r.left) * canvas.width) / r.width) / e, (((ev.clientY - r.top) * canvas.height) / r.height) / e]);
 }
 function desenharGuia(): void {
   const canvas = $<HTMLCanvasElement>('previa');
@@ -188,7 +196,8 @@ function desenharGuia(): void {
   const ctx = canvas.getContext('2d')!;
   const r = canvas.getBoundingClientRect();
   const k = r.width > 0 ? canvas.width / r.width : 1;
-  const pts = cantosDoAjuste(ajusteAtual()).map((c) => mapa.paraTela(c));
+  const e = escalaDaPrevia();
+  const pts = cantosDoAjuste(ajusteAtual()).map((c) => mapa.paraTela(c)).map((p): [number, number] => [p[0] * e, p[1] * e]);
   ctx.save();
   ctx.beginPath();
   pts.forEach((p, i) => (i === 0 ? ctx.moveTo(p[0], p[1]) : ctx.lineTo(p[0], p[1])));
@@ -215,13 +224,14 @@ function desenharGuia(): void {
 function aplicarAjusteDaGuia(novo: import('../engine/ajuste').Ajuste): void {
   if (!estado) return;
   estado = setAjuste(estado, estado.selecionada, novo);
-  pedirPrevia();
+  pedirPrevia(true);
   desenharGuia();
+  // parou de mexer: refaz em tamanho cheio e guarda o rascunho
   window.clearTimeout(temporizadorDoPainel);
   temporizadorDoPainel = window.setTimeout(() => {
-    if (arrasto) return;
+    pedirPrevia();
     salvarRascunho();
-  }, 250);
+  }, 220);
 }
 {
   const canvas = $<HTMLCanvasElement>('previa');
@@ -229,6 +239,8 @@ function aplicarAjusteDaGuia(novo: import('../engine/ajuste').Ajuste): void {
   const raioDoCanto = 0.06;
   canvas.addEventListener('pointerenter', () => {
     mouseNaPrevia = true;
+    // prepara a versão leve das camadas antes do primeiro arrasto, para ele não engasgar na largada
+    if (pacote && modoPrevia === 'frente') window.setTimeout(() => pacote && pacoteDeRascunho(pacote.pack, pacote.layers), 0);
     desenharGuia();
   });
   canvas.addEventListener('pointerleave', () => {
@@ -274,6 +286,7 @@ function aplicarAjusteDaGuia(novo: import('../engine/ajuste').Ajuste): void {
       // nada a soltar
     }
     window.clearTimeout(temporizadorDoPainel);
+    pedirPrevia();
     salvarRascunho();
   };
   canvas.addEventListener('pointerup', soltar);
@@ -308,6 +321,10 @@ const agendador = createPreviewScheduler(
       const v = await carregarPacoteNomeado('verso');
       return compose(v.pack, v.layers, capa.back, escolhasDoVerso(v.pack, req.choices), paraRazao(capa.art, razaoDaFaixa(v.pack)));
     }
+    if (req.rascunho) {
+      const r = pacoteDeRascunho(pacote.pack, pacote.layers);
+      return compose(r.pack, r.layers, capa.art, req.choices, versoDaFrente(capa.back), undefined, capa.ajuste);
+    }
     return compose(pacote.pack, pacote.layers, capa.art, req.choices, versoDaFrente(capa.back), undefined, capa.ajuste);
   },
   (capa, resultado) => {
@@ -320,12 +337,12 @@ const agendador = createPreviewScheduler(
   (e) => mensagem(`Erro ao montar a prévia: ${e instanceof Error ? e.message : String(e)}`, true),
 );
 
-function pedirPrevia(): void {
+function pedirPrevia(rascunho = false): void {
   if (!estado) return;
   const capa = estado.capas[estado.selecionada];
   if (!capa) return;
   atualizarAbas();
-  agendador.request({ capa: estado.selecionada, choices: { ...capa.choices }, modo: modoPrevia });
+  agendador.request({ capa: estado.selecionada, choices: { ...capa.choices }, modo: modoPrevia, ...(rascunho && modoPrevia === 'frente' ? { rascunho: true } : {}) });
 }
 
 // A lista só precisa de miniaturas: guardar a capa inteira em cada uma gasta memória à toa.

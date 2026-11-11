@@ -5,6 +5,8 @@ export interface PreviewRequest {
   choices: Choices;
   /** Qual mockup mostrar; sem isso, a frente. */
   modo?: 'frente' | 'verso' | 'vt' | 'sem-canguru';
+  /** Prévia rápida, em metade do tamanho, para enquanto a arte é arrastada. */
+  rascunho?: boolean;
 }
 
 /**
