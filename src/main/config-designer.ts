@@ -12,6 +12,10 @@ export interface ConfigDesigner {
   vistos?: string[];
   /** Quando (ms) cada cliente foi enviado para a Pasta 2 pelo app; base para o aviso "alterado depois do envio". */
   enviados?: Record<string, number>;
+  /** Em que etapa (1 a 3) cada cliente foi visto pela última vez; base do aviso "voltou". */
+  etapas?: Record<string, number>;
+  /** Pastas que voltaram de etapa e ainda não foram dispensadas ("Já vi"). */
+  voltas?: Record<string, { de: number; para: number; em: number }>;
 }
 
 const instancias = new Map<string, ReturnType<typeof montar>>();
@@ -42,6 +46,17 @@ function montar(arquivo: string) {
       if (b.enviados && typeof b.enviados === 'object' && !Array.isArray(b.enviados)) {
         const ok = Object.entries(b.enviados as Record<string, unknown>).filter(([, v]) => typeof v === 'number' && Number.isFinite(v));
         if (ok.length > 0) c.enviados = Object.fromEntries(ok) as Record<string, number>;
+      }
+      if (b.etapas && typeof b.etapas === 'object' && !Array.isArray(b.etapas)) {
+        const ok = Object.entries(b.etapas as Record<string, unknown>).filter(([, v]) => typeof v === 'number' && Number.isFinite(v));
+        if (ok.length > 0) c.etapas = Object.fromEntries(ok) as Record<string, number>;
+      }
+      if (b.voltas && typeof b.voltas === 'object' && !Array.isArray(b.voltas)) {
+        const ok = Object.entries(b.voltas as Record<string, unknown>).filter(([, v]) => {
+          const x = v as { de?: unknown; para?: unknown; em?: unknown } | null;
+          return !!x && typeof x.de === 'number' && typeof x.para === 'number' && typeof x.em === 'number';
+        });
+        if (ok.length > 0) c.voltas = Object.fromEntries(ok) as Record<string, { de: number; para: number; em: number }>;
       }
       return c;
     } catch {

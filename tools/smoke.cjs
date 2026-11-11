@@ -458,6 +458,12 @@ app.on('browser-window-created', (_e, win) => {
       conferir(await ate("[...document.querySelectorAll('#pasta1-lista .cliente-linha')].find(l => l.textContent.includes('CLIENTE A'))?.textContent.includes('Alterado depois do envio')", 'aviso de alteração'), 'arquivo mexido depois do envio mostra "Alterado depois do envio"');
       await js("[...document.querySelectorAll('#pasta1-lista .cliente-linha button')].find(b => b.textContent === 'Já avisei a admin')?.click()");
       conferir(await ate("!document.getElementById('pasta1-lista').textContent.includes('Alterado depois do envio')", 'aviso some'), '"Já avisei a admin" tira o aviso');
+      // alguém move a pasta para trás (Pasta 2 -> Pasta 1): aparece o aviso até o designer dispensar
+      fs.renameSync(path.join(p2, 'CLIENTE A'), path.join(p1, 'CLIENTE A'));
+      await js("document.getElementById('atualizar-pasta1').click()");
+      conferir(await ate("[...document.querySelectorAll('#pasta1-lista .cliente-linha')].find(l => l.textContent.includes('CLIENTE A'))?.textContent.includes('Voltou da Pasta 2 para a Pasta 1')", 'aviso de volta'), 'pasta movida para trás mostra "Voltou da Pasta 2 para a Pasta 1"');
+      await js("[...document.querySelectorAll('#pasta1-lista .cliente-linha')].find(l => l.textContent.includes('CLIENTE A'))?.querySelector('button:not(.primario)') && [...document.querySelectorAll('#pasta1-lista .cliente-linha button')].find(b => b.textContent === 'Já vi')?.click()");
+      conferir(await ate("!document.getElementById('pasta1-lista').textContent.includes('Voltou da Pasta')", 'aviso de volta some'), '"Já vi" tira o aviso de pasta que voltou');
     } catch (e) {
       conferir(false, `exceção no roteiro: ${e}`);
     }

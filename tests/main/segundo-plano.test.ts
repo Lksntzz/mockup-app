@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { deveEsconderAoFechar, iniciaOculto } from '../../src/main/segundo-plano';
+import { atualizacaoPodeInstalarSozinha, deveEsconderAoFechar, iniciaOculto } from '../../src/main/segundo-plano';
 
 describe('segundo plano (só no Modo designer)', () => {
   test('fechar a janela esconde o app só com o Modo designer ligado e sem estar saindo', () => {
@@ -11,5 +11,13 @@ describe('segundo plano (só no Modo designer)', () => {
     expect(iniciaOculto(['app.exe', '--oculto'], { designer: true })).toBe(true);
     expect(iniciaOculto(['app.exe', '--oculto'], { designer: false })).toBe(false);
     expect(iniciaOculto(['app.exe'], { designer: true })).toBe(false);
+  });
+  test('atualização instala sozinha só no Modo designer e com o app escondido ou o usuário parado há 5 minutos', () => {
+    const base = { designer: true, janelaEmUso: true, segundosParado: 0 };
+    expect(atualizacaoPodeInstalarSozinha(base)).toBe(false); // janela aberta e usuário mexendo
+    expect(atualizacaoPodeInstalarSozinha({ ...base, janelaEmUso: false })).toBe(true); // escondido perto do relógio
+    expect(atualizacaoPodeInstalarSozinha({ ...base, segundosParado: 299 })).toBe(false);
+    expect(atualizacaoPodeInstalarSozinha({ ...base, segundosParado: 300 })).toBe(true); // janela aberta mas ninguém mexe há 5 min
+    expect(atualizacaoPodeInstalarSozinha({ ...base, designer: false, janelaEmUso: false })).toBe(false); // operador comum: nunca sozinho
   });
 });

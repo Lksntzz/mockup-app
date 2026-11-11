@@ -1,4 +1,4 @@
-import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage, Notification, shell, Tray } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage, Notification, powerMonitor, shell, Tray } from 'electron';
 import { EventEmitter } from 'node:events';
 import { mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -11,12 +11,13 @@ import { rascunhoValido } from '../app/rascunhos';
 import { criarRascunhos } from './rascunhos';
 import { criarConfigDesigner, type ConfigDesigner } from './config-designer';
 import { moverParaAprovar, moverParaEtapa, origemDoCliente } from './pasta-fluxo';
-import { atualizarVistos, buscarFinalizados, chaveDe, listarClientes, ultimaAlteracao } from './clientes';
+import { atualizarEtapas, descartarVolta } from './voltas';
+import { atualizarVistos, buscarFinalizados, chaveDe, listarClientes, norm, ultimaAlteracao } from './clientes';
 import { criarPortaoDePin } from './pin';
 import { acharPastasDoFluxo } from './achar-pastas';
 import { arquivoAbrivel } from './abrir-arquivo';
 import { achouArquivoNovo, rodarMacroDoCorel } from './corel';
-import { deveEsconderAoFechar, iniciaOculto } from './segundo-plano';
+import { atualizacaoPodeInstalarSozinha, deveEsconderAoFechar, iniciaOculto } from './segundo-plano';
 import { caminhoPermitido, pastaMkp } from './paths';
 import { criarAtualizador, type AtualizadorLike } from './updater';
 
@@ -129,8 +130,13 @@ const atualizador = criarAtualizador({
   updater: obterAtualizador(),
   ativo: app.isPackaged,
   enviar: (estado) => BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('atualizacao', estado)),
-  // só instala sozinho quando o Modo designer está ligado e a janela está escondida perto do relógio (nunca com a janela em uso ou minimizada)
-  ocioso: () => designerLigado && BrowserWindow.getAllWindows().every((w) => !w.isVisible() && !w.isMinimized()),
+  // instala sozinho no Modo designer: com a janela escondida perto do relógio, ou com a janela aberta mas ninguém mexendo no computador há 5 minutos
+  ocioso: () =>
+    atualizacaoPodeInstalarSozinha({
+      designer: designerLigado,
+      janelaEmUso: BrowserWindow.getAllWindows().some((w) => w.isVisible() && !w.isMinimized()),
+      segundosParado: powerMonitor.getSystemIdleTime(),
+    }),
 });
 setInterval(() => atualizador.instalarSeOcioso(), 2 * 60 * 1000);
 ipcMain.handle('versao', () => app.getVersion());
@@ -267,7 +273,29 @@ ipcMain.handle('designer-procurar-pastas', async (_e, substituir: unknown) => {
 });
 ipcMain.handle('clientes-listar', async () => {
   const c = await exigirDesigner();
-  return listarClientes(c, Date.now(), 30_000, c.enviados);
+  const r = await listarClientes(c, Date.now(), 30_000, c.enviados);
+  // aviso "voltou da Pasta X para a Pasta Y": compara com onde cada cliente foi visto da última vez
+  const antes = { etapas: c.etapas ?? {}, voltas: c.voltas ?? {} };
+  const depois = atualizarEtapas(antes, r.clientes, Date.now());
+  if (JSON.stringify(depois) !== JSON.stringify(antes)) await configDoDesigner().salvar(depois);
+  for (const cli of r.clientes) {
+    const v = depois.voltas[norm(chaveDe(cli))];
+    if (v && !cli.duplicado) cli.voltou = v;
+  }
+  return r;
+});
+ipcMain.handle('fluxo-voltou-visto', async (_e, caminhoCliente: unknown) => {
+  const c = await exigirDesigner();
+  if (typeof caminhoCliente !== 'string') throw new Error('Pasta inválida.');
+  for (const raiz of [c.pasta1, c.pasta2, c.pasta3]) {
+    const origem = raiz ? origemDoCliente(raiz, caminhoCliente) : null;
+    if (origem) {
+      const novo = descartarVolta({ etapas: c.etapas ?? {}, voltas: c.voltas ?? {} }, chaveDe({ nome: basename(caminhoCliente), ...(origem.grupo ? { grupo: origem.grupo } : {}) }));
+      await configDoDesigner().salvar(novo);
+      return true;
+    }
+  }
+  throw new Error('Essa pasta não está nas pastas do fluxo.');
 });
 ipcMain.handle('clientes-buscar', async (_e, termo: unknown) => {
   const c = await exigirDesigner();
@@ -376,7 +404,8 @@ ipcMain.handle('estado-atualizacao', () => atualizador.estado());
 ipcMain.handle('verificar-atualizacao', () => atualizador.verificar(true));
 ipcMain.handle('instalar-atualizacao', () => atualizador.instalar());
 
-const QUATRO_HORAS = 4 * 60 * 60 * 1000;
+// procura versão nova no GitHub a cada 15 minutos (era 4 horas: uma versão publicada de manhã só era notada à tarde)
+const QUINZE_MINUTOS = 15 * 60 * 1000;
 
 /** Notificação do Windows (canto da tela). Se o sistema recusar, tenta o balão do ícone perto do relógio e pisca o app na barra de tarefas. */
 function avisar(titulo: string, corpo: string, aoClicar?: () => void): void {
@@ -443,7 +472,7 @@ function criarJanela(oculta = false): BrowserWindow {
   void win.loadFile(join(__dirname, '..', 'renderer', 'index.html'));
   // verifica ao abrir (em silêncio: sem internet não aparece nada) e de tempos em tempos enquanto o app fica aberto
   win.webContents.once('did-finish-load', () => void atualizador.verificar(false));
-  const timer = setInterval(() => void atualizador.verificar(false), QUATRO_HORAS);
+  const timer = setInterval(() => void atualizador.verificar(false), QUINZE_MINUTOS);
   win.on('closed', () => clearInterval(timer));
   win.on('close', (e) => {
     if (!deveEsconderAoFechar({ designer: designerLigado }, saindo)) return;

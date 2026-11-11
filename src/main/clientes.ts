@@ -26,6 +26,8 @@ export interface Cliente {
   duplicado?: boolean;
   /** Etapas 2 e 3: algum arquivo foi mexido depois de a pasta ser enviada pelo app. */
   alteradoDepoisDoEnvio?: boolean;
+  /** A pasta foi movida para uma etapa anterior por alguém (fora do app) e o aviso ainda não foi dispensado. */
+  voltou?: { de: number; para: number; em: number };
 }
 
 export interface Pastas {
@@ -35,7 +37,7 @@ export interface Pastas {
   pasta4?: string;
 }
 
-const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+export const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
 /** Um PDF com o mesmo nome de um .cdr é a exportação do Corel (o trabalho já feito), não a arte que o cliente mandou. */
 function ehExportacaoDoCorel(nome: string, todos: string[]): boolean {

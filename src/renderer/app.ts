@@ -874,7 +874,7 @@ const ROTULOS_ETAPAS = ['Arte', 'Aprovar', 'Impressão', 'Finalizado'];
 
 function linhaDoCliente(c: Cliente): HTMLElement {
   const linha = document.createElement('article');
-  linha.className = `cliente-linha${c.alteradoDepoisDoEnvio ? ' com-alteracao' : ''}`;
+  linha.className = `cliente-linha${c.alteradoDepoisDoEnvio || c.voltou ? ' com-alteracao' : ''}`;
 
   // 1) nome do cliente em cima (e a pasta de grupo, se houver)
   const cabeca = document.createElement('header');
@@ -927,6 +927,7 @@ function linhaDoCliente(c: Cliente): HTMLElement {
   if (c.duplicado) aviso('Mesmo nome em mais de uma etapa');
   if (c.chegando) aviso('Chegando… (arquivos ainda sendo enviados)', 'suave');
   if (c.etapa === 1 && c.artes.length === 0) aviso('Sem PDF/JPG/PNG na pasta', 'suave');
+  if (c.voltou) aviso(`Voltou da Pasta ${c.voltou.de} para a Pasta ${c.voltou.para} (alguém moveu a pasta)`, 'alterado');
   if (c.alteradoDepoisDoEnvio) aviso('Alterado depois do envio: confira com a admin', 'alterado');
   if (avisos.childElementCount > 0) linha.append(avisos);
 
@@ -942,6 +943,14 @@ function linhaDoCliente(c: Cliente): HTMLElement {
     b.addEventListener('click', aoClicar);
     acoes.append(b);
   };
+  if (c.voltou) {
+    botao('Já vi', 'secundario', 'Tira o aviso de que a pasta voltou de etapa', () => {
+      void api.fluxoVoltouVisto(c.caminho).then(
+        () => desenharPasta1(),
+        (e) => mensagem(textoDoErro(e), true),
+      );
+    });
+  }
   if (c.alteradoDepoisDoEnvio) {
     botao('Já avisei a admin', 'secundario', 'Tira o aviso de alteração', () => {
       void api.fluxoConferido(c.caminho).then(
