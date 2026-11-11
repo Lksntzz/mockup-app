@@ -24,6 +24,7 @@ dialog.showOpenDialog = async (opcoes) =>
     ? { canceled: false, filePaths: [pastaDoDialogo] }
     : { canceled: false, filePaths: [arquivoDoDialogo] };
 
+process.env.MOCKUP_RAIZES_BUSCA = '/tmp/smoke-busca/G'; // onde o app procura as pastas do fluxo no teste
 process.env.MOCKUP_VIGIA_MS = '1500'; // vigia da Pasta 1 rápido para o teste
 require(process.env.MAIN_JS || path.resolve(__dirname, '../dist/main/main.js'));
 
@@ -293,6 +294,11 @@ app.on('browser-window-created', (_e, win) => {
       const largura = 1238, altura = 1562;
       const bmp = Buffer.alloc(largura * altura * 4, 200);
       fs.writeFileSync(path.join(cliente, 'arte.png'), nativeImage.createFromBitmap(bmp, { width: largura, height: altura }).toPNG());
+      const achar = '/tmp/smoke-busca/G/Empresa/FLUXO';
+      fs.rmSync('/tmp/smoke-busca', { recursive: true, force: true });
+      for (const n of ['1 AGUARDA ARTE', '2 APROVAR', '3 AGUARDA IMPRESSÃO', '4 FINALIZADOS']) fs.mkdirSync(path.join(achar, n), { recursive: true });
+      await js("document.getElementById('procurar-pastas').click()");
+      conferir(await ate("document.getElementById('caminho-pasta1').textContent.endsWith('1 AGUARDA ARTE') && document.getElementById('caminho-pasta4').textContent.endsWith('4 FINALIZADOS')", 'pastas achadas', 20000), 'o botão "Procurar as pastas sozinho" preenche as pastas 1 a 4');
       pastaDoDialogo = p1;
       await js("document.getElementById('escolher-pasta1').click()");
       await espera(400);

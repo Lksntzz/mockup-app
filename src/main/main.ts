@@ -1,17 +1,19 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, Notification, shell, Tray } from 'electron';
 import { EventEmitter } from 'node:events';
 import { mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
-import { userInfo } from 'node:os';
+import { existsSync } from 'node:fs';
+import { homedir, userInfo } from 'node:os';
 import { basename, dirname, extname, join, resolve } from 'node:path';
 import { PNG } from 'pngjs';
 import { entradaValida } from '../app/historico';
 import { criarHistorico, nomeSeguro } from './historico';
 import { rascunhoValido } from '../app/rascunhos';
 import { criarRascunhos } from './rascunhos';
-import { criarConfigDesigner } from './config-designer';
+import { criarConfigDesigner, type ConfigDesigner } from './config-designer';
 import { moverParaAprovar, origemDoCliente } from './pasta-fluxo';
 import { atualizarVistos, buscarFinalizados, chaveDe, listarClientes, ultimaAlteracao } from './clientes';
 import { criarPortaoDePin } from './pin';
+import { acharPastasDoFluxo } from './achar-pastas';
 import { arquivoAbrivel } from './abrir-arquivo';
 import { deveEsconderAoFechar, iniciaOculto } from './segundo-plano';
 import { caminhoPermitido, pastaMkp } from './paths';
@@ -240,6 +242,24 @@ ipcMain.handle('designer-escolher-pasta', async (_e, qual: unknown) => {
   const caminho = r.filePaths[0];
   if (r.canceled || !caminho) return configDoDesigner().ler();
   return configDoDesigner().salvar({ [qual]: caminho });
+});
+/** Onde procurar as pastas do fluxo: as unidades D: a Z: (o Drive costuma ser G:) e a pasta do usuário. */
+function raizesDeBusca(): string[] {
+  if (process.env.MOCKUP_RAIZES_BUSCA) return process.env.MOCKUP_RAIZES_BUSCA.split(';').filter(Boolean);
+  if (process.platform !== 'win32') return [];
+  const unidades = 'DEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((l) => `${l}:\\`).filter((r) => existsSync(r));
+  return [...unidades, homedir()];
+}
+ipcMain.handle('designer-procurar-pastas', async (_e, substituir: unknown) => {
+  const c = await exigirDesigner();
+  const r = await acharPastasDoFluxo(raizesDeBusca());
+  const novas: Partial<ConfigDesigner> = {};
+  for (const k of ['pasta1', 'pasta2', 'pasta3', 'pasta4'] as const) {
+    const achada = r.pastas[k];
+    if (achada && (substituir === true || !c[k])) novas[k] = achada;
+  }
+  const config = Object.keys(novas).length > 0 ? await configDoDesigner().salvar(novas) : c;
+  return { config, achou: Object.keys(novas).length, avisos: r.avisos };
 });
 ipcMain.handle('clientes-listar', async () => {
   const c = await exigirDesigner();

@@ -778,6 +778,14 @@ async function trocarModoDesigner(): Promise<void> {
     const [config] = await Promise.all([api.designerLigar(ligar, pin), esperar(1200)]);
     aplicarDesigner(config);
     if (ligar) {
+      if (!config.pasta1) {
+        // primeira vez: tenta achar as pastas sozinho (só preenche o que está vazio)
+        const r = await api.designerProcurarPastas(false).catch(() => null);
+        if (r) {
+          aplicarDesigner(r.config);
+          if (r.achou > 0) mensagem(`Achei ${r.achou} ${r.achou === 1 ? 'pasta' : 'pastas'} do fluxo. Confira em "Pastas do fluxo".`);
+        }
+      }
       await desenharPasta1();
       giro.hidden = true;
       titulo.textContent = `Bem-vindo, ${NOME_DO_DESIGNER}`;
@@ -1033,6 +1041,23 @@ $('iniciar-windows').addEventListener('change', () => {
     },
     (e) => mensagem(textoDoErro(e), true),
   );
+});
+$('procurar-pastas').addEventListener('click', () => {
+  const botao = $<HTMLButtonElement>('procurar-pastas');
+  botao.disabled = true;
+  botao.textContent = 'Procurando…';
+  void api.designerProcurarPastas(true).then(
+    async (r) => {
+      aplicarDesigner(r.config);
+      await desenharPasta1();
+      const resumo = r.achou > 0 ? `Achei ${r.achou} ${r.achou === 1 ? 'pasta' : 'pastas'}. Confira os caminhos abaixo.` : 'Não achei nenhuma pasta.';
+      mensagem([resumo, ...r.avisos].join(' '), r.achou === 0 || r.avisos.length > 0);
+    },
+    (e) => mensagem(textoDoErro(e), true),
+  ).finally(() => {
+    botao.disabled = false;
+    botao.textContent = 'Procurar as pastas sozinho';
+  });
 });
 $('atualizar-pasta1').addEventListener('click', () => void desenharPasta1());
 // a lista se atualiza sozinha enquanto a aba está aberta
