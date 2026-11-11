@@ -1010,17 +1010,49 @@ function linhaDoCliente(c: Cliente): HTMLElement {
   }
   // as cópias de segurança que o Corel cria sozinho não viram botão (continuam na lista de arquivos)
   const abrivel = c.arquivos.filter((n) => /\.(cdr|pdf)$/i.test(n) && !/^c[oó]pia_de_seguran[cç]a/i.test(n));
-  for (const nomeArq of abrivel) {
-    const ehCdr = /\.cdr$/i.test(nomeArq);
-    const unico = abrivel.filter((n) => /\.cdr$/i.test(n) === ehCdr).length === 1;
-    const texto = unico ? (ehCdr ? 'Abrir no Corel' : 'Abrir PDF') : `${ehCdr ? 'Corel' : 'PDF'}: ${nomeArq}`;
-    botao(texto, 'secundario', nomeArq, () => {
-      const sep = c.caminho.includes('\\') ? '\\' : '/';
-      void api.abrirArquivoCliente(`${c.caminho}${sep}${nomeArq}`).then(
-        (r) => mensagem(r.ok ? `Abrindo ${nomeArq}…` : r.motivo, !r.ok),
-        (e) => mensagem(textoDoErro(e), true),
-      );
-    });
+  const abrirArquivo = (nomeArq: string) => {
+    const sep = c.caminho.includes('\\') ? '\\' : '/';
+    void api.abrirArquivoCliente(`${c.caminho}${sep}${nomeArq}`).then(
+      (r) => mensagem(r.ok ? `Abrindo ${nomeArq}…` : r.motivo, !r.ok),
+      (e) => mensagem(textoDoErro(e), true),
+    );
+  };
+  if (abrivel.length <= 2) {
+    for (const nomeArq of abrivel) {
+      const ehCdr = /\.cdr$/i.test(nomeArq);
+      const unico = abrivel.filter((n) => /\.cdr$/i.test(n) === ehCdr).length === 1;
+      const texto = unico ? (ehCdr ? 'Abrir no Corel' : 'Abrir PDF') : `${ehCdr ? 'Corel' : 'PDF'}: ${nomeArq}`;
+      botao(texto, 'secundario', nomeArq, () => abrirArquivo(nomeArq));
+    }
+  } else {
+    // muitos arquivos: um menu só, em vez de um botão enorme para cada um
+    const menu = document.createElement('details');
+    menu.className = 'cc-menu';
+    const rotulo = document.createElement('summary');
+    rotulo.textContent = `Abrir arquivo (${abrivel.length})`;
+    menu.append(rotulo);
+    const itens = document.createElement('div');
+    itens.className = 'cc-menu-itens';
+    for (const nomeArq of abrivel) {
+      const ehCdr = /\.cdr$/i.test(nomeArq);
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'cc-menu-item';
+      b.title = nomeArq;
+      const tipo = document.createElement('span');
+      tipo.className = `cc-tipo ${ehCdr ? 'cdr' : 'pdf'}`;
+      tipo.textContent = ehCdr ? 'CDR' : 'PDF';
+      const nomeEl = document.createElement('span');
+      nomeEl.textContent = nomeArq;
+      b.append(tipo, nomeEl);
+      b.addEventListener('click', () => {
+        abrirArquivo(nomeArq);
+        menu.open = false;
+      });
+      itens.append(b);
+    }
+    menu.append(itens);
+    acoes.append(menu);
   }
   if (acoes.childElementCount > 0) linha.append(acoes);
 
@@ -1081,6 +1113,23 @@ const semAcentoR = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toL
 const ORDEM_SITUACAO: Record<string, number> = { 'arte-a-fazer': 0, 'em-andamento': 1, 'pronta-para-aprovar': 2 };
 
 /** Desenha a lista a partir do último resultado (sem ir ao disco): filtros e ordem do que precisa de ação primeiro. */
+// Só o que ainda não estava na tela anima ao entrar (assim a lista não "pisca" a cada atualização).
+const jaNaTela = new Set<string>();
+const ultimosNumeros = new Map<string, number>();
+/** Número que sobe até o valor novo; sem animação se o valor não mudou ou se o usuário pediu menos movimento. */
+function animarNumero(chave: string, el: HTMLElement, para: number): void {
+  const de = ultimosNumeros.get(chave);
+  ultimosNumeros.set(chave, para);
+  if (de === undefined || de === para || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const t0 = performance.now();
+  const passo = (agora: number) => {
+    const f = Math.min(1, (agora - t0) / 600);
+    el.textContent = String(Math.round(de + (para - de) * (1 - (1 - f) ** 3)));
+    if (f < 1) requestAnimationFrame(passo);
+  };
+  requestAnimationFrame(passo);
+}
+
 function desenharListaPasta1(): void {
   const alvo = $('pasta1-lista');
   const filtros = $('pasta1-filtros');
@@ -1118,6 +1167,28 @@ function desenharListaPasta1(): void {
   const termo = semAcentoR($<HTMLInputElement>('filtro-nome').value.trim());
   const passa = (c: Cliente) =>
     (!termo || semAcentoR(`${c.grupo ?? ''} ${c.nome}`).includes(termo)) && (c.etapa !== 1 || filtroSituacao === 'todos' || c.situacao === filtroSituacao);
+  // painel de números no topo
+  const resumo = document.createElement('div');
+  resumo.className = 'resumo';
+  const NUMEROS: [string, string, number][] = [
+    ['alerta', 'Arte para fazer', doEtapa1.filter((c) => c.situacao === 'arte-a-fazer').length],
+    ['andamento', 'Em andamento', doEtapa1.filter((c) => c.situacao === 'em-andamento').length],
+    ['pronta', 'Prontas para aprovar', doEtapa1.filter((c) => c.situacao === 'pronta-para-aprovar').length],
+    ['aprovar', 'Em aprovação', ultimaLista.filter((c) => c.etapa === 2).length],
+    ['impressao', 'Aguarda impressão', ultimaLista.filter((c) => c.etapa === 3).length],
+  ];
+  for (const [tipo, rotulo, valor] of NUMEROS) {
+    const t = document.createElement('div');
+    t.className = `resumo-item ${tipo}${valor === 0 ? ' zero' : ''}`;
+    const n = document.createElement('strong');
+    n.textContent = String(valor);
+    animarNumero(`resumo-${tipo}`, n, valor);
+    const r = document.createElement('span');
+    r.textContent = rotulo;
+    t.append(n, r);
+    resumo.append(t);
+  }
+  alvo.append(resumo);
   const TITULOS = ['1 · Aguarda arte', '2 · Aprovar', '3 · Aguarda impressão'];
   let mostrou = 0;
   for (const etapa of [1, 2, 3] as const) {
@@ -1130,10 +1201,24 @@ function desenharListaPasta1(): void {
     secao.className = 'secao-etapa';
     const t = document.createElement('h3');
     t.className = 'secao-titulo';
-    t.textContent = `${TITULOS[etapa - 1]} (${doGrupo.length})`;
+    t.dataset.etapa = String(etapa);
+    t.append(document.createTextNode(TITULOS[etapa - 1] ?? ''));
+    const qtd = document.createElement('span');
+    qtd.className = 'secao-qtd';
+    qtd.textContent = String(doGrupo.length);
+    t.append(qtd);
     const grade = document.createElement('div');
     grade.className = 'grade-clientes';
-    for (const c of doGrupo) grade.append(linhaDoCliente(c));
+    doGrupo.forEach((c, i) => {
+      const el = linhaDoCliente(c);
+      const k = `${c.etapa}|${c.caminho}`;
+      if (!jaNaTela.has(k)) {
+        el.classList.add('entra');
+        el.style.setProperty('--i', String(Math.min(i, 14)));
+        jaNaTela.add(k);
+      }
+      grade.append(el);
+    });
     secao.append(t, grade);
     alvo.append(secao);
   }
