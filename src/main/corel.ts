@@ -43,21 +43,48 @@ export const CAMINHO_DO_MOLDE = 'C:\\MOLDE\\MOLDE.cdr';
  * Corel fechado + macro do PDF: não abre nada, porque o PDF é do documento que já está aberto.
  */
 export function scriptVbs(macro: MacroDoCorel): string {
-  const corelFechado =
-    macro === 'ArteDoClienteNoMolde'
-      ? [
-          '  Set sh = CreateObject("WScript.Shell")',
-          `  sh.Run """${CAMINHO_DO_MOLDE}""", 1, False`,
-          '  esperando = True',
-          '  WScript.Sleep 10000',
-        ]
-      : [
-          '  WScript.Echo "ERRO: o CorelDRAW nao esta aberto. Abra o .cdr do cliente nele e tente de novo."',
-          '  WScript.Quit 2',
-        ];
+  const arte = macro === 'ArteDoClienteNoMolde';
+  // Corel que "existe" mas não aceita conexão (travado ou resto de uma queda): para a arte, finaliza e abre de novo; para o PDF, avisa.
+  const naoResponde = arte
+    ? [
+        '    diag = diag & ", corel nao respondeu (" & Err.Number & "): finalizei e vou abrir de novo"',
+        '    Set sh = CreateObject("WScript.Shell")',
+        '    sh.Run "taskkill /F /IM CorelDRW.exe", 0, True',
+        '    WScript.Sleep 4000',
+        '    rodando = False',
+        '    Err.Clear',
+      ]
+    : [
+        '    WScript.Echo "ERRO: o CorelDRAW nao esta respondendo (" & Err.Number & "). Feche ele pelo Gerenciador de Tarefas, abra o .cdr do cliente e tente de novo."',
+        '    WScript.Quit 2',
+      ];
+  const corelFechado = arte
+    ? [
+        '  Set sh = CreateObject("WScript.Shell")',
+        `  sh.Run """${CAMINHO_DO_MOLDE}""", 1, False`,
+        '  esperando = True',
+        // espera a janela do Corel mostrar o nome do molde (arquivo carregado); sem mexer nele por COM enquanto carrega
+        '  pronto = False',
+        '  For i = 1 To 40',
+        '    WScript.Sleep 3000',
+        '    Err.Clear',
+        '    Set execp = sh.Exec("powershell -NoProfile -Command ""(Get-Process CorelDRW -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -like \'*MOLDE*\' }).Count""")',
+        '    If Err.Number <> 0 Then Exit For',
+        '    saida = Trim(execp.StdOut.ReadAll())',
+        '    If saida <> "" And saida <> "0" Then pronto = True : Exit For',
+        '  Next',
+        '  Err.Clear',
+        '  diag = diag & ", janela do molde detectada=" & pronto',
+        // mesmo com a janela pronta, o Corel ainda termina de carregar a interface e o VBA
+        '  If pronto Then WScript.Sleep 10000 Else WScript.Sleep 30000',
+      ]
+    : [
+        '  WScript.Echo "ERRO: o CorelDRAW nao esta aberto. Abra o .cdr do cliente nele e tente de novo."',
+        '  WScript.Quit 2',
+      ];
   return [
     'On Error Resume Next',
-    'Dim app, sh, wmi, procs, rodando, ok, esperando, limite, maximo, tentativa, erro1, erro2, i, diag, n1, n2',
+    'Dim app, sh, wmi, procs, rodando, ok, esperando, limite, maximo, tentativa, erro1, erro2, i, diag, n1, n2, pronto, execp, saida',
     'esperando = False',
     'rodando = True', // se não der para olhar os processos, supõe aberto: conectar é o caminho seguro
     'diag = "wmi=falhou"',
@@ -74,20 +101,27 @@ export function scriptVbs(macro: MacroDoCorel): string {
     '  diag = "wmi falhou: " & Err.Number & " " & Err.Description',
     'End If',
     'Err.Clear',
+    // Corel "aberto": uma conexão de teste. Sem resposta = travado ou sobra de queda.
+    'If rodando Then',
+    '  Set app = CreateObject("CorelDRAW.Application")',
+    '  If Err.Number <> 0 Then',
+    ...naoResponde,
+    '  End If',
+    'End If',
     'If Not rodando Then',
     ...corelFechado,
     'End If',
-    // CreateObject conecta no Corel aberto; recém-aberto, ele demora para aceitar a conexão
+    // recém-aberto por nós: poucas tentativas espaçadas (insistir a cada 2 s travava o Corel carregando)
     'limite = 1',
-    'If esperando Then limite = 45',
+    'If esperando Then limite = 8',
     'For i = 1 To limite',
     '  Err.Clear',
     '  Set app = CreateObject("CorelDRAW.Application")',
     '  If Err.Number = 0 Then Exit For',
-    '  WScript.Sleep 2000',
+    '  WScript.Sleep 5000',
     'Next',
     'If Err.Number <> 0 Then',
-    '  WScript.Echo "ERRO: nao consegui falar com o CorelDRAW (" & Err.Description & ")"',
+    '  WScript.Echo "ERRO: nao consegui falar com o CorelDRAW (" & Err.Description & ") | Diagnostico: " & diag',
     '  WScript.Quit 2',
     'End If',
     'app.Visible = True',
@@ -95,19 +129,20 @@ export function scriptVbs(macro: MacroDoCorel): string {
     'app.InitializeVBA',
     'Err.Clear',
     'ok = False',
-    // Corel recém-aberto demora para carregar os macros: tenta de novo por até 1 minuto; já aberto, é uma tentativa só
+    // só repete quando o Corel respondeu "macro não encontrado" (ainda carregando); erro de conexão (462) não se repete
     'maximo = 1',
-    'If esperando Then maximo = 30',
+    'If esperando Then maximo = 6',
     'For tentativa = 1 To maximo',
     '  Err.Clear',
     `  app.GMSManager.RunMacro "GlobalMacros", "MKP.${macro}"`,
     '  If Err.Number = 0 Then ok = True : Exit For',
     '  erro1 = Err.Description : n1 = Err.Number',
+    '  If n1 = 462 Then Exit For',
     '  Err.Clear',
     `  app.GMSManager.RunMacro "GlobalMacros.MKP", "${macro}"`,
     '  If Err.Number = 0 Then ok = True : Exit For',
     '  erro2 = Err.Description : n2 = Err.Number',
-    '  If tentativa < maximo Then WScript.Sleep 2000',
+    '  If tentativa < maximo Then WScript.Sleep 5000',
     'Next',
     'If ok Then',
     '  WScript.Echo "OK"',

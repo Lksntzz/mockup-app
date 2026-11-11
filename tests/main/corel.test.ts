@@ -46,6 +46,7 @@ describe('scriptVbs', () => {
     expect(vbs).toContain('C:\\MOLDE\\MOLDE.cdr');
     expect(vbs).toContain('WScript.Sleep');
     expect(vbs).toMatch(/If esperando Then maximo = \d+/);
+    expect(vbs).toContain('MainWindowTitle');
   });
   test('gerar PDF com o Corel fechado não abre nada: pede para abrir o .cdr do cliente', () => {
     const vbs = scriptVbs('ExportarPDFparaMKP');
@@ -217,5 +218,19 @@ describe('lerResultadoDoMolde', () => {
     const r = await lerResultadoDoMolde(tmp);
     expect(r?.frente?.estado).toBe('ok');
     expect(await readdir(tmp)).toEqual([]);
+  });
+});
+
+describe('scriptVbs: Corel que não responde', () => {
+  test('arte: Corel existente que recusa conexão é finalizado e o molde é aberto de novo', () => {
+    const vbs = scriptVbs('ArteDoClienteNoMolde');
+    expect(vbs).toContain('taskkill /F /IM CorelDRW.exe');
+    expect(vbs.indexOf('taskkill')).toBeLessThan(vbs.indexOf('sh.Run """C:\\MOLDE\\MOLDE.cdr"""'));
+  });
+  test('PDF: Corel que não responde nunca é finalizado (pode ter trabalho aberto)', () => {
+    expect(scriptVbs('ExportarPDFparaMKP')).not.toContain('taskkill');
+  });
+  test('erro de conexão 462 não repete o macro (repetir por cima travava o Corel)', () => {
+    expect(scriptVbs('ArteDoClienteNoMolde')).toContain('If n1 = 462 Then Exit For');
   });
 });
