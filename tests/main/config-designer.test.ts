@@ -63,3 +63,16 @@ describe('enviados', () => {
     expect((await c.ler()).enviados).toEqual({ A: 5 });
   });
 });
+
+describe('trocar a Pasta 1', () => {
+  test('ao trocar a Pasta 1 a lista de clientes já vistos é zerada (senão todos os clientes alertariam de uma vez)', async () => {
+    const c = criarConfigDesigner(arquivo);
+    await c.salvar({ designer: true, pasta1: 'G:\\a', vistos: ['X'] });
+    await c.salvar({ pasta2: 'G:\\b' });
+    expect((await c.ler()).vistos).toEqual(['X']);
+    await c.salvar({ pasta1: 'G:\\a' });
+    expect((await c.ler()).vistos).toEqual(['X']);
+    await c.salvar({ pasta1: 'G:\\outra' });
+    expect((await c.ler()).vistos).toBeUndefined();
+  });
+});

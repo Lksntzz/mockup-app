@@ -35,6 +35,9 @@ export interface Pastas {
 
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
+/** Arquivos que o Windows, o Mac e o Office criam sozinhos e que não são do trabalho. */
+const ARQUIVO_DE_SISTEMA = /^(desktop\.ini|thumbs\.db|\.ds_store|~\$.*)$/i;
+
 /** Nome único do cliente para alertas e duplicados: com o grupo na frente, se houver. */
 /** Drive e antivírus mexem nos arquivos logo depois do envio; só conta alteração acima desta folga. */
 export const TOLERANCIA_ENVIO_MS = 120_000;
@@ -77,7 +80,7 @@ export async function listarClientes(
     }
     for (const c of pastasDeCliente) {
       const itens = await nomesEm(c.caminho);
-      const arquivos = itens.filter((i) => !i.pasta);
+      const arquivos = itens.filter((i) => !i.pasta && !ARQUIVO_DE_SISTEMA.test(i.nome));
       let situacao: Situacao = 'em-etapa';
       let faltando: string[] = [];
       if (etapa === 1) {

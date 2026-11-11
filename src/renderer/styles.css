@@ -176,3 +176,10 @@ body:not([data-estado="pronto"]) #coluna-capas { display: none; }
 .pin-form input { width: 120px; padding: 8px 10px; font-size: 18px; text-align: center; letter-spacing: 4px; border-radius: 6px; border: 0; }
 .pin-erro { min-height: 20px; color: #ffd6d6; font-size: 14px; }
 .alterado { color: #b42318; font-weight: 700; font-size: 13px; }
+
+/* a lista de clientes nunca passa da largura do card (nomes longos viram reticências) */
+.cliente-linha { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.cliente-linha .topo-linha, .cliente-linha .etapas { min-width: 0; }
+.cliente-linha button { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.etapas .etapa { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cliente-linha .arquivos { max-width: 100%; }

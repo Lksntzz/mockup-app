@@ -174,3 +174,12 @@ describe('ultimaAlteracao', () => {
     expect(await ultimaAlteracao(join(p(2), 'VAZIA'))).toBe(0);
   });
 });
+
+describe('arquivos de sistema e backups', () => {
+  test('desktop.ini, Thumbs.db e temporários ~$ não entram na lista de arquivos do cliente', async () => {
+    await pasta('1', 'A');
+    for (const n of ['arte.png', 'desktop.ini', 'Thumbs.db', '~$lock.cdr', '.DS_Store']) await arq('1', 'A', n);
+    const { clientes } = await listarClientes(pastas(), agoraLonge(), 0);
+    expect(clientes[0]?.arquivos).toEqual(['arte.png']);
+  });
+});

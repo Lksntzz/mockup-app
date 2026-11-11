@@ -883,11 +883,12 @@ function linhaDoCliente(c: Cliente): HTMLElement {
   if (c.chegando) nota('chegando… (arquivos ainda sendo enviados)');
   if (c.etapa === 1 && c.artes.length === 0) nota('sem PDF/JPG/PNG na pasta');
   for (const arte of c.artes) {
-    if (c.etapa !== 1) break;
+    // só oferece fazer o MKP enquanto ele ainda não está pronto
+    if (c.etapa !== 1 || c.situacao === 'pronta-para-aprovar') break;
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'primario';
-    b.textContent = c.artes.length === 1 ? 'Abrir no MKP' : `Abrir ${nomeDoCaminho(arte)}`;
+    b.textContent = c.artes.length === 1 ? 'Fazer MKP com a arte' : `Fazer MKP: ${nomeDoCaminho(arte)}`;
     b.title = nomeDoCaminho(arte);
     b.addEventListener('click', () => {
       void (async () => {
@@ -903,7 +904,8 @@ function linhaDoCliente(c: Cliente): HTMLElement {
     topo.append(b);
   }
   linha.append(topo);
-  const abrivel = c.arquivos.filter((n) => /\.(cdr|pdf)$/i.test(n));
+  // as cópias de segurança que o Corel cria sozinho não viram botão (continuam na lista de arquivos)
+  const abrivel = c.arquivos.filter((n) => /\.(cdr|pdf)$/i.test(n) && !/^c[oó]pia_de_seguran[cç]a/i.test(n));
   if (abrivel.length > 0) {
     const acoes = document.createElement('div');
     acoes.className = 'topo-linha';

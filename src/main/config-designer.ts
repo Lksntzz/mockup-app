@@ -38,7 +38,10 @@ export function criarConfigDesigner(arquivo: string) {
   return {
     ler,
     async salvar(parcial: Partial<ConfigDesigner>): Promise<ConfigDesigner> {
-      const novo = { ...(await ler()), ...parcial };
+      const atual = await ler();
+      const novo = { ...atual, ...parcial };
+      // outra Pasta 1 = outra lista de clientes: recomeça o "já visto" para não alertar todos de uma vez
+      if (parcial.pasta1 !== undefined && parcial.pasta1 !== atual.pasta1 && parcial.vistos === undefined) delete novo.vistos;
       await mkdir(dirname(arquivo), { recursive: true });
       const tmp = `${arquivo}.tmp`;
       await writeFile(tmp, JSON.stringify(novo, null, 2), 'utf-8');
