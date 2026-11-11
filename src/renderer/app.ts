@@ -271,9 +271,13 @@ function desenharPainel(): void {
 
 type PdfAberto = Awaited<ReturnType<typeof openPdf>>;
 
+// PDFs exportados do Corel (escolhidos no card do cliente): a página inteira É a arte, então não se procura "a imagem de cima".
+const paginaInteiraEm = new Set<string>();
+let paginaInteiraAtual = false;
+
 /** Renderiza a página e fica só com a arte (sem margens nem o fundo esticado de alguns PDFs). */
 async function lerArteDaPagina(doc: PdfAberto, n: number): Promise<Raster> {
-  const caixa = await doc.artBox(n);
+  const caixa = paginaInteiraAtual ? null : await doc.artBox(n);
   const pagina = await doc.renderPage(n, widthForArt(1200, caixa));
   return cropMargins(caixa ? cropToBox(pagina, caixa) : pagina);
 }
@@ -308,6 +312,7 @@ interface Retomada {
 async function abrirPdf(arquivo: ArquivoPdf, retomada?: Retomada): Promise<void> {
   if (!pacote) return;
   const { nome, bytes, caminho } = arquivo;
+  paginaInteiraAtual = paginaInteiraEm.has(caminho);
   if (retomada) trabalhos.remover(caminho); // o histórico manda: parte das cores salvas, não do que estava na memória
   const salvo = trabalhos.buscar(caminho);
   if (salvo) {
@@ -998,6 +1003,8 @@ function linhaDoCliente(c: Cliente): HTMLElement {
         void (async () => {
           try {
             const arquivo = await api.lerPdf(escolhida);
+            if (doCorel.includes(escolhida)) paginaInteiraEm.add(arquivo.caminho);
+            else paginaInteiraEm.delete(arquivo.caminho);
             if (document.body.dataset.estado === 'pronto') {
               guardarAtual();
               irParaInicio();
