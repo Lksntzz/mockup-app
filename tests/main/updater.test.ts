@@ -17,15 +17,17 @@ class AtualizadorFalso extends EventEmitter {
     this.emit('checking-for-update');
     return null;
   }
-  quitAndInstall(): void {
+  argumentos: unknown[] = [];
+  quitAndInstall(...args: unknown[]): void {
     this.instalou++;
+    this.argumentos = args;
   }
 }
 
-function montar(ativo = true) {
+function montar(ativo = true, ocioso: () => boolean = () => false) {
   const updater = new AtualizadorFalso();
   const estados: EstadoAtualizacao[] = [];
-  const at = criarAtualizador({ updater, ativo, enviar: (e) => estados.push(e) });
+  const at = criarAtualizador({ updater, ativo, enviar: (e) => estados.push(e), ocioso });
   return { updater, estados, at };
 }
 
@@ -103,5 +105,36 @@ describe('atualizador: instalar', () => {
     updater.emit('update-downloaded', { version: '0.3.0' });
     await at.verificar(true);
     expect(updater.verificacoes).toBe(0);
+  });
+});
+
+describe('atualizador: instalar sozinho quando o app está escondido', () => {
+  test('baixou e o app está escondido: instala na hora, em silêncio e reabrindo', () => {
+    const { updater } = montar(true, () => true);
+    updater.emit('update-downloaded', { version: '9.9.9' });
+    expect(updater.instalou).toBe(1);
+    expect(updater.argumentos).toEqual([true, true]);
+  });
+  test('baixou com a janela em uso: não instala; instala depois que o app ficar escondido', () => {
+    let escondido = false;
+    const { updater, at } = montar(true, () => escondido);
+    updater.emit('update-downloaded', { version: '9.9.9' });
+    expect(updater.instalou).toBe(0);
+    at.instalarSeOcioso();
+    expect(updater.instalou).toBe(0);
+    escondido = true;
+    at.instalarSeOcioso();
+    expect(updater.instalou).toBe(1);
+  });
+  test('sem versão baixada não instala nada, mesmo escondido', () => {
+    const { updater, at } = montar(true, () => true);
+    at.instalarSeOcioso();
+    expect(updater.instalou).toBe(0);
+  });
+  test('o botão Reiniciar continua instalando na hora (janela aberta)', () => {
+    const { updater, at } = montar(true, () => false);
+    updater.emit('update-downloaded', { version: '9.9.9' });
+    at.instalar();
+    expect(updater.instalou).toBe(1);
   });
 });

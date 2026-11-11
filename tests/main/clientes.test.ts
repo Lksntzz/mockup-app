@@ -183,3 +183,13 @@ describe('arquivos de sistema e backups', () => {
     expect(clientes[0]?.arquivos).toEqual(['arte.png']);
   });
 });
+
+describe('PDF com o mesmo nome do .cdr', () => {
+  test('é a exportação do Corel e não conta como arte do cliente; PDF de outro nome continua sendo arte', async () => {
+    await pasta('1', 'A');
+    for (const n of ['CAPA.cdr', 'capa.pdf', 'frente.png', 'proposta.pdf']) await arq('1', 'A', n);
+    const { clientes } = await listarClientes(pastas(), agoraLonge(), 0);
+    expect(clientes[0]?.artes.map((a) => a.split(/[\\/]/).pop()).sort()).toEqual(['frente.png', 'proposta.pdf']);
+    expect(clientes[0]?.arquivos).toContain('capa.pdf');
+  });
+});

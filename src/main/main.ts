@@ -128,7 +128,10 @@ const atualizador = criarAtualizador({
   updater: obterAtualizador(),
   ativo: app.isPackaged,
   enviar: (estado) => BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('atualizacao', estado)),
+  // só instala sozinho quando o Modo designer está ligado e a janela está escondida perto do relógio (nunca com a janela em uso ou minimizada)
+  ocioso: () => designerLigado && BrowserWindow.getAllWindows().every((w) => !w.isVisible() && !w.isMinimized()),
 });
+setInterval(() => atualizador.instalarSeOcioso(), 2 * 60 * 1000);
 ipcMain.handle('versao', () => app.getVersion());
 
 /** Quem está usando: o usuário do Windows. Cada operador tem o seu histórico, numa pasta só dele. */

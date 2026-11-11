@@ -35,6 +35,13 @@ export interface Pastas {
 
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
+/** Um PDF com o mesmo nome de um .cdr é a exportação do Corel (o trabalho já feito), não a arte que o cliente mandou. */
+function ehExportacaoDoCorel(nome: string, todos: string[]): boolean {
+  if (extname(nome).toLowerCase() !== '.pdf') return false;
+  const base = nome.slice(0, -4).toLowerCase();
+  return todos.some((n) => extname(n).toLowerCase() === '.cdr' && n.slice(0, -4).toLowerCase() === base);
+}
+
 /** Arquivos que o Windows, o Mac e o Office criam sozinhos e que não são do trabalho. */
 const ARQUIVO_DE_SISTEMA = /^(desktop\.ini|thumbs\.db|\.ds_store|~\$.*)$/i;
 
@@ -101,7 +108,7 @@ export async function listarClientes(
         etapa,
         situacao,
         faltando,
-        artes: arquivos.filter((i) => EXT_ARTE.has(extname(i.nome).toLowerCase())).map((i) => i.caminho),
+        artes: arquivos.filter((i) => EXT_ARTE.has(extname(i.nome).toLowerCase()) && !ehExportacaoDoCorel(i.nome, arquivos.map((a) => a.nome))).map((i) => i.caminho),
         arquivos: arquivos.map((i) => i.nome),
         chegando: agora - maisRecente < esperaMs,
         ...(alterado === undefined ? {} : { alteradoDepoisDoEnvio: alterado }),

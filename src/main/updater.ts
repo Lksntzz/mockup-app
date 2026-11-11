@@ -13,7 +13,7 @@ export interface AtualizadorLike extends EventEmitter {
   autoDownload: boolean;
   autoInstallOnAppQuit: boolean;
   checkForUpdates(): Promise<unknown>;
-  quitAndInstall(): void;
+  quitAndInstall(isSilent?: boolean, isForceRunAfter?: boolean): void;
 }
 
 export interface OpcoesDoAtualizador {
@@ -21,18 +21,25 @@ export interface OpcoesDoAtualizador {
   /** false no desenvolvimento (app não instalado): não há de onde atualizar. */
   ativo: boolean;
   enviar: (estado: EstadoAtualizacao) => void;
+  /** true quando ninguém está usando o app (janela escondida): aí a atualização pode instalar sozinha. */
+  ocioso?: () => boolean;
 }
 
 const MENSAGEM_ERRO = 'Não foi possível verificar atualizações agora. Confira a internet e tente de novo mais tarde.';
 const MENSAGEM_DESENVOLVIMENTO = 'As atualizações só funcionam no app instalado.';
 
-export function criarAtualizador({ updater, ativo, enviar }: OpcoesDoAtualizador) {
+export function criarAtualizador({ updater, ativo, enviar, ocioso = () => false }: OpcoesDoAtualizador) {
   let estado: EstadoAtualizacao = { tipo: 'ocioso' };
   let manual = false;
   const definir = (e: EstadoAtualizacao) => {
     estado = e;
     enviar(e);
   };
+
+  /** Instala em silêncio e reabre o app, mas só se a versão já foi baixada e ninguém está com a janela em uso. */
+  function instalarSeOcioso(): void {
+    if (estado.tipo === 'pronta' && ocioso()) updater.quitAndInstall(true, true);
+  }
 
   if (ativo) {
     updater.autoDownload = true;
@@ -43,7 +50,10 @@ export function criarAtualizador({ updater, ativo, enviar }: OpcoesDoAtualizador
       const versao = estado.tipo === 'baixando' ? estado.versao : '';
       definir({ tipo: 'baixando', versao, percent: Math.round(p.percent) });
     });
-    updater.on('update-downloaded', (info: { version: string }) => definir({ tipo: 'pronta', versao: info.version }));
+    updater.on('update-downloaded', (info: { version: string }) => {
+      definir({ tipo: 'pronta', versao: info.version });
+      instalarSeOcioso();
+    });
     updater.on('update-not-available', () => definir({ tipo: 'atualizado', manual }));
     // 'error' chega como evento E como promessa rejeitada: este é o único lugar que vira estado
     updater.on('error', () => definir({ tipo: 'erro', mensagem: MENSAGEM_ERRO, manual }));
@@ -63,6 +73,7 @@ export function criarAtualizador({ updater, ativo, enviar }: OpcoesDoAtualizador
         // o evento 'error' já virou estado; nunca deixa a exceção derrubar o app
       }
     },
+    instalarSeOcioso,
     instalar(): void {
       if (estado.tipo === 'pronta') updater.quitAndInstall();
     },
