@@ -28,6 +28,13 @@ describe('scriptVbs', () => {
       expect(vbs).toContain('CreateObject("CorelDRAW.Application")');
     }
   });
+  test('carrega o VBA do Corel (InitializeVBA) antes de rodar o macro: por padrão o Corel só carrega o VBA quando precisa', () => {
+    for (const macro of ['ArteDoClienteNoMolde', 'ExportarPDFparaMKP'] as const) {
+      const vbs = scriptVbs(macro);
+      expect(vbs).toContain('app.InitializeVBA');
+      expect(vbs.indexOf('app.InitializeVBA')).toBeLessThan(vbs.indexOf('RunMacro'));
+    }
+  });
   test('descobre se o Corel está aberto pelos processos do Windows', () => {
     const vbs = scriptVbs('ArteDoClienteNoMolde');
     expect(vbs).toContain('Win32_Process');

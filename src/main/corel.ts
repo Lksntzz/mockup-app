@@ -83,6 +83,9 @@ export function scriptVbs(macro: MacroDoCorel): string {
     '  WScript.Quit 2',
     'End If',
     'app.Visible = True',
+    // o Corel só carrega o VBA (e o GlobalMacros) quando precisa; quem controla de fora tem que pedir
+    'app.InitializeVBA',
+    'Err.Clear',
     'ok = False',
     // Corel recém-aberto demora para carregar os macros: tenta de novo por até 1 minuto; já aberto, é uma tentativa só
     'maximo = 1',
