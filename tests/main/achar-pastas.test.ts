@@ -29,6 +29,14 @@ describe('acharPastasDoFluxo', () => {
     const r = await acharPastasDoFluxo([join(base, 'D')]);
     expect(Object.keys(r.pastas).sort()).toEqual(['pasta1', 'pasta2', 'pasta3', 'pasta4']);
   });
+  test('entra na pasta oculta .shortcut-targets-by-id do Google Drive (atalhos compartilhados)', async () => {
+    await quatro('I', '.shortcut-targets-by-id', '1DcksskM', 'OPERAÇÃO');
+    await f('I', '.outra-oculta', '1 AGUARDA ARTE');
+    const r = await acharPastasDoFluxo([join(base, 'I')]);
+    const fluxo = join(base, 'I', '.shortcut-targets-by-id', '1DcksskM', 'OPERAÇÃO');
+    expect(r.pastas.pasta1).toBe(join(fluxo, '1 AGUARDA ARTE'));
+    expect(r.pastas.pasta4).toBe(join(fluxo, '4 FINALIZADOS'));
+  });
   test('dois conjuntos completos em lugares diferentes: não escolhe nenhum e avisa', async () => {
     await quatro('G', 'A'); await quatro('G', 'B');
     const r = await acharPastasDoFluxo([join(base, 'G')]);

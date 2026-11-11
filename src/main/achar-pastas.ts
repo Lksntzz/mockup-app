@@ -11,7 +11,8 @@ const REGRAS: [Chave, number, RegExp][] = [
   ['pasta3', 3, /^3\b.*aguard.*impress/],
   ['pasta4', 4, /^4\b.*finaliz/],
 ];
-const IGNORAR = /^(\$|\.)|^(node_modules|appdata|windows|program files|program files \(x86\)|programdata|system volume information)$/i;
+// '.shortcut-targets-by-id' é onde o Google Drive para Desktop guarda as pastas compartilhadas (I:\.shortcut-targets-by-id\...)
+const IGNORAR = /^(\$|\.(?!shortcut-targets-by-id$))|^(node_modules|appdata|windows|program files|program files \(x86\)|programdata|system volume information)$/i;
 
 export interface OpcoesBusca {
   /** Quantos níveis abaixo de cada raiz olhar. */
