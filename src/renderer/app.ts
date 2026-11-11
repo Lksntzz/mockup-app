@@ -1233,6 +1233,12 @@ $('procurar-pastas').addEventListener('click', () => {
     botao.textContent = 'Procurar as pastas sozinho';
   });
 });
+$('testar-notificacao').addEventListener('click', () => {
+  void api.notificacaoTestar().then(
+    (r) => mensagem(r.suportada ? 'Mandei a notificação de teste. Se não apareceu, aperte Win+N: ela pode estar na Central de Notificações (modo Não perturbe).' : 'O Windows diz que não suporta notificações aqui; tentei o balão do ícone perto do relógio.', !r.suportada),
+    (e) => mensagem(textoDoErro(e), true),
+  );
+});
 $('atualizar-pasta1').addEventListener('click', () => void desenharPasta1());
 // a lista se atualiza sozinha enquanto a aba está aberta
 window.setInterval(() => {

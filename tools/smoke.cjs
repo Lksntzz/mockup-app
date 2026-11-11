@@ -301,6 +301,8 @@ app.on('browser-window-created', (_e, win) => {
       conferir(await ate("document.getElementById('caminho-pasta1').textContent.endsWith('1 AGUARDA ARTE') && document.getElementById('caminho-pasta4').textContent.endsWith('4 FINALIZADOS')", 'pastas achadas', 20000), 'o botão "Procurar as pastas sozinho" preenche as pastas 1 a 4');
       await ate("!document.getElementById('procurar-pastas').disabled && document.getElementById('mensagem').textContent.includes('Achei')", 'busca terminou', 20000);
       await espera(800);
+      await js("document.getElementById('testar-notificacao').click()");
+      conferir(await ate("document.getElementById('mensagem').textContent.includes('notificação de teste') || document.getElementById('mensagem').textContent.includes('não suporta')", 'msg teste', 8000), 'o botão "Testar notificação" responde na tela');
       pastaDoDialogo = p1;
       await js("document.getElementById('escolher-pasta1').click()");
       await ate(`document.getElementById('caminho-pasta1').textContent === ${JSON.stringify(p1)}`, 'pasta 1 escolhida', 15000);

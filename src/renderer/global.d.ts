@@ -31,6 +31,7 @@ export interface MockupApi {
   removerRascunho(caminho: string): Promise<void>;
   designerEstado(): Promise<ConfigDesigner>;
   fluxoConferido(caminho: string): Promise<boolean>;
+  notificacaoTestar(): Promise<{ suportada: boolean }>;
   designerProcurarPastas(substituir: boolean): Promise<{ config: ConfigDesigner; achou: number; avisos: string[] }>;
   designerLigar(ligado: boolean, pin?: string): Promise<ConfigDesigner>;
   designerEscolherPasta(qual: 'pasta1' | 'pasta2' | 'pasta3' | 'pasta4'): Promise<ConfigDesigner>;

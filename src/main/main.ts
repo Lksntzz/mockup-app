@@ -304,6 +304,11 @@ ipcMain.handle('fluxo-mover', async (_e, caminhoCliente: unknown) => {
   if (r.ok) await registrarEnvio(chaveDe({ nome: basename(caminhoCliente), ...(origem.grupo ? { grupo: origem.grupo } : {}) }));
   return r;
 });
+ipcMain.handle('notificacao-testar', async () => {
+  await exigirDesigner();
+  avisar('Teste de notificação', 'Se você está vendo isto, o Windows está deixando o Mockup da Agenda avisar.', mostrarJanela);
+  return { suportada: Notification.isSupported() };
+});
 ipcMain.handle('operador', () => operador());
 ipcMain.handle('historico-listar', () => historicoDoOperador().listar());
 ipcMain.handle('historico-salvar', (_e, entrada: unknown) => {
@@ -320,6 +325,31 @@ ipcMain.handle('instalar-atualizacao', () => atualizador.instalar());
 
 const QUATRO_HORAS = 4 * 60 * 60 * 1000;
 
+/** Notificação do Windows (canto da tela). Se o sistema recusar, tenta o balão do ícone perto do relógio e pisca o app na barra de tarefas. */
+function avisar(titulo: string, corpo: string, aoClicar?: () => void): void {
+  const reserva = () => {
+    try {
+      bandeja?.displayBalloon({ title: titulo, content: corpo });
+    } catch {
+      // sem balão: o piscar na barra de tarefas abaixo ainda avisa
+    }
+  };
+  try {
+    if (Notification.isSupported()) {
+      const n = new Notification({ title: titulo, body: corpo });
+      if (aoClicar) n.on('click', aoClicar);
+      n.on('failed', reserva);
+      n.show();
+    } else {
+      reserva();
+    }
+  } catch {
+    reserva();
+  }
+  const w = BrowserWindow.getAllWindows()[0];
+  if (w && !w.isDestroyed() && (!w.isVisible() || w.isMinimized())) w.flashFrame(true);
+}
+
 /** Confere a Pasta 1 de tempos em tempos e avisa "arte para fazer" (só com o Modo designer ligado e o app aberto). */
 async function vigiarPasta1(): Promise<void> {
   try {
@@ -329,18 +359,10 @@ async function vigiarPasta1(): Promise<void> {
     const r = atualizarVistos(clientes, c.vistos);
     if (JSON.stringify(r.vistos) !== JSON.stringify(c.vistos)) await configDoDesigner().salvar({ vistos: r.vistos });
     if (r.alertar.length === 0) return;
-    try {
-      if (Notification.isSupported()) {
-        const n = new Notification({ title: 'Arte para fazer', body: r.alertar.join(', ') });
-        n.on('click', () => {
-          mostrarJanela();
-          BrowserWindow.getAllWindows()[0]?.webContents.send('abrir-cliente');
-        });
-        n.show();
-      }
-    } catch {
-      // sem notificação do sistema: o aviso dentro do app continua valendo
-    }
+    avisar('Arte para fazer', r.alertar.join(', '), () => {
+      mostrarJanela();
+      BrowserWindow.getAllWindows()[0]?.webContents.send('abrir-cliente');
+    });
     BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('arte-para-fazer', r.alertar));
   } catch (e) {
     console.warn('vigia da Pasta 1', e);
