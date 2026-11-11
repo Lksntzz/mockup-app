@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, Notification, shell, Tray } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage, Notification, shell, Tray } from 'electron';
 import { EventEmitter } from 'node:events';
 import { mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -15,6 +15,7 @@ import { atualizarVistos, buscarFinalizados, chaveDe, listarClientes, ultimaAlte
 import { criarPortaoDePin } from './pin';
 import { acharPastasDoFluxo } from './achar-pastas';
 import { arquivoAbrivel } from './abrir-arquivo';
+import { achouArquivoNovo, rodarMacroDoCorel } from './corel';
 import { deveEsconderAoFechar, iniciaOculto } from './segundo-plano';
 import { caminhoPermitido, pastaMkp } from './paths';
 import { criarAtualizador, type AtualizadorLike } from './updater';
@@ -302,6 +303,40 @@ ipcMain.handle('fluxo-mover', async (_e, caminhoCliente: unknown) => {
   if (!origem) return { ok: false, motivo: 'Essa pasta não está dentro da Pasta 1.' };
   const r = await moverParaAprovar(caminhoCliente, c.pasta2, origem.grupo);
   if (r.ok) await registrarEnvio(chaveDe({ nome: basename(caminhoCliente), ...(origem.grupo ? { grupo: origem.grupo } : {}) }));
+  return r;
+});
+ipcMain.handle('corel-arte-no-molde', async (_e, caminhoArte: unknown) => {
+  const c = await exigirDesigner();
+  if (typeof caminhoArte !== 'string') throw new Error('Arquivo inválido.');
+  if (!arquivoAbrivel([c.pasta1 ?? '', c.pasta2 ?? '', c.pasta3 ?? ''], caminhoArte)) {
+    return { ok: false, motivo: 'Esse arquivo não está nas pastas do fluxo.' };
+  }
+  const r = await rodarMacroDoCorel('ArteDoClienteNoMolde', caminhoArte);
+  if (r.ok) {
+    // o Corel diz "rodou" até quando o macro mostrou um aviso de erro: confere se o .cdr do molde existe na pasta
+    const base = basename(caminhoArte, extname(caminhoArte)).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const existe = await achouArquivoNovo(dirname(caminhoArte), 0, new RegExp(`^${base} - MOLDE\\.cdr$`, 'i'));
+    if (!existe) {
+      clipboard.writeText(caminhoArte);
+      return { ok: false, motivo: 'O Corel rodou o macro, mas o arquivo do molde não apareceu na pasta. Veja se ficou algum aviso na tela do Corel' };
+    }
+    return r;
+  }
+  // plano B: com o caminho copiado, o macro do Corel aceita colar quando rodado à mão
+  clipboard.writeText(caminhoArte);
+  return r;
+});
+ipcMain.handle('corel-gerar-pdf', async (_e, caminhoCliente: unknown) => {
+  const c = await exigirDesigner();
+  if (typeof caminhoCliente !== 'string') throw new Error('Pasta inválida.');
+  const dentro = [c.pasta1, c.pasta2, c.pasta3, c.pasta4].some((raiz) => raiz && origemDoCliente(raiz, caminhoCliente));
+  if (!dentro) return { ok: false, motivo: 'Essa pasta não está nas pastas do fluxo.' };
+  const inicio = Date.now();
+  const r = await rodarMacroDoCorel('ExportarPDFparaMKP', caminhoCliente);
+  if (!r.ok) return r;
+  if (!(await achouArquivoNovo(caminhoCliente, inicio, /\.pdf$/i))) {
+    return { ok: false, motivo: 'O Corel rodou o macro, mas não apareceu PDF novo na pasta. Veja se ficou algum aviso na tela do Corel.' };
+  }
   return r;
 });
 ipcMain.handle('notificacao-testar', async () => {

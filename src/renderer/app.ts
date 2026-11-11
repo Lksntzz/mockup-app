@@ -933,7 +933,7 @@ function linhaDoCliente(c: Cliente): HTMLElement {
   // 4) ações
   const acoes = document.createElement('div');
   acoes.className = 'cc-acoes';
-  const botao = (texto: string, classe: string, titulo: string, aoClicar: () => void) => {
+  const botao = (texto: string, classe: string, titulo: string, aoClicar: (ev: MouseEvent) => void) => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = classe;
@@ -1026,6 +1026,41 @@ function linhaDoCliente(c: Cliente): HTMLElement {
         lista.addEventListener('change', () => (escolhida = lista.value));
         acoes.append(lista);
       }
+      botao('Abrir no molde (Corel)', 'secundario', 'Abre o CorelDRAW com a arte já encaixada no molde', (ev) => {
+        if (doCorel.includes(escolhida)) {
+          mensagem('Escolha a arte do cliente, não o PDF do Corel.', true);
+          return;
+        }
+        const b = ev.currentTarget as HTMLButtonElement;
+        b.disabled = true;
+        mensagem('Abrindo no Corel… pode levar alguns segundos.');
+        void api.corelArteNoMolde(escolhida).then(
+          (r) => {
+            b.disabled = false;
+            mensagem(r.ok ? 'Arte no molde. Ajuste no Corel e depois use "Gerar PDF".' : `${r.motivo} (copiei o caminho da arte: no Corel, rode o macro e cole)`, !r.ok);
+          },
+          (e) => {
+            b.disabled = false;
+            mensagem(textoDoErro(e), true);
+          },
+        );
+      });
+      botao('Gerar PDF (Corel)', 'secundario', 'Manda o Corel salvar o PDF do documento aberto, na pasta do cliente', (ev) => {
+        const b = ev.currentTarget as HTMLButtonElement;
+        b.disabled = true;
+        mensagem('Gerando o PDF no Corel…');
+        void api.corelGerarPdf(c.caminho).then(
+          (r) => {
+            b.disabled = false;
+            mensagem(r.ok ? 'PDF gerado. Ele já aparece na lista como PDF do Corel.' : r.motivo, !r.ok);
+            if (r.ok) void desenharPasta1();
+          },
+          (e) => {
+            b.disabled = false;
+            mensagem(textoDoErro(e), true);
+          },
+        );
+      });
       botao('Fazer MKP', 'primario', 'Abre o arquivo escolhido no gerador de MKP', () => {
         void (async () => {
           try {

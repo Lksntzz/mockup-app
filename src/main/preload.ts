@@ -16,6 +16,8 @@ contextBridge.exposeInMainWorld('mockupApi', {
   removerRascunho: (caminho: string) => ipcRenderer.invoke('rascunhos-remover', caminho),
   designerEstado: () => ipcRenderer.invoke('designer-estado'),
   fluxoConferido: (caminho: string) => ipcRenderer.invoke('fluxo-conferido', caminho),
+  corelArteNoMolde: (caminho: string) => ipcRenderer.invoke('corel-arte-no-molde', caminho),
+  corelGerarPdf: (caminho: string) => ipcRenderer.invoke('corel-gerar-pdf', caminho),
   notificacaoTestar: () => ipcRenderer.invoke('notificacao-testar'),
   designerProcurarPastas: (substituir: boolean) => ipcRenderer.invoke('designer-procurar-pastas', substituir),
   designerLigar: (ligado: boolean, pin?: string) => ipcRenderer.invoke('designer-ligar', ligado, pin),
