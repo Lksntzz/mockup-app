@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { newRaster } from '../../src/engine/blend';
-import { copyToAll, createState, select, setColor } from '../../src/app/state';
+import { copyToAll, createState, select, setAjuste, setColor } from '../../src/app/state';
 import type { Pack } from '../../src/engine/types';
 
 const pack: Pack = {
@@ -77,5 +77,25 @@ describe('estado das capas', () => {
     const s = createState(pack, capas());
     expect(select(s, 2).selecionada).toBe(2);
     expect(select(s, 7).selecionada).toBe(0);
+  });
+});
+
+describe('ajuste da arte', () => {
+  test('muda só a capa pedida; copiar as cores não leva o ajuste junto', () => {
+    const s0 = createState(pack, capas());
+    const s1 = setAjuste(s0, 1, { zoom: 1.2, x: 0.1, y: -0.1 });
+    expect(s1.capas[1]!.ajuste).toEqual({ zoom: 1.2, x: 0.1, y: -0.1 });
+    expect(s1.capas[0]!.ajuste).toBeUndefined();
+    expect(s0.capas[1]!.ajuste).toBeUndefined();
+    expect(copyToAll(s1, 0).capas[1]!.ajuste).toEqual({ zoom: 1.2, x: 0.1, y: -0.1 });
+  });
+  test('voltar ao normal remove o ajuste; valores absurdos são presos nos limites', () => {
+    const s1 = setAjuste(createState(pack, capas()), 0, { zoom: 50, x: 0, y: 0 });
+    expect(s1.capas[0]!.ajuste!.zoom).toBe(2);
+    const s2 = setAjuste(s1, 0, { zoom: 1, x: 0, y: 0 });
+    expect(s2.capas[0]!.ajuste).toBeUndefined();
+  });
+  test('capa que não existe é recusada', () => {
+    expect(setAjuste(createState(pack, capas()), 9, { zoom: 1.1, x: 0, y: 0 }).lastError).toBeDefined();
   });
 });

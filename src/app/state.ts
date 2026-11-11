@@ -1,4 +1,5 @@
 import { isAvailable } from '../engine/compose';
+import { ajusteEhNulo, ajusteValido, type Ajuste } from '../engine/ajuste';
 import type { Accessory, Choices, Pack, Raster } from '../engine/types';
 
 export interface CapaState {
@@ -6,6 +7,8 @@ export interface CapaState {
   /** Arte da página par (verso) desta capa; ausente quando o PDF não tem essa página. */
   back?: Raster;
   choices: Choices;
+  /** Zoom e posição da arte da frente, ajustados à mão; ausente = como veio do PDF. */
+  ajuste?: Ajuste;
 }
 
 export interface AppState {
@@ -52,4 +55,15 @@ export function copyToAll(s: AppState, capa: number): AppState {
 export function select(s: AppState, capa: number): AppState {
   if (capa < 0 || capa >= s.capas.length) return s;
   return { ...s, selecionada: capa };
+}
+
+/** Guarda o ajuste da arte da frente de uma capa. Ajuste "sem mudança" remove o campo. */
+export function setAjuste(s: AppState, capa: number, ajuste: Ajuste): AppState {
+  const atual = s.capas[capa];
+  if (!atual) return recusar(s, 'Essa capa não existe.');
+  const valido = ajusteValido(ajuste);
+  const { ajuste: _antigo, ...semAjuste } = atual;
+  const nova: CapaState = ajusteEhNulo(valido) ? semAjuste : { ...semAjuste, ajuste: valido };
+  const { lastError: _descartado, ...resto } = s;
+  return { ...resto, capas: s.capas.map((c, i) => (i === capa ? nova : c)) };
 }

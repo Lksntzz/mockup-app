@@ -98,6 +98,17 @@ app.on('browser-window-created', (_e, win) => {
       conferir(await ate(`Number(document.body.dataset.previa) > ${antesNenhum}`, 'prévia sem peças'), 'a prévia atualizou ao tirar elástico e tassel');
       await espera(500);
       await foto('3b-sem-elastico-sem-tassel.png');
+
+      // ajustar tamanho e posição da arte da frente
+      const antesAjuste = Number(await js('document.body.dataset.previa'));
+      await js("(() => { const z = document.querySelector('input[data-ajuste=zoom]'); z.value = '70'; z.dispatchEvent(new Event('input', { bubbles: true })); z.dispatchEvent(new Event('change', { bubbles: true })); })()");
+      conferir(await ate(`Number(document.body.dataset.previa) > ${antesAjuste}`, 'prévia com a arte ajustada'), 'a prévia atualizou ao mudar o tamanho da arte');
+      conferir(await js("document.querySelector('.ajuste-valor').textContent === '70%'"), 'o controle mostra 70%');
+      await espera(500);
+      await foto('3c-arte-ajustada.png');
+      await js("[...document.querySelectorAll('.ajuste button')].find((b) => b.textContent.startsWith('Restaurar')).click()");
+      await espera(500);
+      conferir(await js("document.querySelector('input[data-ajuste=zoom]').value === '100'"), 'restaurar volta o tamanho para 100%');
       conferir((await js("document.querySelector('[data-acc=elastico][aria-pressed=true]').dataset.id")) === 'nenhum', 'o elástico ficou em "Nenhum"');
       await js("document.querySelectorAll('#lista .item')[0].click()");
       await js("document.getElementById('copiar').click()");

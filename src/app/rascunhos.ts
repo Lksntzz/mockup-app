@@ -12,6 +12,8 @@ export interface Rascunho {
   selecionada: number;
   saidas: Saidas;
   escolhas: Choices[];
+  /** Zoom e posição da arte de cada capa (null = sem ajuste). Rascunhos antigos não têm. */
+  ajustes?: ({ zoom?: number; x?: number; y?: number } | null)[];
 }
 
 export function rascunhoValido(x: unknown): x is Rascunho {

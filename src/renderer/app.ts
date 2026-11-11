@@ -1,11 +1,12 @@
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { createPreviewScheduler } from '../app/scheduler';
 import { aplicarEscolhas, contarIgnoradas, descreverSaidas, formatarData, type EntradaHistorico, type Saidas } from '../app/historico';
-import { copyToAll, createState, select, setColor, type AppState, type CapaState } from '../app/state';
+import { copyToAll, createState, select, setAjuste, setColor, type AppState, type CapaState } from '../app/state';
 import { abasVisiveis, ROTULOS, vizinha, type Modo } from '../app/abas';
 import { escolhasDoVerso, paraRazao } from '../app/verso';
 import { fontesDaArte, frenteEVersoPadrao, rotuloDaFonte, type Fonte } from '../app/frente-verso';
 import { compose, isAvailable } from '../engine/compose';
+import { AJUSTE_NULO, DESLOCAMENTO_MAX, ZOOM_MAX, ZOOM_MIN, ajusteEhNulo, ajusteValido, ajustarArte, chaveDoAjuste } from '../engine/ajuste';
 import { exportAll, type ExportCapa, type ExportExtra } from '../export/exporter';
 import type { Accessory, Choices, Pack, Raster } from '../engine/types';
 import { cropMargins, cropToBox, widthForArt } from '../pdf/crop';
@@ -150,6 +151,18 @@ for (const [id, passo] of [['aba-anterior', -1], ['aba-proxima', 1]] as const) {
   });
 }
 
+// A arte com o zoom e a posição ajustados à mão; guarda o último cálculo de cada arte para não refazer a cada prévia.
+const artesAjustadas = new WeakMap<Raster, { chave: string; arte: Raster }>();
+function artDaCapa(c: CapaState): Raster {
+  if (ajusteEhNulo(c.ajuste)) return c.art;
+  const chave = chaveDoAjuste(c.ajuste);
+  const guardada = artesAjustadas.get(c.art);
+  if (guardada?.chave === chave) return guardada.arte;
+  const arte = ajustarArte(c.art, c.ajuste);
+  artesAjustadas.set(c.art, { chave, arte });
+  return arte;
+}
+
 const agendador = createPreviewScheduler(
   async (req) => {
     await proximoQuadro();
@@ -157,13 +170,13 @@ const agendador = createPreviewScheduler(
     if (!pacote || !capa) throw new Error('capa não encontrada');
     if (req.modo === 'vt' || req.modo === 'sem-canguru') {
       const e = await carregarPacoteNomeado('especificacao');
-      return compose(e.pack, e.layers, capa.art, req.choices, versoDaFrente(capa.back), req.modo);
+      return compose(e.pack, e.layers, artDaCapa(capa), req.choices, versoDaFrente(capa.back), req.modo);
     }
     if (req.modo === 'verso' && capa.back) {
       const v = await carregarPacoteNomeado('verso');
       return compose(v.pack, v.layers, capa.back, escolhasDoVerso(v.pack, req.choices), paraRazao(capa.art, razaoDaFaixa(v.pack)));
     }
-    return compose(pacote.pack, pacote.layers, capa.art, req.choices, versoDaFrente(capa.back));
+    return compose(pacote.pack, pacote.layers, artDaCapa(capa), req.choices, versoDaFrente(capa.back));
   },
   (capa, resultado) => {
     if (!estado || capa !== estado.selecionada) return;
@@ -269,7 +282,71 @@ function desenharPainel(): void {
     bloco.append(titulo, bolinhas, escolhida);
     grupos.append(bloco);
   }
+  grupos.append(blocoDoAjuste(capa));
   desenharQualidade();
+}
+
+/** Controles de zoom e posição da arte da frente da capa selecionada. */
+function blocoDoAjuste(capa: CapaState): HTMLElement {
+  const bloco = document.createElement('div');
+  bloco.className = 'grupo ajuste';
+  const titulo = document.createElement('h3');
+  titulo.textContent = 'Posição e tamanho da arte';
+  bloco.append(titulo);
+  const atual = ajusteValido(capa.ajuste ?? AJUSTE_NULO);
+  const campos = [
+    { chave: 'zoom' as const, nome: 'Tamanho', min: Math.round(ZOOM_MIN * 100), max: Math.round(ZOOM_MAX * 100), valor: Math.round(atual.zoom * 100), sufixo: '%' },
+    { chave: 'x' as const, nome: 'Horizontal', min: -Math.round(DESLOCAMENTO_MAX * 100), max: Math.round(DESLOCAMENTO_MAX * 100), valor: Math.round(atual.x * 100), sufixo: '%' },
+    { chave: 'y' as const, nome: 'Vertical', min: -Math.round(DESLOCAMENTO_MAX * 100), max: Math.round(DESLOCAMENTO_MAX * 100), valor: Math.round(atual.y * 100), sufixo: '%' },
+  ];
+  const lidos = { ...atual };
+  const restaurar = document.createElement('button');
+  const entradas = new Map<string, { campo: HTMLInputElement; rotulo: HTMLSpanElement }>();
+  for (const c of campos) {
+    const linha = document.createElement('label');
+    linha.className = 'ajuste-linha';
+    const nome = document.createElement('span');
+    nome.textContent = c.nome;
+    const campo = document.createElement('input');
+    campo.type = 'range';
+    campo.min = String(c.min);
+    campo.max = String(c.max);
+    campo.step = '1';
+    campo.value = String(c.valor);
+    campo.dataset.ajuste = c.chave;
+    campo.setAttribute('aria-label', `${c.nome} da arte`);
+    const rotulo = document.createElement('span');
+    rotulo.className = 'ajuste-valor';
+    rotulo.textContent = `${c.valor}${c.sufixo}`;
+    campo.addEventListener('input', () => {
+      if (!estado) return;
+      lidos[c.chave] = Number(campo.value) / 100;
+      rotulo.textContent = `${campo.value}${c.sufixo}`;
+      estado = setAjuste(estado, estado.selecionada, lidos);
+      restaurar.disabled = ajusteEhNulo(estado.capas[estado.selecionada]?.ajuste);
+      pedirPrevia();
+    });
+    campo.addEventListener('change', () => salvarRascunho());
+    entradas.set(c.chave, { campo, rotulo });
+    linha.append(nome, campo, rotulo);
+    bloco.append(linha);
+  }
+  restaurar.type = 'button';
+  restaurar.className = 'discreto';
+  restaurar.textContent = 'Restaurar posição e tamanho';
+  restaurar.disabled = ajusteEhNulo(capa.ajuste);
+  restaurar.addEventListener('click', () => {
+    if (!estado) return;
+    estado = setAjuste(estado, estado.selecionada, AJUSTE_NULO);
+    salvarRascunho();
+    desenharPainel();
+    pedirPrevia();
+  });
+  const dica = document.createElement('p');
+  dica.className = 'dica';
+  dica.textContent = 'Vale para a frente desta capa. O que ficar sem arte fica transparente.';
+  bloco.append(restaurar, dica);
+  return bloco;
 }
 
 type PdfAberto = Awaited<ReturnType<typeof openPdf>>;
@@ -422,6 +499,8 @@ interface Retomada {
   saidas: Saidas;
   /** Capa que estava selecionada (só nos rascunhos). */
   selecionada?: number;
+  /** Zoom e posição de cada capa (só nos rascunhos). */
+  ajustes?: (Partial<import('../engine/ajuste').Ajuste> | null)[];
   /** Registro do histórico a atualizar quando salvar de novo (só ao editar do histórico). */
   idHistorico?: string;
 }
@@ -489,6 +568,9 @@ async function abrirPdf(arquivo: ArquivoPdf, retomada?: Retomada): Promise<void>
     let aviso = '';
     if (retomada) {
       estado = aplicarEscolhas(estado, retomada.escolhas);
+      retomada.ajustes?.forEach((a, i) => {
+        if (a && estado && i < estado.capas.length) estado = setAjuste(estado, i, ajusteValido(a));
+      });
       if (retomada.selecionada !== undefined) estado = select(estado, Math.min(Math.max(retomada.selecionada, 0), estado.capas.length - 1));
       if (retomada.idHistorico) idsDoHistorico.set(caminho, retomada.idHistorico);
       const ignoradas = contarIgnoradas(pacote.pack, retomada.escolhas);
@@ -566,6 +648,7 @@ function salvarRascunho(): void {
     selecionada: estado.selecionada,
     saidas: saidasMarcadas(),
     escolhas: estado.capas.map((c) => ({ ...c.choices })),
+    ajustes: estado.capas.map((c) => c.ajuste ?? null),
   };
   window.clearTimeout(temporizadorRascunho);
   temporizadorRascunho = window.setTimeout(() => naFila(() => api.salvarRascunho(r)), 400);
@@ -587,7 +670,7 @@ async function continuarRascunho(r: Rascunho): Promise<void> {
     if (!arquivo) arquivo = await api.escolherPdf();
     if (!arquivo) return;
     if (arquivo.caminho !== r.caminho) descartarRascunho(r.caminho);
-    await abrirPdf(arquivo, { escolhas: r.escolhas, saidas: r.saidas, selecionada: r.selecionada });
+    await abrirPdf(arquivo, { escolhas: r.escolhas, saidas: r.saidas, selecionada: r.selecionada, ...(r.ajustes ? { ajustes: r.ajustes } : {}) });
   } catch (e) {
     mensagem(textoDoErro(e), true);
   }
@@ -1679,7 +1762,7 @@ $('exportar').addEventListener('click', async () => {
     // a contra capa da frente e da especificação usa a proporção dela; o verso usa a página par inteira como face grande
     const originais = new Map<ExportCapa, CapaState>();
     const capasParaFrente = estado.capas.map((c) => {
-      const pronta: ExportCapa = { art: c.art, ...(c.back ? { back: versoDaFrente(c.back) as Raster } : {}), choices: c.choices };
+      const pronta: ExportCapa = { art: artDaCapa(c), ...(c.back ? { back: versoDaFrente(c.back) as Raster } : {}), choices: c.choices };
       originais.set(pronta, c);
       return pronta;
     });
