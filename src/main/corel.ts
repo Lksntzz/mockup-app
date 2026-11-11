@@ -37,27 +37,19 @@ export const CAMINHO_DO_MOLDE = 'C:\\MOLDE\\MOLDE.cdr';
 
 /**
  * Script que liga no CorelDRAW e roda o macro.
+ * O Corel NÃO aparece para GetObject: só CreateObject conecta no que já está aberto. Por isso "está aberto?" se descobre pelos processos do Windows.
  * Corel fechado + macro da arte: abre o arquivo do molde pelo Windows (como um duplo clique, que carrega os macros do usuário;
  * abrir por automação deixava o Corel vazio, sem o GlobalMacros) e espera ele ficar pronto.
  * Corel fechado + macro do PDF: não abre nada, porque o PDF é do documento que já está aberto.
  */
 export function scriptVbs(macro: MacroDoCorel): string {
-  const abrirOCorel =
+  const corelFechado =
     macro === 'ArteDoClienteNoMolde'
       ? [
           '  Set sh = CreateObject("WScript.Shell")',
           `  sh.Run """${CAMINHO_DO_MOLDE}""", 1, False`,
           '  esperando = True',
-          '  For i = 1 To 45',
-          '    WScript.Sleep 2000',
-          '    Err.Clear',
-          '    Set app = GetObject(, "CorelDRAW.Application")',
-          '    If Err.Number = 0 Then Exit For',
-          '  Next',
-          '  If Err.Number <> 0 Then',
-          '    WScript.Echo "ERRO: abri o CorelDRAW mas ele nao ficou pronto a tempo (" & Err.Description & ")"',
-          '    WScript.Quit 2',
-          '  End If',
+          '  WScript.Sleep 10000',
         ]
       : [
           '  WScript.Echo "ERRO: o CorelDRAW nao esta aberto. Abra o .cdr do cliente nele e tente de novo."',
@@ -65,12 +57,30 @@ export function scriptVbs(macro: MacroDoCorel): string {
         ];
   return [
     'On Error Resume Next',
-    'Dim app, sh, ok, esperando, maximo, tentativa, erro1, erro2, i',
+    'Dim app, sh, wmi, procs, rodando, ok, esperando, limite, maximo, tentativa, erro1, erro2, i',
     'esperando = False',
-    'Set app = GetObject(, "CorelDRAW.Application")',
-    'If Err.Number <> 0 Then',
+    'rodando = True', // se não der para olhar os processos, supõe aberto: conectar é o caminho seguro
+    'Set wmi = GetObject("winmgmts:\\\\.\\root\\cimv2")',
+    'If Err.Number = 0 Then',
+    "  Set procs = wmi.ExecQuery(\"SELECT * FROM Win32_Process WHERE Name = 'CorelDRW.exe'\")",
+    '  If Err.Number = 0 Then rodando = (procs.Count > 0)',
+    'End If',
+    'Err.Clear',
+    'If Not rodando Then',
+    ...corelFechado,
+    'End If',
+    // CreateObject conecta no Corel aberto; recém-aberto, ele demora para aceitar a conexão
+    'limite = 1',
+    'If esperando Then limite = 45',
+    'For i = 1 To limite',
     '  Err.Clear',
-    ...abrirOCorel,
+    '  Set app = CreateObject("CorelDRAW.Application")',
+    '  If Err.Number = 0 Then Exit For',
+    '  WScript.Sleep 2000',
+    'Next',
+    'If Err.Number <> 0 Then',
+    '  WScript.Echo "ERRO: nao consegui falar com o CorelDRAW (" & Err.Description & ")"',
+    '  WScript.Quit 2',
     'End If',
     'app.Visible = True',
     'ok = False',

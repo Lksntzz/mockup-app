@@ -21,13 +21,24 @@ describe('scriptVbs', () => {
     expect(vbs).toContain('WScript.Echo "OK"');
     expect(vbs).toContain('WScript.Echo "ERRO:');
   });
+  test('nunca usa GetObject para achar o Corel (ele não aparece assim; só CreateObject conecta no que já está aberto)', () => {
+    for (const macro of ['ArteDoClienteNoMolde', 'ExportarPDFparaMKP'] as const) {
+      const vbs = scriptVbs(macro);
+      expect(vbs).not.toContain('GetObject(, "CorelDRAW');
+      expect(vbs).toContain('CreateObject("CorelDRAW.Application")');
+    }
+  });
+  test('descobre se o Corel está aberto pelos processos do Windows', () => {
+    const vbs = scriptVbs('ArteDoClienteNoMolde');
+    expect(vbs).toContain('Win32_Process');
+    expect(vbs).toContain('CorelDRW.exe');
+  });
   test('Corel fechado: abre o arquivo do molde pelo Windows (como um duplo clique, que carrega os macros) e espera ele ficar pronto', () => {
     const vbs = scriptVbs('ArteDoClienteNoMolde');
     expect(vbs).toContain('WScript.Shell');
     expect(vbs).toContain('C:\\MOLDE\\MOLDE.cdr');
     expect(vbs).toContain('WScript.Sleep');
     expect(vbs).toMatch(/If esperando Then maximo = \d+/);
-    expect(vbs).not.toContain('CreateObject("CorelDRAW.Application")'); // esse modo de abrir não carrega os macros do usuário
   });
   test('gerar PDF com o Corel fechado não abre nada: pede para abrir o .cdr do cliente', () => {
     const vbs = scriptVbs('ExportarPDFparaMKP');
