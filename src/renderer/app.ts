@@ -6,6 +6,7 @@ import { abasVisiveis, ROTULOS, vizinha, type Modo } from '../app/abas';
 import { escolhasDoVerso, paraRazao } from '../app/verso';
 import { fontesDaArte, frenteEVersoPadrao, rotuloDaFonte, type Fonte } from '../app/frente-verso';
 import { compose, isAvailable } from '../engine/compose';
+import { arrastarCanto, arrastarCorpo, cantoPerto, cantosDoAjuste, criarMapa, pontoDentro, zoomDaRoda } from '../app/guia';
 import { AJUSTE_NULO, DESLOCAMENTO_MAX, ZOOM_MAX, ZOOM_MIN, ajusteEhNulo, ajusteValido, ajustarArte, chaveDoAjuste } from '../engine/ajuste';
 import { exportAll, type ExportCapa, type ExportExtra } from '../export/exporter';
 import type { Accessory, Choices, Pack, Raster } from '../engine/types';
@@ -163,6 +164,144 @@ function artDaCapa(c: CapaState): Raster {
   return arte;
 }
 
+// ---- Arrastar a arte direto na prévia (mover pelo corpo, redimensionar pelos cantos, roda do mouse para o tamanho) ----
+let ultimaPrevia: Raster | null = null;
+let mouseNaPrevia = false;
+let arrasto: { tipo: 'corpo' | 'canto'; de: [number, number]; inicial: import('../engine/ajuste').Ajuste } | null = null;
+let mapaDaArte: { pack: Pack; mapa: ReturnType<typeof criarMapa> } | null = null;
+let temporizadorDoPainel = 0;
+
+function guiaAtiva(): boolean {
+  return !!estado && !!pacote && modoPrevia === 'frente';
+}
+function mapaAtual() {
+  if (!pacote) return null;
+  if (mapaDaArte?.pack !== pacote.pack) mapaDaArte = { pack: pacote.pack, mapa: criarMapa(pacote.pack.artCorners) };
+  return mapaDaArte.mapa;
+}
+function ajusteAtual() {
+  const capa = estado?.capas[estado.selecionada];
+  return ajusteValido(capa?.ajuste ?? AJUSTE_NULO);
+}
+/** Ponto do mouse na folha da arte (0 a 1), ou null se a guia não está ativa. */
+function pontoDaArte(ev: MouseEvent | PointerEvent): [number, number] | null {
+  const canvas = $<HTMLCanvasElement>('previa');
+  const mapa = mapaAtual();
+  if (!guiaAtiva() || !mapa) return null;
+  const r = canvas.getBoundingClientRect();
+  if (r.width === 0 || r.height === 0) return null;
+  return mapa.paraArte([((ev.clientX - r.left) * canvas.width) / r.width, ((ev.clientY - r.top) * canvas.height) / r.height]);
+}
+function desenharGuia(): void {
+  const canvas = $<HTMLCanvasElement>('previa');
+  const mapa = mapaAtual();
+  if (!guiaAtiva() || !mapa || !ultimaPrevia) return;
+  pintar(canvas, ultimaPrevia);
+  const ctx = canvas.getContext('2d')!;
+  const r = canvas.getBoundingClientRect();
+  const k = r.width > 0 ? canvas.width / r.width : 1;
+  const pts = cantosDoAjuste(ajusteAtual()).map((c) => mapa.paraTela(c));
+  ctx.save();
+  ctx.beginPath();
+  pts.forEach((p, i) => (i === 0 ? ctx.moveTo(p[0], p[1]) : ctx.lineTo(p[0], p[1])));
+  ctx.closePath();
+  ctx.lineWidth = 3 * k;
+  ctx.strokeStyle = 'rgba(0,0,0,.55)';
+  ctx.setLineDash([]);
+  ctx.stroke();
+  ctx.lineWidth = 1.5 * k;
+  ctx.strokeStyle = '#fff';
+  ctx.setLineDash([8 * k, 6 * k]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  for (const p of pts) {
+    const t = 7 * k;
+    ctx.fillStyle = '#4f46e5';
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2 * k;
+    ctx.fillRect(p[0] - t, p[1] - t, t * 2, t * 2);
+    ctx.strokeRect(p[0] - t, p[1] - t, t * 2, t * 2);
+  }
+  ctx.restore();
+}
+function aplicarAjusteDaGuia(novo: import('../engine/ajuste').Ajuste): void {
+  if (!estado) return;
+  estado = setAjuste(estado, estado.selecionada, novo);
+  pedirPrevia();
+  desenharGuia();
+  window.clearTimeout(temporizadorDoPainel);
+  temporizadorDoPainel = window.setTimeout(() => {
+    if (arrasto) return;
+    salvarRascunho();
+    desenharPainel();
+  }, 250);
+}
+{
+  const canvas = $<HTMLCanvasElement>('previa');
+  const raioDoCanto = 0.06;
+  canvas.addEventListener('pointerenter', () => {
+    mouseNaPrevia = true;
+    desenharGuia();
+  });
+  canvas.addEventListener('pointerleave', () => {
+    mouseNaPrevia = false;
+    if (!arrasto && ultimaPrevia && guiaAtiva()) pintar(canvas, ultimaPrevia);
+  });
+  canvas.addEventListener('pointerdown', (ev) => {
+    const p = pontoDaArte(ev);
+    if (!p || ev.button !== 0) return;
+    const a = ajusteAtual();
+    const canto = cantoPerto(a, p, raioDoCanto);
+    if (canto >= 0) arrasto = { tipo: 'canto', de: p, inicial: a };
+    else if (pontoDentro(a, p)) arrasto = { tipo: 'corpo', de: p, inicial: a };
+    if (arrasto) {
+      try {
+        canvas.setPointerCapture(ev.pointerId);
+      } catch {
+        // sem captura o arrasto continua valendo enquanto o mouse estiver sobre a prévia
+      }
+      ev.preventDefault();
+    }
+  });
+  canvas.addEventListener('pointermove', (ev) => {
+    const p = pontoDaArte(ev);
+    if (!p) {
+      canvas.style.cursor = '';
+      return;
+    }
+    if (arrasto) {
+      aplicarAjusteDaGuia(arrasto.tipo === 'corpo' ? arrastarCorpo(arrasto.inicial, arrasto.de, p) : arrastarCanto(arrasto.inicial, arrasto.de, p));
+      return;
+    }
+    const a = ajusteAtual();
+    const canto = cantoPerto(a, p, raioDoCanto);
+    canvas.style.cursor = canto >= 0 ? (canto % 2 === 0 ? 'nwse-resize' : 'nesw-resize') : pontoDentro(a, p) ? 'move' : '';
+  });
+  const soltar = (ev: PointerEvent) => {
+    if (!arrasto) return;
+    arrasto = null;
+    try {
+      if (canvas.hasPointerCapture(ev.pointerId)) canvas.releasePointerCapture(ev.pointerId);
+    } catch {
+      // nada a soltar
+    }
+    window.clearTimeout(temporizadorDoPainel);
+    salvarRascunho();
+    desenharPainel();
+  };
+  canvas.addEventListener('pointerup', soltar);
+  canvas.addEventListener('pointercancel', soltar);
+  canvas.addEventListener(
+    'wheel',
+    (ev) => {
+      if (!guiaAtiva()) return;
+      ev.preventDefault();
+      aplicarAjusteDaGuia(zoomDaRoda(ajusteAtual(), ev.deltaY));
+    },
+    { passive: false },
+  );
+}
+
 const agendador = createPreviewScheduler(
   async (req) => {
     await proximoQuadro();
@@ -180,7 +319,9 @@ const agendador = createPreviewScheduler(
   },
   (capa, resultado) => {
     if (!estado || capa !== estado.selecionada) return;
+    ultimaPrevia = resultado;
     pintar($<HTMLCanvasElement>('previa'), resultado);
+    if (mouseNaPrevia || arrasto) desenharGuia();
     document.body.dataset.previa = String(++contadorDePrevias);
   },
   (e) => mensagem(`Erro ao montar a prévia: ${e instanceof Error ? e.message : String(e)}`, true),
@@ -344,7 +485,7 @@ function blocoDoAjuste(capa: CapaState): HTMLElement {
   });
   const dica = document.createElement('p');
   dica.className = 'dica';
-  dica.textContent = 'Vale para a frente desta capa. O que ficar sem arte fica transparente.';
+  dica.textContent = 'Dica: na prévia da frente, arraste a arte para mover, os cantos para mudar o tamanho, ou use a roda do mouse. O que ficar sem arte fica transparente.';
   bloco.append(restaurar, dica);
   return bloco;
 }

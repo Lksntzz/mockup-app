@@ -109,6 +109,23 @@ app.on('browser-window-created', (_e, win) => {
       await js("[...document.querySelectorAll('.ajuste button')].find((b) => b.textContent.startsWith('Restaurar')).click()");
       await espera(500);
       conferir(await js("document.querySelector('input[data-ajuste=zoom]').value === '100'"), 'restaurar volta o tamanho para 100%');
+
+      // arrastar a arte direto na prévia: mover pelo corpo e mudar o tamanho pela roda
+      await js(`(() => {
+        const c = document.getElementById('previa'); const r = c.getBoundingClientRect();
+        const x = r.left + r.width * 0.45, y = r.top + r.height * 0.5;
+        const ev = (tipo, dx) => new PointerEvent(tipo, { clientX: x + dx, clientY: y, button: 0, pointerId: 7, bubbles: true });
+        c.dispatchEvent(ev('pointerenter', 0)); c.dispatchEvent(ev('pointerdown', 0));
+        c.dispatchEvent(ev('pointermove', 40)); c.dispatchEvent(ev('pointerup', 40));
+      })()`);
+      await espera(600);
+      conferir(await js("Number(document.querySelector('input[data-ajuste=x]').value) > 0"), 'arrastar a arte na prévia moveu para a direita');
+      await js("(() => { const c = document.getElementById('previa'); c.dispatchEvent(new WheelEvent('wheel', { deltaY: -200, bubbles: true, cancelable: true })); })()");
+      await espera(800);
+      conferir(await js("Number(document.querySelector('input[data-ajuste=zoom]').value) > 100"), 'a roda do mouse aumentou o tamanho da arte');
+      await foto('3d-arrastar-arte.png');
+      await js("[...document.querySelectorAll('.ajuste button')].find((b) => b.textContent.startsWith('Restaurar')).click()");
+      await espera(400);
       conferir((await js("document.querySelector('[data-acc=elastico][aria-pressed=true]').dataset.id")) === 'nenhum', 'o elástico ficou em "Nenhum"');
       await js("document.querySelectorAll('#lista .item')[0].click()");
       await js("document.getElementById('copiar').click()");
