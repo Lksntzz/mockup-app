@@ -382,7 +382,7 @@ ipcMain.handle('corel-arte-no-molde', async (_e, entrada: unknown) => {
       return { ok: false as const, motivo: 'O Corel rodou o macro, mas o arquivo do molde não apareceu na pasta. Veja se ficou algum aviso na tela do Corel' };
     }
     // plano B: com o caminho copiado, o macro do Corel aceita colar quando rodado à mão
-    if (copiar && arquivoAbrivel(raizes, copiar)) clipboard.writeText(copiar);
+    if (!('aberto' in r) && copiar && arquivoAbrivel(raizes, copiar)) clipboard.writeText(copiar);
     return r;
   } finally {
     for (const t of temporarios) await unlink(t).catch(() => undefined);

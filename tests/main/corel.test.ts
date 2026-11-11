@@ -40,13 +40,13 @@ describe('scriptVbs', () => {
     expect(vbs).toContain('Win32_Process');
     expect(vbs).toContain('CorelDRW.exe');
   });
-  test('Corel fechado: abre o arquivo do molde pelo Windows (como um duplo clique, que carrega os macros) e espera ele ficar pronto', () => {
+  test('Corel fechado: só abre o molde pelo Windows (como um duplo clique) e para, sem mandar comandos ao Corel recém-aberto', () => {
     const vbs = scriptVbs('ArteDoClienteNoMolde');
     expect(vbs).toContain('WScript.Shell');
     expect(vbs).toContain('C:\\MOLDE\\MOLDE.cdr');
     expect(vbs).toContain('WScript.Sleep');
-    expect(vbs).toMatch(/If esperando Then maximo = \d+/);
-    expect(vbs).toContain('MainWindowTitle');
+    expect(vbs).toContain('ABERTO');
+    expect(vbs).not.toContain('MainWindowTitle');
   });
   test('gerar PDF com o Corel fechado não abre nada: pede para abrir o .cdr do cliente', () => {
     const vbs = scriptVbs('ExportarPDFparaMKP');
@@ -232,5 +232,20 @@ describe('scriptVbs: Corel que não responde', () => {
   });
   test('erro de conexão 462 não repete o macro (repetir por cima travava o Corel)', () => {
     expect(scriptVbs('ArteDoClienteNoMolde')).toContain('If n1 = 462 Then Exit For');
+  });
+});
+
+describe('rodarMacroDoCorel: Corel estava fechado', () => {
+  test('quando o script só abriu o Corel, devolve aviso "aberto" (não é erro) pedindo o segundo clique', async () => {
+    const r = await rodarMacroDoCorel('ArteDoClienteNoMolde', 'I:\\a.png', {
+      plataforma: 'win32',
+      pastaTemporaria: tmp,
+      executar: async () => ({ codigo: 0, saida: 'ABERTO: abri o CorelDRAW com o molde.\r\n' }),
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.aberto).toBe(true);
+      expect(r.motivo).toContain('clique de novo');
+    }
   });
 });

@@ -6,7 +6,7 @@ import { join } from 'node:path';
 /** Macros do módulo MKP (tools/corel/MKP.bas) que o app sabe chamar. */
 export type MacroDoCorel = 'ArteDoClienteNoMolde' | 'ExportarPDFparaMKP';
 
-export type ResultadoCorel = { ok: true } | { ok: false; motivo: string };
+export type ResultadoCorel = { ok: true } | { ok: false; motivo: string; aberto?: true };
 
 export type ExecutorVbs = (arquivoVbs: string) => Promise<{ codigo: number; saida: string }>;
 
@@ -58,25 +58,14 @@ export function scriptVbs(macro: MacroDoCorel): string {
         '    WScript.Echo "ERRO: o CorelDRAW nao esta respondendo (" & Err.Number & "). Feche ele pelo Gerenciador de Tarefas, abra o .cdr do cliente e tente de novo."',
         '    WScript.Quit 2',
       ];
+  // Corel fechado + arte: só abre o molde pelo Windows (como um duplo clique) e para. Mandar comandos a um Corel recém-aberto travava ele;
+  // com ele já aberto e carregado o macro funciona, então o app pede um segundo clique.
   const corelFechado = arte
     ? [
         '  Set sh = CreateObject("WScript.Shell")',
         `  sh.Run """${CAMINHO_DO_MOLDE}""", 1, False`,
-        '  esperando = True',
-        // espera a janela do Corel mostrar o nome do molde (arquivo carregado); sem mexer nele por COM enquanto carrega
-        '  pronto = False',
-        '  For i = 1 To 40',
-        '    WScript.Sleep 3000',
-        '    Err.Clear',
-        '    Set execp = sh.Exec("powershell -NoProfile -Command ""(Get-Process CorelDRW -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -like \'*MOLDE*\' }).Count""")',
-        '    If Err.Number <> 0 Then Exit For',
-        '    saida = Trim(execp.StdOut.ReadAll())',
-        '    If saida <> "" And saida <> "0" Then pronto = True : Exit For',
-        '  Next',
-        '  Err.Clear',
-        '  diag = diag & ", janela do molde detectada=" & pronto',
-        // mesmo com a janela pronta, o Corel ainda termina de carregar a interface e o VBA
-        '  If pronto Then WScript.Sleep 10000 Else WScript.Sleep 30000',
+        '  WScript.Echo "ABERTO: abri o CorelDRAW com o molde."',
+        '  WScript.Quit 0',
       ]
     : [
         '  WScript.Echo "ERRO: o CorelDRAW nao esta aberto. Abra o .cdr do cliente nele e tente de novo."',
@@ -113,7 +102,6 @@ export function scriptVbs(macro: MacroDoCorel): string {
     'End If',
     // recém-aberto por nós: poucas tentativas espaçadas (insistir a cada 2 s travava o Corel carregando)
     'limite = 1',
-    'If esperando Then limite = 8',
     'For i = 1 To limite',
     '  Err.Clear',
     '  Set app = CreateObject("CorelDRAW.Application")',
@@ -131,7 +119,6 @@ export function scriptVbs(macro: MacroDoCorel): string {
     'ok = False',
     // só repete quando o Corel respondeu "macro não encontrado" (ainda carregando); erro de conexão (462) não se repete
     'maximo = 1',
-    'If esperando Then maximo = 6',
     'For tentativa = 1 To maximo',
     '  Err.Clear',
     `  app.GMSManager.RunMacro "GlobalMacros", "MKP.${macro}"`,
@@ -190,6 +177,13 @@ export async function rodarMacroDoCorel(macro: MacroDoCorel, caminho: string, op
     await writeFile(arquivoCaminho, Buffer.from(caminho, 'latin1'));
     await writeFile(arquivoVbs, scriptVbs(macro), 'latin1');
     const r = await executar(arquivoVbs);
+    if (r.codigo === 0 && /^ABERTO/m.test(r.saida)) {
+      return {
+        ok: false,
+        aberto: true,
+        motivo: 'Abri o CorelDRAW com o molde. Espere ele carregar por inteiro (uns 30 segundos, sem mexer) e clique de novo em "Abrir no molde (Corel)".',
+      };
+    }
     if (r.codigo === 0 && /^OK\s*$/m.test(r.saida)) return { ok: true };
     const linha = r.saida.split(/\r?\n/).find((l) => l.startsWith('ERRO:'));
     return { ok: false, motivo: linha ? linha.slice(5).trim() : 'O Corel não confirmou que rodou o macro.' };

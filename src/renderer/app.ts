@@ -1203,6 +1203,8 @@ function linhaDoCliente(c: Cliente): HTMLElement {
               if (r.ok) {
                 mensagem('Arte no molde. Ajuste e depois use "Gerar PDF".');
                 mostrarConfirmacaoDoCorel(c.nome, r.detalhes);
+              } else if (r.aberto) {
+                mensagem(r.motivo);
               } else {
                 mensagem(`${r.motivo} (copiei o caminho da arte: no Corel, rode o macro e cole)`, true);
               }

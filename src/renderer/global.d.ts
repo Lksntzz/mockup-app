@@ -34,7 +34,7 @@ export interface MockupApi {
   fluxoConferido(caminho: string): Promise<boolean>;
   fluxoVoltouVisto(caminho: string): Promise<boolean>;
   salvarTemporario(nome: string, bytes: Uint8Array): Promise<string>;
-  corelArteNoMolde(entrada: { frente?: string; verso?: string; destino: string; copiar?: string }): Promise<{ ok: true; detalhes?: ResultadoDoMolde } | { ok: false; motivo: string }>;
+  corelArteNoMolde(entrada: { frente?: string; verso?: string; destino: string; copiar?: string }): Promise<{ ok: true; detalhes?: ResultadoDoMolde } | { ok: false; motivo: string; aberto?: true }>;
   corelGerarPdf(caminho: string): Promise<ResultadoMover>;
   notificacaoTestar(): Promise<{ suportada: boolean }>;
   designerProcurarPastas(substituir: boolean): Promise<{ config: ConfigDesigner; achou: number; avisos: string[] }>;
