@@ -21,10 +21,18 @@ describe('scriptVbs', () => {
     expect(vbs).toContain('WScript.Echo "OK"');
     expect(vbs).toContain('WScript.Echo "ERRO:');
   });
-  test('quando o Corel precisa ser aberto pelo script, espera ele ficar pronto antes de desistir', () => {
+  test('Corel fechado: abre o arquivo do molde pelo Windows (como um duplo clique, que carrega os macros) e espera ele ficar pronto', () => {
     const vbs = scriptVbs('ArteDoClienteNoMolde');
+    expect(vbs).toContain('WScript.Shell');
+    expect(vbs).toContain('C:\\MOLDE\\MOLDE.cdr');
     expect(vbs).toContain('WScript.Sleep');
-    expect(vbs).toMatch(/If criado Then maximo = \d+/);
+    expect(vbs).toMatch(/If esperando Then maximo = \d+/);
+    expect(vbs).not.toContain('CreateObject("CorelDRAW.Application")'); // esse modo de abrir não carrega os macros do usuário
+  });
+  test('gerar PDF com o Corel fechado não abre nada: pede para abrir o .cdr do cliente', () => {
+    const vbs = scriptVbs('ExportarPDFparaMKP');
+    expect(vbs).not.toContain('WScript.Shell');
+    expect(vbs).toContain('nao esta aberto');
   });
   test('a mensagem de erro traz o motivo de cada tentativa, não só o da última', () => {
     const vbs = scriptVbs('ExportarPDFparaMKP');

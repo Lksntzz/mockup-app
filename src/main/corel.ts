@@ -32,27 +32,51 @@ export function caminhoServeParaOCorel(caminho: string): boolean {
   return true;
 }
 
-/** Script que liga no CorelDRAW (ou abre) e roda o macro. Tenta as duas formas de endereçar o módulo. */
+/** Onde fica o molde (o mesmo caminho que o macro MKP.bas usa). */
+export const CAMINHO_DO_MOLDE = 'C:\\MOLDE\\MOLDE.cdr';
+
+/**
+ * Script que liga no CorelDRAW e roda o macro.
+ * Corel fechado + macro da arte: abre o arquivo do molde pelo Windows (como um duplo clique, que carrega os macros do usuário;
+ * abrir por automação deixava o Corel vazio, sem o GlobalMacros) e espera ele ficar pronto.
+ * Corel fechado + macro do PDF: não abre nada, porque o PDF é do documento que já está aberto.
+ */
 export function scriptVbs(macro: MacroDoCorel): string {
+  const abrirOCorel =
+    macro === 'ArteDoClienteNoMolde'
+      ? [
+          '  Set sh = CreateObject("WScript.Shell")',
+          `  sh.Run """${CAMINHO_DO_MOLDE}""", 1, False`,
+          '  esperando = True',
+          '  For i = 1 To 45',
+          '    WScript.Sleep 2000',
+          '    Err.Clear',
+          '    Set app = GetObject(, "CorelDRAW.Application")',
+          '    If Err.Number = 0 Then Exit For',
+          '  Next',
+          '  If Err.Number <> 0 Then',
+          '    WScript.Echo "ERRO: abri o CorelDRAW mas ele nao ficou pronto a tempo (" & Err.Description & ")"',
+          '    WScript.Quit 2',
+          '  End If',
+        ]
+      : [
+          '  WScript.Echo "ERRO: o CorelDRAW nao esta aberto. Abra o .cdr do cliente nele e tente de novo."',
+          '  WScript.Quit 2',
+        ];
   return [
     'On Error Resume Next',
-    'Dim app, ok, criado, maximo, tentativa, erro1, erro2',
-    'criado = False',
+    'Dim app, sh, ok, esperando, maximo, tentativa, erro1, erro2, i',
+    'esperando = False',
     'Set app = GetObject(, "CorelDRAW.Application")',
     'If Err.Number <> 0 Then',
     '  Err.Clear',
-    '  Set app = CreateObject("CorelDRAW.Application")',
-    '  criado = True',
-    'End If',
-    'If Err.Number <> 0 Then',
-    '  WScript.Echo "ERRO: nao consegui falar com o CorelDRAW (" & Err.Description & ")"',
-    '  WScript.Quit 2',
+    ...abrirOCorel,
     'End If',
     'app.Visible = True',
     'ok = False',
     // Corel recém-aberto demora para carregar os macros: tenta de novo por até 1 minuto; já aberto, é uma tentativa só
     'maximo = 1',
-    'If criado Then maximo = 30',
+    'If esperando Then maximo = 30',
     'For tentativa = 1 To maximo',
     '  Err.Clear',
     `  app.GMSManager.RunMacro "GlobalMacros", "MKP.${macro}"`,
