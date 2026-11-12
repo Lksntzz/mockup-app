@@ -16,6 +16,7 @@ import { caixaDoMolde, ehArteDoMoldeDoCorel, ehPaginaA4 } from '../pdf/molde';
 import { coverCrop, reduzir } from '../pdf/fit';
 import { capaPageNumbers } from '../pdf/pages';
 import { openPdf, PdfError } from '../pdf/reader';
+import { iniciarAnuncios, mostrarAnuncios } from './anuncios';
 import type { ArquivoPdf, EstadoAtualizacao, MockupApi } from './global';
 import { criarTrabalhos } from '../app/trabalhos';
 import type { Rascunho } from '../app/rascunhos';
@@ -1098,20 +1099,23 @@ async function desenharHistorico(): Promise<void> {
   }
 }
 
-function mostrarAba(aba: 'novo' | 'historico' | 'pasta1' | 'config'): void {
-  if ((aba === 'pasta1' || aba === 'config') && !designer.designer) aba = 'novo';
+function mostrarAba(aba: 'novo' | 'historico' | 'pasta1' | 'config' | 'anuncios'): void {
+  if ((aba === 'pasta1' || aba === 'config' || aba === 'anuncios') && !designer.designer) aba = 'novo';
   const pagina = aba !== 'novo';
   document.querySelector<HTMLElement>('.area')!.hidden = pagina;
   $('paginas').hidden = !pagina;
   $('historico').hidden = aba !== 'historico';
   $('pasta1').hidden = aba !== 'pasta1';
   $('config').hidden = aba !== 'config';
+  $('anuncios').hidden = aba !== 'anuncios';
+  $('tab-anuncios').setAttribute('aria-pressed', String(aba === 'anuncios'));
   $('tab-config').setAttribute('aria-pressed', String(aba === 'config'));
   $('tab-novo').setAttribute('aria-pressed', String(aba === 'novo'));
   $('tab-historico').setAttribute('aria-pressed', String(aba === 'historico'));
   $('tab-pasta1').setAttribute('aria-pressed', String(aba === 'pasta1'));
   if (aba === 'historico') void desenharHistorico();
   if (aba === 'config') atualizarCaminhos();
+  if (aba === 'anuncios') void mostrarAnuncios();
   if (aba === 'pasta1') {
     alertasNovos = 0;
     $('badge-cliente').hidden = true;
@@ -1122,6 +1126,8 @@ $('tab-novo').addEventListener('click', () => mostrarAba('novo'));
 $('tab-historico').addEventListener('click', () => mostrarAba('historico'));
 $('tab-pasta1').addEventListener('click', () => mostrarAba('pasta1'));
 $('tab-config').addEventListener('click', () => mostrarAba('config'));
+$('tab-anuncios').addEventListener('click', () => mostrarAba('anuncios'));
+iniciarAnuncios();
 
 /** Mostra na Configuração o caminho de cada pasta do fluxo. */
 function atualizarCaminhos(): void {
@@ -1143,7 +1149,8 @@ function aplicarDesigner(c: ConfigDesigner): void {
   $('operador').hidden = !c.designer;
   $('tab-pasta1').hidden = !c.designer;
   $('tab-config').hidden = !c.designer;
-  if (!c.designer && ($('pasta1').hidden === false || $('config').hidden === false)) mostrarAba('novo');
+  $('tab-anuncios').hidden = !c.designer;
+  if (!c.designer && ($('pasta1').hidden === false || $('config').hidden === false || $('anuncios').hidden === false)) mostrarAba('novo');
   atualizarCaminhos();
   desenharQualidade();
 }

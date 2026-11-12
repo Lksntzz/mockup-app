@@ -16,6 +16,7 @@
         <button id="tab-novo" type="button" aria-pressed="true">MKP</button>
         <button id="tab-historico" type="button" aria-pressed="false">Histórico</button>
         <button id="tab-pasta1" type="button" aria-pressed="false" hidden>Cliente <span id="badge-cliente" class="badge" hidden></span></button>
+        <button id="tab-anuncios" type="button" aria-pressed="false" hidden>Anúncios</button>
         <button id="tab-config" type="button" class="so-icone" aria-pressed="false" aria-label="Configuração" title="Configuração" hidden><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
       </nav>
       <span class="espaco"></span>
@@ -115,6 +116,50 @@
             </div>
             <div id="pasta1-lista"></div>
           </section>
+      <section id="anuncios" class="pagina estreita" hidden>
+        <div class="pagina-topo"><h2 class="pagina-titulo">Anúncios 2027</h2></div>
+        <div id="an-aviso" class="an-aviso" role="status" hidden></div>
+        <div id="an-form">
+          <div id="an-zona" class="zona an-zona" role="button" tabindex="0" aria-label="Escolher o PDF ou as imagens das capas, ou arrastar para cá">
+            <strong>Solte aqui o PDF ou as imagens (PNG, JPG)</strong>
+            <div class="dica">PDF: cada 2 páginas viram uma capa. Imagens: a 1ª é a capa e a 2ª é a contra capa.</div>
+            <div id="an-fontes" class="dica"></div>
+          </div>
+          <input id="an-arquivos" type="file" accept=".pdf,.png,.jpg,.jpeg" multiple hidden />
+          <div id="an-msg" class="an-erro" role="alert" hidden></div>
+          <div class="an-campos">
+            <label>Plataforma <select id="an-plataforma"></select></label>
+            <label>Categoria <select id="an-categoria"></select></label>
+          </div>
+          <div id="an-nova-cat" class="an-nova-cat" hidden>
+            <input id="an-nova-cat-nome" type="text" placeholder="Nome da nova categoria" maxlength="80" />
+            <button id="an-nova-cat-ok" class="secundario" type="button">OK</button>
+            <button id="an-nova-cat-cancelar" class="discreto" type="button">Cancelar</button>
+            <div id="an-nova-cat-erro" class="an-erro" hidden></div>
+          </div>
+          <div class="an-campos">
+            <label>Nome da arte <input id="an-arte" type="text" maxlength="120" /><span id="an-erro-arte" class="an-erro" hidden></span></label>
+            <label>Título do anúncio <input id="an-titulo" type="text" maxlength="250" /><span id="an-erro-titulo" class="an-erro" hidden></span></label>
+          </div>
+          <div id="an-geral" class="an-erro" hidden></div>
+          <div id="an-linhas" class="an-linhas"></div>
+          <button id="an-mais" class="secundario" type="button" hidden>Adicionar mais</button>
+          <div class="an-sera"><strong>Será criado</strong><div id="an-caminho" class="caminho"></div><ul id="an-avisos-form" class="an-lista"></ul></div>
+          <div class="an-botoes">
+            <button id="an-criar" class="primario grande" type="button" disabled>Criar pasta e arquivos</button>
+            <button id="an-so-pasta" class="secundario" type="button" disabled>Só criar a pasta e o .txt</button>
+          </div>
+        </div>
+        <div id="an-resultado" class="an-resultado" hidden>
+          <h3 id="an-res-titulo" class="config-titulo"></h3>
+          <ul id="an-res-lista" class="an-lista"></ul>
+          <div id="an-res-acoes" class="an-botoes" hidden>
+            <button id="an-abrir-existente" class="secundario" type="button">Abrir a existente</button>
+            <button id="an-outro-nome" class="secundario" type="button">Escolher outro nome</button>
+          </div>
+          <div class="an-botoes"><button id="an-novo" class="discreto" type="button">Fazer outro anúncio</button></div>
+        </div>
+      </section>
       <section id="config" class="pagina estreita" hidden>
             <div class="pagina-topo"><h2 class="pagina-titulo">Configuração</h2></div>
             <div class="config-pastas">

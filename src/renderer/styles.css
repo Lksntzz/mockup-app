@@ -427,3 +427,20 @@ button.secundario:hover:not(:disabled) { background: #f3f4f6; border-color: #c3c
 .selo-situacao.arte-a-fazer::before { animation: pisca 1.2s ease-in-out infinite; }
 @keyframes pisca { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(180, 83, 9, .5); } 50% { opacity: .25; box-shadow: 0 0 0 5px rgba(180, 83, 9, 0); } }
 @media (prefers-reduced-motion: reduce) { .designer-barra span, .etapas .etapa.atual::after, .selo-situacao.arte-a-fazer::before { animation: none; } }
+
+/* ---- Aba Anúncios ---- */
+.an-zona { margin-bottom: 12px; }
+.an-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.an-campos label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; color: var(--suave); font-size: 13px; }
+.an-campos input, .an-campos select, .an-linha input, .an-nova-cat input { font: inherit; padding: 7px 10px; border: 1px solid var(--borda); border-radius: 8px; background: var(--superficie); color: var(--texto); }
+.an-erro { color: var(--erro); font-size: 12px; font-weight: 600; margin: 4px 0; }
+.an-nova-cat { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+.an-linhas { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.an-linha { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; padding: 8px 10px; background: var(--superficie); border: 1px solid var(--borda); border-radius: 10px; }
+.an-linha label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--suave); }
+.an-linha .an-arqs { grid-column: 1 / -1; font-size: 12px; color: var(--suave); overflow-wrap: anywhere; }
+.an-linha input.invalido { border-color: var(--erro); }
+.an-sera, .an-resultado, .an-aviso { margin: 14px 0; padding: 10px 14px; background: var(--superficie); border: 1px solid var(--borda); border-radius: 10px; }
+.an-aviso { color: var(--erro); font-weight: 600; }
+.an-lista { margin: 6px 0 0 18px; font-size: 13px; color: var(--suave); overflow-wrap: anywhere; }
+.an-botoes { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }

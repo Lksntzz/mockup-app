@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('mockupApi', {
   anunciosPastas: () => ipcRenderer.invoke('anuncios-pastas'),
   anunciosCategorias: (plataforma: string) => ipcRenderer.invoke('anuncios-categorias', plataforma),
   anunciosCriarCategoria: (plataforma: string, nome: string) => ipcRenderer.invoke('anuncios-criar-categoria', plataforma, nome),
+  anunciosAbrirPasta: (caminho: string) => ipcRenderer.invoke('anuncios-abrir-pasta', caminho),
   anunciosCriar: (entrada: unknown, montarNoCorel: boolean) => ipcRenderer.invoke('anuncios-criar', entrada, montarNoCorel),
   iniciarComWindowsEstado: () => ipcRenderer.invoke('iniciar-windows-estado'),
   iniciarComWindows: (ligado: boolean) => ipcRenderer.invoke('iniciar-windows-definir', ligado),

@@ -30,6 +30,7 @@ import {
   join,
   relative,
   resolve,
+  sep,
 } from "node:path";
 import { PNG } from "pngjs";
 import { entradaValida } from "../app/historico";
@@ -39,6 +40,7 @@ import { rascunhoValido } from "../app/rascunhos";
 import { criarRascunhos } from "./rascunhos";
 import { criarConfigDesigner, type ConfigDesigner } from "./config-designer";
 import {
+  ehPasta,
   moverParaAprovar,
   moverParaEtapa,
   origemDoCliente,
@@ -466,6 +468,16 @@ ipcMain.handle("anuncios-criar", (_e, entrada: unknown, montarNoCorel: unknown) 
     return criarEMontar({ ...e, raiz: r.pasta }, montarNoCorel === true);
   }),
 );
+ipcMain.handle("anuncios-abrir-pasta", async (_e, caminho: unknown) => {
+  const r = await raizDosAnuncios();
+  if (!r.pasta || typeof caminho !== "string" || !caminho) return { ok: false as const, motivo: "Não achei a pasta de anúncios." };
+  const rel = relative(resolve(r.pasta), resolve(caminho));
+  if (rel === "" || isAbsolute(rel) || rel === ".." || rel.startsWith(".." + sep) || !(await ehPasta(caminho))) {
+    return { ok: false as const, motivo: "Essa pasta não está dentro da pasta dos Anúncios 2027." };
+  }
+  const erro = await shell.openPath(caminho);
+  return erro ? { ok: false as const, motivo: `O Windows não conseguiu abrir a pasta: ${erro}` } : { ok: true as const };
+});
 ipcMain.handle("clientes-listar", async () => {
   const c = await exigirDesigner();
   const r = await listarClientes(c, Date.now(), 30_000, c.enviados);

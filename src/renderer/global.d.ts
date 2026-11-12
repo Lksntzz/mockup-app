@@ -47,6 +47,7 @@ export interface MockupApi {
   anunciosPastas(): Promise<{ pastaAnuncios?: string; plataformas: string[]; avisos?: string[] }>;
   anunciosCategorias(plataforma: string): Promise<string[]>;
   anunciosCriarCategoria(plataforma: string, nome: string): Promise<ResultadoCategoria>;
+  anunciosAbrirPasta(caminho: string): Promise<{ ok: true } | { ok: false; motivo: string }>;
   anunciosCriar(entrada: EntradaDoAnuncio, montarNoCorel: boolean): Promise<ResultadoAnuncio>;
   iniciarComWindowsEstado(): Promise<boolean>;
   iniciarComWindows(ligado: boolean): Promise<boolean>;
