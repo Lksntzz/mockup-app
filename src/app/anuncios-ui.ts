@@ -28,19 +28,24 @@ export function montarEntrada(f: FormAnuncio): EntradaDoAnuncio {
   };
 }
 
-/** Caminho do quadro "Será criado". */
-export function caminhoPrevisto(f: FormAnuncio): string {
+/** Caminho do quadro "Será criado": completo, a partir da pasta Anúncio 2027 (quando ela é conhecida). */
+export function caminhoPrevisto(f: FormAnuncio, pastaAnuncios?: string): string {
   const arte = nomeDePastaSeguro(f.arte.trim()).nome;
-  return [f.plataforma, f.categoria, arte].filter(Boolean).join(' / ');
+  const partes = [f.plataforma, f.categoria, arte].filter(Boolean);
+  if (!partes.length) return '';
+  if (!pastaAnuncios) return partes.join(' / ');
+  const barra = pastaAnuncios.includes('\\') ? '\\' : '/';
+  return [pastaAnuncios.replace(/[\\/]+$/, ''), ...partes].join(barra);
 }
 
 export function textoDaEtapaCorel(etapa: EtapaCorelUi): string {
   switch (etapa) {
     case 'feito': return 'O arquivo do Corel foi montado.';
     case 'aguardando-clique':
-      return 'A pasta e o .txt já estão prontos. O Corel estava fechado e eu abri o molde, mas o arquivo ainda não foi montado: com o Corel aberto, rode o macro "AnuncioDaPasta" para montar.';
+      return 'A pasta e o .txt já estão prontos. O Corel estava fechado: eu abri o molde. Espere ele carregar por inteiro (uns 30 segundos, sem mexer) e clique em "Montar no Corel agora".';
     case 'pulado': return 'Você escolheu só criar a pasta e o .txt: o Corel não foi usado.';
-    case 'erro': return 'A pasta e o .txt estão prontos, mas o Corel não montou o arquivo. Veja os avisos abaixo ou rode o macro "AnuncioDaPasta".';
+    case 'erro':
+      return 'A pasta e o .txt estão prontos, mas o Corel não montou o arquivo. Veja os avisos abaixo. Depois de resolver, clique em "Montar no Corel agora" (ou rode o macro AnuncioDaPasta no Corel).';
     default: return '';
   }
 }

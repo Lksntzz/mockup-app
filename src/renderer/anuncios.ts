@@ -15,6 +15,9 @@ let lendo = false;
 let seqCategorias = 0;
 let existente: string | undefined;
 let ultimaCategoria = '';
+let pastaAnuncios: string | undefined;
+/** Pasta do anúncio que acabou de ser criada (para o botão "Montar no Corel agora"). */
+let pastaCriada: string | undefined;
 
 function texto(el: HTMLElement, t: string): void {
   el.textContent = t;
@@ -60,9 +63,11 @@ function atualizar(): void {
   $('an-linhas').querySelectorAll<HTMLElement>('.an-linha').forEach((linha, i) => {
     const e = v.erros.ean[i] ?? '';
     texto(linha.querySelector<HTMLElement>('.an-erro')!, e);
+    // EAN vazio não é erro: só uma dica neutra (vale para "Só criar a pasta e o .txt")
+    texto(linha.querySelector<HTMLElement>('.an-pendente')!, e ? '' : v.pendentes[i] ?? '');
     linha.querySelector('.an-ean')!.classList.toggle('invalido', Boolean(e));
   });
-  texto($('an-caminho'), caminhoPrevisto(form));
+  texto($('an-caminho'), caminhoPrevisto(form, pastaAnuncios));
   const lista = $('an-avisos-form');
   lista.replaceChildren();
   for (const a of v.avisos) {
@@ -70,9 +75,10 @@ function atualizar(): void {
     li.textContent = a;
     lista.append(li);
   }
-  const pode = v.podeCriar && !semPasta && !rodando && !lendo;
-  $<HTMLButtonElement>('an-criar').disabled = !pode;
-  $<HTMLButtonElement>('an-so-pasta').disabled = !pode;
+  const livre = !semPasta && !rodando && !lendo;
+  $<HTMLButtonElement>('an-criar').disabled = !(v.podeCriar && livre);
+  $<HTMLButtonElement>('an-so-pasta').disabled = !(v.podeCriarSoPasta && livre);
+  $<HTMLButtonElement>('an-montar-agora').disabled = !livre || !pastaCriada;
   $<HTMLButtonElement>('an-mais').hidden = form.origem !== 'imagens';
   $<HTMLButtonElement>('an-mais').disabled = semPasta || rodando || lendo;
   $<HTMLButtonElement>('an-limpar').hidden = form.origem === 'nenhuma';
@@ -114,6 +120,10 @@ function desenharLinhas(): void {
         e.className = 'an-erro';
         e.hidden = true;
         l.append(e);
+        const p = document.createElement('span');
+        p.className = 'an-pendente';
+        p.hidden = true;
+        l.append(p);
       }
       linha.append(l);
     }
@@ -157,6 +167,7 @@ async function receberArquivos(arquivos: File[]): Promise<void> {
   }
   if (!validos.length) return;
   const pdf = validos.find(ehPdf);
+  let leu = false;
   try {
     if (pdf) {
       if (validos.length > 1) { mensagem('Solte só um PDF, ou então só imagens (PNG, JPG).'); return; }
@@ -190,10 +201,14 @@ async function receberArquivos(arquivos: File[]): Promise<void> {
         }
       }
     }
+    leu = true;
   } catch (e) {
     mensagem(erroDe(e));
-    return;
+  } finally {
+    // em toda saída (PDF estragado, sem páginas, erro) os botões voltam a refletir o formulário
+    if (!leu) atualizar();
   }
+  if (!leu) return;
   numerarCapas();
   $<HTMLInputElement>('an-arte').value = form.arte;
   $<HTMLInputElement>('an-titulo').value = form.titulo;
@@ -223,6 +238,7 @@ export async function mostrarAnuncios(): Promise<void> {
   try {
     const r = await api.anunciosPastas();
     semPasta = !r.pastaAnuncios;
+    pastaAnuncios = r.pastaAnuncios;
     const aviso = [semPasta ? 'Escolha a pasta Anúncio 2027 na Configuração' : '', ...(r.avisos ?? [])].filter(Boolean).join(' ');
     texto($('an-aviso'), aviso);
     const sel = $<HTMLSelectElement>('an-plataforma');
@@ -240,22 +256,38 @@ export async function mostrarAnuncios(): Promise<void> {
 }
 
 async function criar(montar: boolean): Promise<void> {
-  if (rodando || !validar(form).podeCriar) return;
+  const v = validar(form);
+  if (rodando || lendo || !(montar ? v.podeCriar : v.podeCriarSoPasta)) return;
   rodando = true;
   atualizar();
   mensagem('');
-  let res;
   try {
-    res = await api.anunciosCriar(montarEntrada(form), montar);
+    const res = await api.anunciosCriar(montarEntrada(form), montar);
+    mostrarResultado(res, 'criar');
   } catch (e) {
-    rodando = false;
     mensagem(`Não consegui criar o anúncio: ${erroDe(e)}`);
+  } finally {
+    rodando = false;
     atualizar();
-    return;
   }
-  rodando = false;
-  mostrarResultado(res);
+}
+
+/** Segundo clique: o Corel já está aberto, monta o .cdr da pasta que acabou de ser criada. */
+async function montarAgora(): Promise<void> {
+  if (rodando || lendo || !pastaCriada) return;
+  rodando = true;
+  $<HTMLButtonElement>('an-montar-agora').disabled = true;
   atualizar();
+  mensagem('');
+  try {
+    const res = await api.anunciosMontarNoCorel(pastaCriada);
+    mostrarResultado(res, 'montar');
+  } catch (e) {
+    mensagem(`Não consegui montar no Corel: ${erroDe(e)}`);
+  } finally {
+    rodando = false;
+    atualizar();
+  }
 }
 
 function item(lista: HTMLElement, t: string): void {
@@ -264,15 +296,23 @@ function item(lista: HTMLElement, t: string): void {
   lista.append(li);
 }
 
-function mostrarResultado(r: Awaited<ReturnType<MockupApi['anunciosCriar']>>): void {
+function mostrarResultado(r: Awaited<ReturnType<MockupApi['anunciosCriar']>>, origem: 'criar' | 'montar'): void {
   existente = r.existente;
+  // a pasta do botão "Montar no Corel agora": um criar novo troca; um montar que falhou sem pasta mantém a de antes
+  if (origem === 'criar') pastaCriada = r.ok && r.pasta ? r.pasta : undefined;
+  else if (r.pasta) pastaCriada = r.pasta;
   const lista = $('an-res-lista');
   lista.replaceChildren();
-  $('an-res-titulo').textContent = r.ok ? 'Anúncio criado' : r.existente ? 'Essa pasta já existe' : 'Não foi possível criar';
+  $('an-res-titulo').textContent =
+    origem === 'montar'
+      ? (r.ok ? 'Montagem no Corel' : 'Não foi possível montar')
+      : r.ok ? 'Anúncio criado' : r.existente ? 'Essa pasta já existe' : 'Não foi possível criar';
   if (r.ok) {
     if (r.pasta) item(lista, `Pasta: ${r.pasta}`);
-    item(lista, 'Arquivo .txt do anúncio');
-    item(lista, 'Cópia da arte na pasta');
+    if (origem === 'criar') {
+      item(lista, 'Arquivo .txt do anúncio');
+      item(lista, 'Cópia da arte na pasta');
+    }
     if (r.etapaCorel === 'feito') item(lista, 'Arquivo .cdr montado no Corel');
     const t = textoDaEtapaCorel(r.etapaCorel);
     if (t) item(lista, t);
@@ -282,10 +322,15 @@ function mostrarResultado(r: Awaited<ReturnType<MockupApi['anunciosCriar']>>): v
   }
   for (const a of r.avisos ?? []) item(lista, `Aviso: ${a}`);
   $('an-res-acoes').hidden = !r.existente;
+  const falta = r.ok && (r.etapaCorel === 'aguardando-clique' || r.etapaCorel === 'erro');
+  $('an-montar-agora').hidden = !(pastaCriada && (falta || (origem === 'montar' && !r.ok)));
   $('an-resultado').hidden = false;
 }
 
 function novoAnuncio(): void {
+  if (rodando || lendo) return;
+  pastaCriada = undefined;
+  $('an-montar-agora').hidden = true;
   form = { ...formVazio(), plataforma: form.plataforma, categoria: form.categoria };
   $<HTMLInputElement>('an-arte').value = '';
   $<HTMLInputElement>('an-titulo').value = '';
@@ -371,5 +416,6 @@ export function iniciarAnuncios(): void {
     $<HTMLInputElement>('an-arte').select();
   });
   $('an-novo').addEventListener('click', novoAnuncio);
+  $('an-montar-agora').addEventListener('click', () => void montarAgora());
   atualizar();
 }

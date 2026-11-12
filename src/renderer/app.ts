@@ -2087,6 +2087,8 @@ for (const tipo of ['dragleave', 'drop']) {
 }
 document.addEventListener('drop', async (e) => {
   e.preventDefault();
+  // com a aba Anúncios na tela, um PDF solto fora da área dela não pode ir parar escondido na aba MKP
+  if (!$('anuncios').hidden) return;
   const arquivo = e.dataTransfer?.files[0];
   if (!arquivo) return;
   if (document.body.dataset.estado !== 'vazio') {

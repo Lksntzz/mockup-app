@@ -67,12 +67,34 @@ describe('anuncios-form', () => {
     const ruim = validar(comLinhas({ ean: ['123', '7891000100103'] }));
     expect(ruim.erros.ean[0]).toBeTruthy();
     expect(ruim.podeCriar).toBe(false);
-    const vazio = validar(comLinhas({ ean: ['', '7891000100103'] }));
-    expect(vazio.erros.ean[0]).not.toBe(ruim.erros.ean[0]);
-    expect(vazio.podeCriar).toBe(false);
+    expect(ruim.podeCriarSoPasta).toBe(false);
     const ok = validar(comLinhas({ ean: [' 789 8764983584\n', '7891000100103'] }));
     expect(ok.erros.ean).toEqual({});
+    expect(ok.pendentes).toEqual({});
     expect(ok.podeCriar).toBe(true);
+    expect(ok.podeCriarSoPasta).toBe(true);
+  });
+  test('EAN vazio: não é erro vermelho, fica pendente; só libera "Só criar a pasta"', () => {
+    const vazio = validar(comLinhas({ ean: ['', '7891000100103'] }));
+    expect(vazio.erros.ean).toEqual({});
+    expect(vazio.pendentes[0]).toMatch(/EAN pendente/);
+    expect(vazio.pendentes[0]).toMatch(/Só criar a pasta/);
+    expect(vazio.podeCriar).toBe(false);
+    expect(vazio.podeCriarSoPasta).toBe(true);
+    const todosVazios = validar(comLinhas({ ean: ['', ' '] }));
+    expect(todosVazios.podeCriar).toBe(false);
+    expect(todosVazios.podeCriarSoPasta).toBe(true);
+  });
+  test('"Só criar a pasta" continua bloqueado por EAN inválido/repetido e por faltas', () => {
+    expect(validar(comLinhas({ ean: ['', '123'] })).podeCriarSoPasta).toBe(false);
+    expect(validar(comLinhas({ ean: ['7898764983584', '7898764983584'] })).podeCriarSoPasta).toBe(false);
+    const comVazio = comLinhas({ ean: ['', '7891000100103'] });
+    expect(validar({ ...comVazio, titulo: '' }).podeCriarSoPasta).toBe(false);
+    expect(validar({ ...comVazio, arte: '. ' }).podeCriarSoPasta).toBe(false);
+    expect(validar({ ...comVazio, plataforma: '' }).podeCriarSoPasta).toBe(false);
+    expect(validar({ ...comVazio, categoria: '' }).podeCriarSoPasta).toBe(false);
+    expect(validar(adicionarPar(aplicarPar(base(), 0, { capa: 'c.png' }))).podeCriarSoPasta).toBe(false);
+    expect(validar(formVazio()).podeCriarSoPasta).toBe(false);
   });
   test('EAN repetido bloqueia; SKU repetido só avisa', () => {
     const v = validar(comLinhas({ ean: ['7898764983584', '7898764983584'] }));

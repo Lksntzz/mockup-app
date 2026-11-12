@@ -434,6 +434,7 @@ button.secundario:hover:not(:disabled) { background: #f3f4f6; border-color: #c3c
 .an-campos label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; color: var(--suave); font-size: 13px; }
 .an-campos input, .an-campos select, .an-linha input, .an-nova-cat input { font: inherit; padding: 7px 10px; border: 1px solid var(--borda); border-radius: 8px; background: var(--superficie); color: var(--texto); }
 .an-erro { color: var(--erro); font-size: 12px; font-weight: 600; margin: 4px 0; }
+.an-pendente { color: var(--suave); font-size: 12px; margin: 4px 0; }
 .an-nova-cat { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
 .an-linhas { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
 .an-linha { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; padding: 8px 10px; background: var(--superficie); border: 1px solid var(--borda); border-radius: 10px; }

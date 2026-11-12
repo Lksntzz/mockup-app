@@ -23,9 +23,18 @@ describe('anuncios-ui', () => {
     expect(caminhoPrevisto({ ...formVazio(), plataforma: 'Shopee', categoria: 'C', arte: 'a/b' })).toMatch(/^Shopee \/ C \/ .+/);
     expect(caminhoPrevisto(formVazio())).toBe('');
   });
+  it('mostra o caminho completo a partir da pasta Anúncio 2027', () => {
+    const f = { ...formVazio(), plataforma: 'Shopee', categoria: 'Agenda', arte: 'Tulipa' };
+    expect(caminhoPrevisto(f, 'G:\\Drive\\Anúncio 2027')).toBe('G:\\Drive\\Anúncio 2027\\Shopee\\Agenda\\Tulipa');
+    expect(caminhoPrevisto(f, 'G:\\Drive\\Anúncio 2027\\')).toBe('G:\\Drive\\Anúncio 2027\\Shopee\\Agenda\\Tulipa');
+    expect(caminhoPrevisto(f, '/home/x/Anúncio 2027')).toBe('/home/x/Anúncio 2027/Shopee/Agenda/Tulipa');
+    expect(caminhoPrevisto(formVazio(), 'G:\\Anúncio 2027')).toBe('');
+  });
   it('explica cada etapa do Corel', () => {
     expect(textoDaEtapaCorel('feito')).toContain('montado');
-    expect(textoDaEtapaCorel('aguardando-clique')).toContain('AnuncioDaPasta');
+    expect(textoDaEtapaCorel('aguardando-clique')).toContain('Montar no Corel agora');
+    expect(textoDaEtapaCorel('aguardando-clique')).not.toContain('AnuncioDaPasta');
+    expect(textoDaEtapaCorel('erro')).toContain('Montar no Corel agora');
     expect(textoDaEtapaCorel(undefined)).toBe('');
   });
   it('limparArte mantém os textos e zera capas e linhas', () => {
