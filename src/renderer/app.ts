@@ -1,6 +1,6 @@
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { createPreviewScheduler } from '../app/scheduler';
-import { aplicarEscolhas, contarIgnoradas, descreverSaidas, formatarData, type EntradaHistorico, type Saidas } from '../app/historico';
+import { aplicarAjustes, ajustesDoEstado, aplicarEscolhas, contarIgnoradas, descreverSaidas, formatarData, type EntradaHistorico, type Saidas } from '../app/historico';
 import { copyToAll, createState, select, setAjuste, setColor, type AppState, type CapaState } from '../app/state';
 import { abasVisiveis, ROTULOS, vizinha, type Modo } from '../app/abas';
 import { escolhasDoVerso, paraRazao } from '../app/verso';
@@ -952,6 +952,13 @@ function saidasMarcadas(): Saidas {
   };
 }
 
+/** Zoom/posição da arte para guardar junto do trabalho (só os campos que existem). */
+function ajustesSalvos(): { ajustes?: ReturnType<typeof ajustesDoEstado>['ajustes']; ajustesVerso?: ReturnType<typeof ajustesDoEstado>['ajustesVerso'] } {
+  if (!estado) return {};
+  const { ajustes, ajustesVerso } = ajustesDoEstado(estado);
+  return { ...(ajustes ? { ajustes } : {}), ...(ajustesVerso ? { ajustesVerso } : {}) };
+}
+
 async function registrarNoHistorico(geradas: number): Promise<void> {
   if (!estado) return;
   let id = idsDoHistorico.get(caminhoDoPdf);
@@ -965,6 +972,7 @@ async function registrarNoHistorico(geradas: number): Promise<void> {
       saidas: saidasMarcadas(),
       escolhas: estado.capas.map((c) => ({ ...c.choices })),
       geradas,
+      ...ajustesSalvos(),
     });
   } catch (e) {
     // o histórico é um extra: se falhar, os mockups já foram salvos
@@ -985,7 +993,14 @@ async function editarDoHistorico(entrada: EntradaHistorico, trocarPdf: boolean):
     if (!arquivo) arquivo = await api.escolherPdf();
     if (!arquivo) return;
     mostrarAba('novo');
-    await abrirPdf(arquivo, { escolhas: entrada.escolhas, saidas: entrada.saidas, idHistorico: entrada.id });
+    // trocando a arte, o zoom/posição de antes não serve para a arte nova: só as cores são mantidas
+    await abrirPdf(arquivo, {
+      escolhas: entrada.escolhas,
+      saidas: entrada.saidas,
+      idHistorico: entrada.id,
+      ...(!trocarPdf && entrada.ajustes ? { ajustes: entrada.ajustes } : {}),
+      ...(!trocarPdf && entrada.ajustesVerso ? { ajustesVerso: entrada.ajustesVerso } : {}),
+    });
   } catch (e) {
     mensagem(textoDoErro(e), true);
   }

@@ -1,6 +1,7 @@
+import { ajusteEhNulo, ajusteValido, type Ajuste } from '../engine/ajuste';
 import { isAvailable } from '../engine/compose';
 import type { Choices } from '../engine/types';
-import type { AppState } from './state';
+import { setAjuste, type AppState } from './state';
 
 export interface Saidas {
   frente: boolean;
@@ -20,6 +21,9 @@ export interface EntradaHistorico {
   escolhas: Choices[];
   /** Quantas imagens foram gravadas no total. */
   geradas: number;
+  /** Zoom e posição da arte de cada capa (frente e verso); null = sem ajuste. Trabalhos antigos não têm. */
+  ajustes?: (Partial<Ajuste> | null)[];
+  ajustesVerso?: (Partial<Ajuste> | null)[];
 }
 
 export function entradaValida(x: unknown): x is EntradaHistorico {
@@ -32,6 +36,8 @@ export function entradaValida(x: unknown): x is EntradaHistorico {
     typeof e.pdfNome === 'string' &&
     typeof e.pdfCaminho === 'string' &&
     typeof e.geradas === 'number' &&
+    (e.ajustes === undefined || Array.isArray(e.ajustes)) &&
+    (e.ajustesVerso === undefined || Array.isArray(e.ajustesVerso)) &&
     Array.isArray(e.escolhas) &&
     e.escolhas.every((c) => !!c && typeof c === 'object') &&
     !!s &&
@@ -69,4 +75,29 @@ export function formatarData(iso: string): string {
 /** Quantas capas têm cores salvas que o modelo atual do PSD não oferece mais (para avisar o operador). */
 export function contarIgnoradas(pack: AppState['pack'], escolhas: Choices[]): number {
   return escolhas.filter((c) => !isAvailable(pack, c)).length;
+}
+
+/** Devolve o estado com o zoom/posição salvos de cada capa (frente e verso). Valores estragados são presos nos limites. */
+export function aplicarAjustes(
+  s: AppState,
+  ajustes: (Partial<Ajuste> | null)[] | undefined,
+  ajustesVerso: (Partial<Ajuste> | null)[] | undefined,
+): AppState {
+  let novo = s;
+  const aplicar = (lista: (Partial<Ajuste> | null)[] | undefined, lado: 'frente' | 'verso') =>
+    lista?.forEach((a, i) => {
+      if (a && typeof a === 'object' && i < novo.capas.length) novo = setAjuste(novo, i, ajusteValido(a), lado);
+    });
+  aplicar(ajustes, 'frente');
+  aplicar(ajustesVerso, 'verso');
+  return novo;
+}
+
+/** O que guardar no histórico: o ajuste de cada capa (null quando neutro) ou undefined se nenhuma capa foi mexida. */
+export function ajustesDoEstado(s: AppState): { ajustes: (Ajuste | null)[] | undefined; ajustesVerso: (Ajuste | null)[] | undefined } {
+  const lista = (campo: 'ajuste' | 'ajusteVerso') => {
+    const l = s.capas.map((c) => (ajusteEhNulo(c[campo]) ? null : { ...c[campo]! }));
+    return l.some((a) => a) ? l : undefined;
+  };
+  return { ajustes: lista('ajuste'), ajustesVerso: lista('ajusteVerso') };
 }

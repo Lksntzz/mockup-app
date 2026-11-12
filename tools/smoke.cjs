@@ -175,6 +175,11 @@ app.on('browser-window-created', (_e, win) => {
       // concluir: cria a pasta MKP ao lado do PDF e grava lá
       await js("document.querySelector('#trabalhos .continuar').click()");
       await ate("document.body.dataset.estado === 'pronto'", 'retomar para concluir');
+      // dá um zoom na arte da capa 1: o histórico tem que guardar esse ajuste
+      await js("document.querySelectorAll('#lista .item')[0].click()");
+      await espera(300);
+      await js("document.getElementById('previa').dispatchEvent(new WheelEvent('wheel', { deltaY: -300, bubbles: true, cancelable: true }))");
+      await espera(700);
       await js("document.getElementById('exportar').click()");
       await ate("!document.getElementById('salvo').hidden", 'conclusão');
       await foto('5-concluido.png');
@@ -194,6 +199,8 @@ app.on('browser-window-created', (_e, win) => {
       await ate("document.querySelectorAll('#historico-lista .historico-linha').length === 1", 'histórico com 1 trabalho');
       const linhaHist = await js("document.querySelector('#historico-lista .historico-linha').textContent");
       conferir(linhaHist.includes('CAPAS.pdf') && linhaHist.includes('5 capas') && linhaHist.includes('Frente'), `o histórico mostra PDF, capas e imagens ("${linhaHist.replace(/\s+/g, ' ').trim()}")`);
+      const salvos = await js("window.mockupApi.listarHistorico().then(l => l[0])");
+      conferir(Array.isArray(salvos.ajustes) && salvos.ajustes[0] && salvos.ajustes[0].zoom > 1 && salvos.ajustes[1] === null, `o histórico guarda o zoom da arte da capa 1 e deixa as outras sem ajuste (${JSON.stringify(salvos.ajustes)})`);
       const arquivoHist = path.join(pastaDeDados, 'usuarios');
       conferir(fs.existsSync(arquivoHist) && fs.readdirSync(arquivoHist).length === 1, 'o histórico fica numa pasta própria do operador');
       await foto('5a-historico.png');
