@@ -9,14 +9,25 @@ function campoSeguro(nome: string, valor: string): string {
   return valor;
 }
 
+function paginaSegura(nome: string, n: number | undefined): string {
+  if (n === undefined) return '';
+  if (!Number.isInteger(n) || n < 1) throw new Error(`Valor inválido no manifesto (${nome}): a página deve ser um inteiro maior ou igual a 1.`);
+  return String(n);
+}
+
+function lerPagina(nome: string, texto: string): number {
+  if (!/^[0-9]+$/.test(texto) || Number(texto) < 1) throw new Error(`Valor inválido no manifesto (${nome}): "${texto}" não é um inteiro maior ou igual a 1.`);
+  return Number(texto);
+}
+
 export function montarManifesto(m: { destino: string; capas: CapaDoManifesto[] }): string {
   const linhas = [`destino=${campoSeguro('destino', m.destino)}`, `capas=${m.capas.length}`];
   for (const c of m.capas) {
     linhas.push([
       `frente=${campoSeguro('frente', c.frente ?? '')}`,
-      `pf=${c.paginaFrente ?? ''}`,
+      `pf=${paginaSegura('pf', c.paginaFrente)}`,
       `verso=${campoSeguro('verso', c.verso ?? '')}`,
-      `pv=${c.paginaVerso ?? ''}`,
+      `pv=${paginaSegura('pv', c.paginaVerso)}`,
       `ean=${campoSeguro('ean', c.ean)}`,
       `mod=${encodeEan13(c.ean)}`,
     ].join('|'));
@@ -40,9 +51,9 @@ export function lerManifesto(texto: string): { destino: string; capas: CapaDoMan
     const pf = campos.get('pf');
     const pv = campos.get('pv');
     if (frente) capa.frente = frente;
-    if (pf) capa.paginaFrente = Number(pf);
+    if (pf) capa.paginaFrente = lerPagina('pf', pf);
     if (verso) capa.verso = verso;
-    if (pv) capa.paginaVerso = Number(pv);
+    if (pv) capa.paginaVerso = lerPagina('pv', pv);
     return capa;
   });
   return { destino, capas };

@@ -20,4 +20,17 @@ describe('manifesto', () => {
   test('recusa EAN inválido', () => {
     expect(() => montarManifesto({ destino: 'd.cdr', capas: [{ ean: '123' }] })).toThrow(/EAN-13 inválido/);
   });
+  test('escrita recusa página que não seja inteiro >= 1', () => {
+    for (const n of [0, -1, 1.5, NaN, Infinity]) {
+      expect(() => montarManifesto({ destino: 'd.cdr', capas: [{ paginaFrente: n, ean: '7898764983584' }] })).toThrow(/pf/);
+      expect(() => montarManifesto({ destino: 'd.cdr', capas: [{ paginaVerso: n, ean: '7898764983584' }] })).toThrow(/pv/);
+    }
+  });
+  test('leitura recusa página malformada e aceita 1 e 12', () => {
+    const base = montarManifesto({ destino: 'd.cdr', capas: [{ frente: 'a.pdf', paginaFrente: 1, verso: 'a.pdf', paginaVerso: 12, ean: '7898764983584' }] });
+    expect(lerManifesto(base).capas).toEqual([{ frente: 'a.pdf', paginaFrente: 1, verso: 'a.pdf', paginaVerso: 12, ean: '7898764983584' }]);
+    expect(() => lerManifesto(base.replace('pf=1', 'pf=abc'))).toThrow(/pf/);
+    expect(() => lerManifesto(base.replace('pf=1', 'pf=0'))).toThrow(/pf/);
+    expect(() => lerManifesto(base.replace('pv=12', 'pv=1.5'))).toThrow(/pv/);
+  });
 });
