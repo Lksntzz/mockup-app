@@ -1,4 +1,5 @@
-const RESERVADO = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+// O Windows trata o trecho antes do primeiro ponto como nome de dispositivo (CON.pdf, COM1.txt).
+const RESERVADO = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?=\s*(\.|$))/i;
 const MAXIMO = 80;
 
 /** Deixa o texto digitado usável como nome de pasta no Windows, sem nunca sair da pasta da categoria. */
@@ -11,7 +12,7 @@ export function nomeDePastaSeguro(entrada: string): { nome: string; alterado: bo
     .replace(/ {2,}/g, ' ');
   nome = nome.replace(/\.{2,}/g, '-');
   nome = limpar(nome);
-  if (RESERVADO.test(nome)) nome = `${nome} -`;
+  nome = nome.replace(RESERVADO, '$1 -');
   if (nome.length > MAXIMO) nome = limpar(nome.slice(0, MAXIMO));
   return { nome, alterado: nome !== original };
 }

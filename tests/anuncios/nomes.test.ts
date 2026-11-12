@@ -11,6 +11,18 @@ describe('nomes', () => {
     expect(nomeDePastaSeguro('CON').nome).not.toBe('CON');
     expect(nomeDePastaSeguro('   ').nome).toBe('');
   });
+  test('nomes reservados do Windows, com ou sem extensão, ganham " -"', () => {
+    expect(nomeDePastaSeguro('CON').nome).toBe('CON -');
+    expect(nomeDePastaSeguro('COM1.txt').nome).toBe('COM1 -.txt');
+    expect(nomeDePastaSeguro('CON.pdf').nome).toBe('CON -.pdf');
+    expect(nomeDePastaSeguro('con.').nome).toBe('con -');
+    expect(nomeDePastaSeguro('Aux.x').nome).toBe('Aux -.x');
+    expect(nomeDePastaSeguro('lpt9').nome).toBe('lpt9 -');
+  });
+  test('nomes que apenas começam como reservados não mudam', () => {
+    expect(nomeDePastaSeguro('Console')).toEqual({ nome: 'Console', alterado: false });
+    expect(nomeDePastaSeguro('Comunicação')).toEqual({ nome: 'Comunicação', alterado: false });
+  });
   test('limita a 80 caracteres', () => {
     expect(nomeDePastaSeguro('a'.repeat(100)).nome).toHaveLength(80);
   });
