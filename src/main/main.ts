@@ -56,6 +56,8 @@ import {
 } from "./clientes";
 import {
   criarEMontar,
+  dentroDaRaiz,
+  montarPastaExistente,
   resolverPlataforma,
   resolverRaizDosAnuncios,
   validarFontes,
@@ -423,17 +425,23 @@ function raizesDeBusca(): string[] {
 ipcMain.handle("designer-procurar-pastas", async (_e, substituir: unknown, somenteAnuncios: unknown) => {
   const c = await exigirDesigner();
   const soAnuncios = somenteAnuncios === true;
-  const r = soAnuncios
-    ? { pastas: {} as Partial<Record<"pasta1" | "pasta2" | "pasta3" | "pasta4", string>>, avisos: [] as string[] }
-    : await acharPastasDoFluxo(raizesDeBusca());
+  // as duas buscas correm juntas; a de anúncios só quando pode trocar a pasta (pedida, substituir ou ainda sem pasta)
+  const buscarAnuncios = soAnuncios || substituir === true || !c.pastaAnuncios;
+  const [r, anuncios] = await Promise.all([
+    soAnuncios
+      ? Promise.resolve({ pastas: {} as Partial<Record<"pasta1" | "pasta2" | "pasta3" | "pasta4", string>>, avisos: [] as string[] })
+      : acharPastasDoFluxo(raizesDeBusca()),
+    buscarAnuncios ? acharPastaAnuncios(raizesDeBusca()) : Promise.resolve({ pasta: undefined, avisos: [] as string[] }),
+  ]);
   const novas: Partial<ConfigDesigner> = {};
   for (const k of ["pasta1", "pasta2", "pasta3", "pasta4"] as const) {
     const achada = r.pastas[k];
     if (achada && (substituir === true || !c[k])) novas[k] = achada;
   }
-  const anuncios = await acharPastaAnuncios(raizesDeBusca());
   Object.assign(novas, mesclarPastasAchadas(c, { pastaAnuncios: anuncios.pasta }, substituir === true));
-  r.avisos.push(...anuncios.avisos);
+  // na busca geral, quem nunca escolheu a pasta de anúncios não precisa ouvir "não achei a pasta de anúncios"
+  const calarNaoAchei = !soAnuncios && !c.pastaAnuncios && !anuncios.pasta;
+  r.avisos.push(...(calarNaoAchei ? [] : anuncios.avisos));
   const config =
     Object.keys(novas).length > 0 ? await configDoDesigner().salvar(novas) : c;
   return { config, achou: Object.keys(novas).length, avisos: r.avisos };
@@ -441,7 +449,14 @@ ipcMain.handle("designer-procurar-pastas", async (_e, substituir: unknown, somen
 // ---- Anúncios 2027 ----
 async function raizDosAnuncios() {
   const c = await exigirDesigner();
-  return resolverRaizDosAnuncios(c.pastaAnuncios, raizesDeBusca());
+  const r = await resolverRaizDosAnuncios(c.pastaAnuncios, raizesDeBusca());
+  // achou pela busca e ainda não havia pasta salva: guarda, para não varrer o disco de novo a cada clique
+  if (r.pasta && !c.pastaAnuncios) {
+    await configDoDesigner()
+      .salvar(mesclarPastasAchadas(c, { pastaAnuncios: r.pasta }, false))
+      .catch(() => undefined);
+  }
+  return r;
 }
 ipcMain.handle("anuncios-pastas", async () => {
   const r = await raizDosAnuncios();
@@ -475,11 +490,20 @@ ipcMain.handle("anuncios-criar", (_e, entrada: unknown, montarNoCorel: unknown) 
     return criarEMontar({ ...e, raiz: r.pasta }, montarNoCorel === true);
   }),
 );
+// segundo clique: monta no Corel uma pasta de anúncio que já foi criada (nunca apaga nada)
+ipcMain.handle("anuncios-montar-no-corel", (_e, pasta: unknown) =>
+  marcarCorel(async () => {
+    const r = await raizDosAnuncios();
+    const recusa = (motivo: string) => ({ ok: false as const, motivo, avisos: [] as string[] });
+    if (!r.pasta) return recusa("Não achei a pasta de anúncios. Escolha na mão.");
+    if (typeof pasta !== "string" || !pasta) return recusa("Pasta do anúncio inválida.");
+    return montarPastaExistente(r.pasta, pasta);
+  }),
+);
 ipcMain.handle("anuncios-abrir-pasta", async (_e, caminho: unknown) => {
   const r = await raizDosAnuncios();
   if (!r.pasta || typeof caminho !== "string" || !caminho) return { ok: false as const, motivo: "Não achei a pasta de anúncios." };
-  const rel = relative(resolve(r.pasta), resolve(caminho));
-  if (rel === "" || isAbsolute(rel) || rel === ".." || rel.startsWith(".." + sep) || !(await ehPasta(caminho))) {
+  if (!dentroDaRaiz(r.pasta, caminho) || !(await ehPasta(caminho))) {
     return { ok: false as const, motivo: "Essa pasta não está dentro da pasta dos Anúncios 2027." };
   }
   const erro = await shell.openPath(caminho);
