@@ -12,7 +12,7 @@ import { AJUSTE_NULO, ajusteValido } from '../engine/ajuste';
 import { exportAll, type ExportCapa, type ExportExtra } from '../export/exporter';
 import type { Accessory, Choices, Pack, Raster } from '../engine/types';
 import { cropMargins, cropToBox, widthForArt } from '../pdf/crop';
-import { caixaDoMolde, ehPaginaA4 } from '../pdf/molde';
+import { caixaDoMolde, ehArteDoMoldeDoCorel, ehPaginaA4 } from '../pdf/molde';
 import { coverCrop, reduzir } from '../pdf/fit';
 import { capaPageNumbers } from '../pdf/pages';
 import { openPdf, PdfError } from '../pdf/reader';
@@ -509,6 +509,13 @@ async function lerArteDaPagina(
   }
   const caixa = await doc.artBox(n);
   const pagina = await doc.renderPage(n, widthForArt(larguraDaArte, caixa));
+  if (ehPaginaA4(pagina.width, pagina.height) && ehArteDoMoldeDoCorel(caixa)) {
+    // PDF do molde do Corel aberto sem passar pelo botão "Abrir no molde": a capa é só o miolo de 150 × 210 mm
+    // (a dobra e a sobra em volta ficam de fora, igual ao que se vê no Corel).
+    if (medida) medida.semMedida = 'corel';
+    const molde = caixaDoMolde();
+    return cropToBox(await doc.renderPage(n, widthForArt(larguraDaArte, molde)), molde);
+  }
   const arte = cropMargins(caixa ? cropToBox(pagina, caixa) : pagina);
   if (medida) {
     // quantos pixels de verdade a arte tem no arquivo (e não nos pixels desta renderização)
