@@ -1,5 +1,5 @@
 import { aplicarPar, aplicarPdf, definirVariacao, formVazio, validar, type FormAnuncio } from '../app/anuncios-form';
-import { caminhoPrevisto, ehArteAceita, ehPdf, montarEntrada, textoDaEtapaCorel } from '../app/anuncios-ui';
+import { caminhoPrevisto, ehArteAceita, limparArte, removerPar, ehPdf, montarEntrada, textoDaEtapaCorel } from '../app/anuncios-ui';
 import { openPdf } from '../pdf/reader';
 import type { MockupApi } from './global';
 
@@ -11,6 +11,8 @@ let form: FormAnuncio = formVazio();
 let iniciado = false;
 let semPasta = true;
 let rodando = false;
+let lendo = false;
+let seqCategorias = 0;
 let existente: string | undefined;
 let ultimaCategoria = '';
 
@@ -21,7 +23,12 @@ function texto(el: HTMLElement, t: string): void {
 function erroDe(e: unknown): string {
   return e instanceof Error && e.message ? e.message : 'Algo deu errado. Tente de novo.';
 }
-function mensagem(t: string): void { texto($('an-msg'), t); }
+function mensagem(t: string, erro = true): void {
+  const el = $('an-msg');
+  texto(el, t);
+  el.classList.toggle('an-erro', erro);
+  el.setAttribute('role', erro ? 'alert' : 'status');
+}
 
 function preencher(sel: HTMLSelectElement, itens: string[], escolhido: string, extra?: string): void {
   sel.replaceChildren();
@@ -63,11 +70,12 @@ function atualizar(): void {
     li.textContent = a;
     lista.append(li);
   }
-  const pode = v.podeCriar && !semPasta && !rodando;
+  const pode = v.podeCriar && !semPasta && !rodando && !lendo;
   $<HTMLButtonElement>('an-criar').disabled = !pode;
   $<HTMLButtonElement>('an-so-pasta').disabled = !pode;
   $<HTMLButtonElement>('an-mais').hidden = form.origem !== 'imagens';
-  $<HTMLButtonElement>('an-mais').disabled = semPasta || rodando;
+  $<HTMLButtonElement>('an-mais').disabled = semPasta || rodando || lendo;
+  $<HTMLButtonElement>('an-limpar').hidden = form.origem === 'nenhuma';
 }
 
 function nomeDoArquivo(c: string | undefined): string {
@@ -113,6 +121,18 @@ function desenharLinhas(): void {
     arqs.className = 'an-arqs';
     arqs.textContent = descreverFonte(i);
     linha.append(arqs);
+    if (form.origem === 'imagens') {
+      const rm = document.createElement('button');
+      rm.type = 'button';
+      rm.className = 'discreto';
+      rm.textContent = 'Remover este par';
+      rm.addEventListener('click', () => {
+        if (rodando || lendo) return;
+        form = removerPar(form, i);
+        desenharLinhas();
+      });
+      linha.append(rm);
+    }
     alvo.append(linha);
   });
   // o erro do EAN fica dentro do label do EAN; atualizar() procura '.an-erro' da linha
@@ -124,6 +144,7 @@ function numerarCapas(): void {
 }
 
 async function receberArquivos(arquivos: File[]): Promise<void> {
+  if (rodando || lendo) { mensagem('Espere terminar o que está em andamento para trocar a arte.'); return; }
   mensagem('');
   const validos: string[] = [];
   for (const a of arquivos) {
@@ -139,10 +160,17 @@ async function receberArquivos(arquivos: File[]): Promise<void> {
   try {
     if (pdf) {
       if (validos.length > 1) { mensagem('Solte só um PDF, ou então só imagens (PNG, JPG).'); return; }
-      mensagem('Lendo o PDF…');
-      const doc = await openPdf((await api.lerPdf(pdf)).bytes);
-      const total = doc.pageCount;
-      await doc.close().catch(() => undefined);
+      mensagem('Lendo o PDF…', false);
+      lendo = true;
+      atualizar();
+      let total: number;
+      try {
+        const doc = await openPdf((await api.lerPdf(pdf)).bytes);
+        total = doc.pageCount;
+        await doc.close().catch(() => undefined);
+      } finally {
+        lendo = false;
+      }
       if (!Number.isInteger(total) || total < 1) { mensagem('Não consegui ler as páginas desse PDF.'); return; }
       form = aplicarPdf(form, pdf, total);
       mensagem('');
@@ -167,6 +195,8 @@ async function receberArquivos(arquivos: File[]): Promise<void> {
     return;
   }
   numerarCapas();
+  $<HTMLInputElement>('an-arte').value = form.arte;
+  $<HTMLInputElement>('an-titulo').value = form.titulo;
   texto($('an-fontes'), form.origem === 'pdf' ? `PDF escolhido: ${nomeDoArquivo((form.fontes[0] as { arquivo?: string } | undefined)?.arquivo)}` : '');
   desenharLinhas();
 }
@@ -178,9 +208,12 @@ function adicionarMais(): void {
 
 async function carregarCategorias(escolhida = ''): Promise<void> {
   const sel = $<HTMLSelectElement>('an-categoria');
-  if (!form.plataforma) { preencher(sel, [], '', 'Nova categoria…'); sel.disabled = true; return; }
+  if (!form.plataforma) { seqCategorias++; preencher(sel, [], '', 'Nova categoria…'); sel.disabled = true; return; }
   sel.disabled = false;
-  const cats = await api.anunciosCategorias(form.plataforma).catch(() => [] as string[]);
+  const pedida = form.plataforma;
+  const meu = ++seqCategorias;
+  const cats = await api.anunciosCategorias(pedida).catch(() => [] as string[]);
+  if (meu !== seqCategorias || form.plataforma !== pedida) return;
   preencher(sel, cats, escolhida, 'Nova categoria…');
   form = { ...form, categoria: sel.value };
   ultimaCategoria = sel.value;
@@ -197,6 +230,8 @@ export async function mostrarAnuncios(): Promise<void> {
     form = { ...form, plataforma: sel.value };
     for (const id of ['an-plataforma', 'an-categoria', 'an-arte', 'an-titulo', 'an-arquivos']) $<HTMLInputElement>(id).disabled = semPasta;
     await carregarCategorias(form.categoria);
+    $<HTMLInputElement>('an-arte').value = form.arte;
+    $<HTMLInputElement>('an-titulo').value = form.titulo;
   } catch (e) {
     semPasta = true;
     texto($('an-aviso'), erroDe(e));
@@ -265,8 +300,8 @@ export function iniciarAnuncios(): void {
   iniciado = true;
   const zona = $('an-zona');
   const arquivos = $<HTMLInputElement>('an-arquivos');
-  zona.addEventListener('click', () => { if (!semPasta) arquivos.click(); });
-  zona.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && !semPasta) { e.preventDefault(); arquivos.click(); } });
+  zona.addEventListener('click', () => { if (!semPasta && !rodando && !lendo) arquivos.click(); });
+  zona.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && !semPasta && !rodando && !lendo) { e.preventDefault(); arquivos.click(); } });
   arquivos.addEventListener('change', () => {
     const lista = Array.from(arquivos.files ?? []);
     arquivos.value = '';
@@ -317,6 +352,13 @@ export function iniciarAnuncios(): void {
   $('an-arte').addEventListener('input', () => { form = { ...form, arte: $<HTMLInputElement>('an-arte').value }; atualizar(); });
   $('an-titulo').addEventListener('input', () => { form = { ...form, titulo: $<HTMLInputElement>('an-titulo').value }; atualizar(); });
   $('an-mais').addEventListener('click', adicionarMais);
+  $('an-limpar').addEventListener('click', () => {
+    if (rodando || lendo) return;
+    form = limparArte(form);
+    texto($('an-fontes'), '');
+    mensagem('');
+    desenharLinhas();
+  });
   $('an-criar').addEventListener('click', () => void criar(true));
   $('an-so-pasta').addEventListener('click', () => void criar(false));
   $('an-abrir-existente').addEventListener('click', () => {

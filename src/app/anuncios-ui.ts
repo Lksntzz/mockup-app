@@ -44,3 +44,16 @@ export function textoDaEtapaCorel(etapa: EtapaCorelUi): string {
     default: return '';
   }
 }
+
+/** Tira a arte escolhida (capas e linhas), mantendo plataforma, categoria, nome da arte e título. */
+export function limparArte(f: FormAnuncio): FormAnuncio {
+  return { ...f, origem: 'nenhuma', fontes: [], variacoes: [] };
+}
+
+/** Remove o par de imagens i (e a linha dele). Sem imagens sobrando, volta a "nenhuma". */
+export function removerPar(f: FormAnuncio, i: number): FormAnuncio {
+  if (f.origem !== 'imagens' || !Number.isInteger(i) || i < 0 || i >= f.fontes.length) return f;
+  const fontes = f.fontes.filter((_, k) => k !== i);
+  const variacoes = f.variacoes.filter((_, k) => k !== i);
+  return { ...f, origem: fontes.length ? 'imagens' : 'nenhuma', fontes, variacoes };
+}
