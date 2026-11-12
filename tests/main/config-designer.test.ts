@@ -100,3 +100,13 @@ describe('mesma configuração criada mais de uma vez', () => {
     expect(await criarConfigDesigner(arquivo).ler()).toEqual({ designer: true, pasta1: '0', pasta2: '1', pasta3: '2', pasta4: '3' });
   });
 });
+
+describe('pastaAnuncios', () => {
+  test('config guarda pastaAnuncios e ignora valor que não é texto', async () => {
+    const c = criarConfigDesigner(arquivo);
+    await c.salvar({ designer: true, pastaAnuncios: 'G:\\Anúncio 2027' });
+    expect((await criarConfigDesigner(arquivo).ler()).pastaAnuncios).toBe('G:\\Anúncio 2027');
+    await writeFile(arquivo, JSON.stringify({ designer: true, pastaAnuncios: 5 }), 'utf-8');
+    expect(await c.ler()).toEqual({ designer: true });
+  });
+});

@@ -8,6 +8,8 @@ export interface ConfigDesigner {
   pasta2?: string;
   pasta3?: string;
   pasta4?: string;
+  /** Pasta "Anúncio 2027" no Google Drive (raiz de plataformas e categorias dos anúncios). */
+  pastaAnuncios?: string;
   /** Clientes (nomes de pasta) que já geraram o alerta "arte para fazer"; não alerta de novo. */
   vistos?: string[];
   /** Quando (ms) cada cliente foi enviado para a Pasta 2 pelo app; base para o aviso "alterado depois do envio". */
@@ -42,6 +44,7 @@ function montar(arquivo: string) {
       if (typeof b.pasta2 === 'string') c.pasta2 = b.pasta2;
       if (typeof b.pasta3 === 'string') c.pasta3 = b.pasta3;
       if (typeof b.pasta4 === 'string') c.pasta4 = b.pasta4;
+      if (typeof b.pastaAnuncios === 'string') c.pastaAnuncios = b.pastaAnuncios;
       if (Array.isArray(b.vistos) && b.vistos.every((v) => typeof v === 'string')) c.vistos = b.vistos as string[];
       if (b.enviados && typeof b.enviados === 'object' && !Array.isArray(b.enviados)) {
         const ok = Object.entries(b.enviados as Record<string, unknown>).filter(([, v]) => typeof v === 'number' && Number.isFinite(v));
