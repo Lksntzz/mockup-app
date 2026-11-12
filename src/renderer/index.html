@@ -16,7 +16,7 @@
         <button id="tab-novo" type="button" aria-pressed="true">MKP</button>
         <button id="tab-historico" type="button" aria-pressed="false">Histórico</button>
         <button id="tab-pasta1" type="button" aria-pressed="false" hidden>Cliente <span id="badge-cliente" class="badge" hidden></span></button>
-        <button id="tab-config" type="button" aria-pressed="false" hidden>Configuração</button>
+        <button id="tab-config" type="button" class="so-icone" aria-pressed="false" aria-label="Configuração" title="Configuração" hidden><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
       </nav>
       <span class="espaco"></span>
       <span id="operador" class="operador" title="Modo Designer ativo" hidden></span>
@@ -138,7 +138,10 @@
     <div id="tela-designer" class="tela-designer" role="status" aria-live="polite" hidden>
       <svg class="designer-logo" viewBox="0 0 96 96" aria-hidden="true"><rect x="4" y="4" width="88" height="88" rx="22" fill="#fff"/><path d="M24 70V26H34L48 46L62 26H66L72 32V70H62V44L50 62H46L34 44V70Z" fill="#14181f"/><path d="M66 26L72 32H66Z" fill="#1f4fb8"/></svg>
       <div id="designer-giro" class="giro" aria-hidden="true"></div>
+      <div id="designer-ok" class="designer-ok" aria-hidden="true" hidden><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></div>
       <div id="designer-titulo" class="designer-titulo"></div>
+      <div id="designer-sub" class="designer-sub"></div>
+      <div id="designer-barra" class="designer-barra" aria-hidden="true"><span></span></div>
     </div>
     <div id="tela-pin" class="tela-designer" role="dialog" aria-label="PIN do Modo designer" hidden>
       <div class="designer-titulo">Modo designer</div>

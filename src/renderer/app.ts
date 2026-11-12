@@ -1203,6 +1203,9 @@ async function trocarModoDesigner(): Promise<void> {
   const ligar = !designer.designer;
   try {
     giro.hidden = false;
+    $('designer-ok').hidden = true;
+    $('designer-barra').hidden = false;
+    $('designer-sub').textContent = ligar ? 'Procurando as pastas do fluxo de artes' : '';
     titulo.textContent = ligar ? 'Carregando modo designer…' : 'Saindo do modo designer…';
     tela.hidden = false;
     const [config] = await Promise.all([api.designerLigar(ligar, pin), esperar(1200)]);
@@ -1218,6 +1221,9 @@ async function trocarModoDesigner(): Promise<void> {
       }
       await desenharPasta1();
       giro.hidden = true;
+      $('designer-barra').hidden = true;
+      $('designer-ok').hidden = false; // check animado: desenha o traço e abre uma onda verde
+      $('designer-sub').textContent = 'Modo Designer ativo';
       titulo.textContent = `Bem-vindo, ${NOME_DO_DESIGNER}`;
       await esperar(1600);
     }
