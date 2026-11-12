@@ -349,3 +349,18 @@ body:not([data-estado="pronto"]) #coluna-capas { display: none; }
 .tela-corel-lista li.erro { background: #fef3f2; color: #b42318; }
 .tela-corel-nota { margin: 0 0 16px; font-size: 13px; color: #475467; }
 .tela-corel-caixa button { width: 100%; height: 40px; }
+
+/* barra de cima em duas faixas: a de cima só com navegação e dados do app; a do arquivo aparece quando há o que mostrar */
+.topo .espaco, .faixa-arquivo .espaco { flex: 1; }
+.topo .versao { margin-left: -6px; }
+.topo button.icone { width: 32px; height: 32px; padding: 0; display: grid; place-items: center; border: 1px solid var(--borda); border-radius: 8px; background: var(--superficie); color: var(--suave); }
+.topo button.icone:hover:not(:disabled) { color: var(--texto); background: #f5f6fb; }
+.topo button.icone:disabled { opacity: .5; }
+.faixa-arquivo { display: none; align-items: center; gap: 14px; padding: 0 20px; min-height: 44px; background: #fafaff; border-bottom: 1px solid var(--borda); }
+.faixa-arquivo:has(#voltar:not([hidden])), .faixa-arquivo:has(#mensagem:not(:empty)), .faixa-arquivo:has(#progresso:not([hidden])) { display: flex; }
+.faixa-arquivo .secundario { padding: 6px 12px; font-size: 13px; }
+.faixa-arquivo .arquivo { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.faixa-arquivo .capas-pdf { color: var(--suave); font-size: 12px; white-space: nowrap; }
+.faixa-arquivo .capas-pdf:empty { display: none; }
+.faixa-arquivo .mensagem { flex: 0 1 auto; text-align: right; }
+.faixa-arquivo .mensagem:not(:empty):not(.erro) { background: #e6f4ea; color: #1e5b32; border-radius: 999px; padding: 5px 12px; font-weight: 500; }

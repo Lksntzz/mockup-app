@@ -151,6 +151,7 @@ app.on('browser-window-created', (_e, win) => {
       // voltar ao início guarda o trabalho
       await js("document.getElementById('voltar').click()");
       conferir((await js('document.body.dataset.estado')) === 'vazio', 'voltar ao início mostra a tela inicial');
+      conferir(await js("getComputedStyle(document.getElementById('faixa-arquivo')).display === 'none'"), 'na tela inicial, sem mensagem, a faixa do arquivo fica escondida');
       await foto('4-inicio-com-trabalho.png');
       conferir((await js("document.querySelectorAll('#trabalhos .trabalho').length")) === 1, 'o trabalho aparece em "Em andamento"');
       conferir(await js("document.getElementById('previa').hidden && document.getElementById('painel').hidden"), 'na tela inicial a prévia e o painel somem');
@@ -172,6 +173,7 @@ app.on('browser-window-created', (_e, win) => {
       await ate("document.getElementById('mensagem').classList.contains('erro')", 'erro de PDF');
       const msg = await js("document.getElementById('mensagem').textContent");
       conferir(msg.includes('não é um PDF'), `arquivo que não é PDF mostra mensagem clara ("${msg}")`);
+      conferir(await js("(() => { const r = document.getElementById('mensagem').getBoundingClientRect(); return r.width > 0 && r.height > 0; })()"), 'a mensagem de erro aparece mesmo na tela inicial (sem PDF aberto)');
       conferir((await js('document.body.dataset.estado')) === 'vazio', 'depois do erro continua na tela inicial');
       conferir((await js("document.querySelectorAll('#trabalhos .trabalho').length")) === 1, 'o trabalho em andamento não se perdeu');
 

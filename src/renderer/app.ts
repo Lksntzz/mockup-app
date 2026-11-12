@@ -88,6 +88,12 @@ function mensagem(texto: string, erro = false): void {
   el.classList.toggle('erro', erro);
 }
 
+/** Nome do PDF aberto e quantas capas ele tem, na faixa do arquivo. */
+function mostrarNomeDoPdf(nome: string, capas: number): void {
+  $('nome-pdf').textContent = nome;
+  $('capas-pdf').textContent = nome && capas > 0 ? `· ${capas === 1 ? '1 capa' : `${capas} capas`}` : '';
+}
+
 function progresso(valor: number | null): void {
   const el = $<HTMLProgressElement>('progresso');
   el.hidden = valor === null;
@@ -741,7 +747,7 @@ async function abrirPdf(arquivo: ArquivoPdf, retomada?: Retomada): Promise<void>
     nomeDoPdf = nome;
     caminhoDoPdf = caminho;
     trabalhos.guardar({ caminho, nome, estado, info });
-    $('nome-pdf').textContent = nome;
+    mostrarNomeDoPdf(nome, estado.capas.length);
     progresso(null);
     mensagem((artes.length === 1 ? '1 capa carregada.' : `${artes.length} capas carregadas.`) + aviso, aviso !== '');
     definirEstado('pronto');
@@ -923,7 +929,7 @@ function irParaInicio(): void {
   info = [];
   nomeDoPdf = '';
   caminhoDoPdf = '';
-  $('nome-pdf').textContent = '';
+  mostrarNomeDoPdf('', 0);
   definirEstado('vazio');
   mostrarAba('novo');
   desenharEmAndamento();
@@ -936,7 +942,7 @@ function retomar(caminho: string): void {
   info = t.info;
   nomeDoPdf = t.nome;
   caminhoDoPdf = t.caminho;
-  $('nome-pdf').textContent = t.nome;
+  mostrarNomeDoPdf(t.nome, t.estado.capas.length);
   mensagem('');
   definirEstado('pronto');
   desenharLista();

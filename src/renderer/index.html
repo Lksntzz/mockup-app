@@ -18,14 +18,21 @@
         <button id="tab-pasta1" type="button" aria-pressed="false" hidden>Cliente <span id="badge-cliente" class="badge" hidden></span></button>
         <button id="tab-config" type="button" aria-pressed="false" hidden>Configuração</button>
       </nav>
-      <button id="voltar" class="secundario" type="button" hidden>← Fechar este PDF</button>
-      <span id="nome-pdf" class="nome-pdf"></span>
-      <span id="mensagem" class="mensagem" role="status"></span>
-      <progress id="progresso" max="1" value="0" hidden></progress>
+      <span class="espaco"></span>
       <span id="operador" class="operador" title="Operador (usuário do Windows)"></span>
       <span id="versao" class="versao"></span>
-      <button id="verificar" class="discreto" type="button">Verificar atualizações</button>
+      <button id="verificar" class="icone" type="button" aria-label="Verificar atualizações" title="Verificar atualizações">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+      </button>
     </header>
+    <!-- faixa do arquivo: aparece quando há um PDF aberto ou uma mensagem/progresso para mostrar -->
+    <div id="faixa-arquivo" class="faixa-arquivo">
+      <button id="voltar" class="secundario" type="button" hidden>← Fechar este PDF</button>
+      <span class="arquivo"><span id="nome-pdf" class="nome-pdf"></span><span id="capas-pdf" class="capas-pdf"></span></span>
+      <span class="espaco"></span>
+      <progress id="progresso" max="1" value="0" hidden></progress>
+      <span id="mensagem" class="mensagem" role="status"></span>
+    </div>
     <div id="tela-atualizando" class="tela-atualizando" role="alertdialog" aria-live="assertive" hidden>
       <div class="spinner" aria-hidden="true"></div>
       <strong>Atualizando o Mockup da Agenda…</strong>
