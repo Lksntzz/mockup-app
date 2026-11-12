@@ -1,6 +1,6 @@
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { createPreviewScheduler } from '../app/scheduler';
-import { aplicarAjustes, ajustesDoEstado, aplicarEscolhas, contarIgnoradas, descreverSaidas, formatarData, type EntradaHistorico, type Saidas } from '../app/historico';
+import { aplicarAjustes, ajustesDoEstado, aplicarEscolhas, contarIgnoradas, descreverSaidas, formatarData, situacaoDoTrabalho, type EntradaHistorico, type Saidas } from '../app/historico';
 import { copyToAll, createState, select, setAjuste, setColor, type AppState, type CapaState } from '../app/state';
 import { abasVisiveis, ROTULOS, vizinha, type Modo } from '../app/abas';
 import { escolhasDoVerso, paraRazao } from '../app/verso';
@@ -774,11 +774,33 @@ $('salvo-continuar').addEventListener('click', () => {
   mensagem('Você continua trabalhando nesta arte.');
 });
 // Terminar: o trabalho sai de "Em andamento" e volta para o início.
+// Outra arte deste cliente: dá este serviço como terminado e abre a escolha de outra arte, já na pasta do cliente.
+// As imagens novas vão para a mesma pasta MKP (ela fica ao lado do arquivo, e o nome da arte novo evita sobrescrever).
+$('salvo-outra').addEventListener('click', () => {
+  const pastaDoCliente = paiDe(caminhoDoPdf);
+  fecharSalvo();
+  descartarRascunho(caminhoDoPdf);
+  trabalhos.remover(caminhoDoPdf);
+  idsDoHistorico.delete(caminhoDoPdf);
+  geradasDoTrabalho.delete(caminhoDoPdf);
+  irParaInicio();
+  mensagem('Escolha a outra arte deste cliente.');
+  void (async () => {
+    try {
+      const arquivo = await api.escolherPdf(pastaDoCliente);
+      if (arquivo) await abrirPdf(arquivo);
+      else mensagem('');
+    } catch (e) {
+      mensagem(textoDoErro(e), true);
+    }
+  })();
+});
 $('salvo-ok').addEventListener('click', () => {
   fecharSalvo();
   descartarRascunho(caminhoDoPdf);
   trabalhos.remover(caminhoDoPdf);
   idsDoHistorico.delete(caminhoDoPdf);
+  geradasDoTrabalho.delete(caminhoDoPdf);
   irParaInicio();
   mensagem('');
 });
@@ -942,6 +964,8 @@ async function iniciar(): Promise<void> {
 // ---- operador e histórico ----
 /** Um trabalho salvo mantém o mesmo registro no histórico, mesmo se for salvo de novo (ex.: outras imagens). */
 const idsDoHistorico = new Map<string, string>();
+/** Quantas imagens já foram gravadas de cada trabalho: o botão Salvar não zera essa conta. */
+const geradasDoTrabalho = new Map<string, number>();
 
 function saidasMarcadas(): Saidas {
   return {
@@ -959,8 +983,10 @@ function ajustesSalvos(): { ajustes?: ReturnType<typeof ajustesDoEstado>['ajuste
   return { ...(ajustes ? { ajustes } : {}), ...(ajustesVerso ? { ajustesVerso } : {}) };
 }
 
-async function registrarNoHistorico(geradas: number): Promise<void> {
+async function registrarNoHistorico(geradas: number, finalizado = false): Promise<void> {
   if (!estado) return;
+  geradas = Math.max(geradas, geradasDoTrabalho.get(caminhoDoPdf) ?? 0);
+  geradasDoTrabalho.set(caminhoDoPdf, geradas);
   let id = idsDoHistorico.get(caminhoDoPdf);
   if (!id) idsDoHistorico.set(caminhoDoPdf, (id = crypto.randomUUID()));
   try {
@@ -972,6 +998,7 @@ async function registrarNoHistorico(geradas: number): Promise<void> {
       saidas: saidasMarcadas(),
       escolhas: estado.capas.map((c) => ({ ...c.choices })),
       geradas,
+      ...(finalizado ? { finalizado: true } : {}),
       ...ajustesSalvos(),
     });
   } catch (e) {
@@ -1033,7 +1060,7 @@ async function desenharHistorico(): Promise<void> {
     const detalhe = document.createElement('span');
     detalhe.className = 'detalhe';
     const capas = e.escolhas.length === 1 ? '1 capa' : `${e.escolhas.length} capas`;
-    detalhe.textContent = `${formatarData(e.data)} · ${capas} · ${descreverSaidas(e.saidas)} · ${e.geradas} ${e.geradas === 1 ? 'imagem' : 'imagens'}`;
+    detalhe.textContent = `${formatarData(e.data)} · ${situacaoDoTrabalho(e)} · ${capas} · ${descreverSaidas(e.saidas)} · ${e.geradas} ${e.geradas === 1 ? 'imagem' : 'imagens'}`;
     info.append(pdf, detalhe);
     const botao = (texto: string, classe: string, acao: () => void, dica = ''): HTMLButtonElement => {
       const b = document.createElement('button');
@@ -1843,6 +1870,7 @@ $('salvo-aprovar').addEventListener('click', () => {
       descartarRascunho(caminhoDoPdf);
       trabalhos.remover(caminhoDoPdf);
       idsDoHistorico.delete(caminhoDoPdf);
+  geradasDoTrabalho.delete(caminhoDoPdf);
       irParaInicio();
       mensagem('Pasta enviada para Aprovar.');
     },
@@ -1913,6 +1941,14 @@ for (const id of IDS_SAIDAS) {
   });
 }
 
+// Salvar: guarda o trabalho no Histórico (cores e ajustes), sem gerar imagem nem criar a pasta MKP.
+$('salvar-app').addEventListener('click', async () => {
+  if (!estado) return;
+  guardarAtual();
+  await registrarNoHistorico(0);
+  mensagem('Trabalho salvo no app. Você encontra ele na aba Histórico.');
+});
+
 $('exportar').addEventListener('click', async () => {
   if (!estado || !pacote) return;
   const botao = $<HTMLButtonElement>('exportar');
@@ -1981,7 +2017,7 @@ $('exportar').addEventListener('click', async () => {
       guardarAtual();
       mensagem('');
       mostrarSalvo(r.written.length);
-      await registrarNoHistorico(r.written.length);
+      await registrarNoHistorico(r.written.length, true);
     }
   } catch (e) {
     progresso(null);

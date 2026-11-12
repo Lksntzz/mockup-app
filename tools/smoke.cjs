@@ -19,8 +19,9 @@ const pastaDeDados = path.join(saida, 'dados');
 fs.rmSync(pastaDeDados, { recursive: true, force: true });
 app.setPath('userData', pastaDeDados);
 let pastaDoDialogo = null;
+let ultimasOpcoesDoDialogo = null;
 dialog.showOpenDialog = async (opcoes) =>
-  (opcoes && opcoes.properties && opcoes.properties.includes('openDirectory'))
+  (ultimasOpcoesDoDialogo = opcoes) && (opcoes && opcoes.properties && opcoes.properties.includes('openDirectory'))
     ? { canceled: false, filePaths: [pastaDoDialogo] }
     : { canceled: false, filePaths: [arquivoDoDialogo] };
 
@@ -139,6 +140,13 @@ app.on('browser-window-created', (_e, win) => {
       await js("document.querySelectorAll('#lista .item')[0].click()");
       await js("document.getElementById('copiar').click()");
 
+      // Salvar: guarda no Histórico sem gerar imagens
+      await js("document.getElementById('salvar-app').click()");
+      await espera(600);
+      const salvoNoApp = await js("window.mockupApi.listarHistorico().then(l => l.map(e => ({ n: e.pdfNome, g: e.geradas, f: !!e.finalizado })))");
+      conferir(salvoNoApp.length === 1 && salvoNoApp[0].g === 0 && salvoNoApp[0].f === false, `Salvar guarda o trabalho no Histórico sem imagens e sem finalizar (${JSON.stringify(salvoNoApp)})`);
+      conferir(!fs.existsSync(path.join(path.dirname(pdfDoTrabalho), 'MKP')), 'Salvar não cria a pasta MKP');
+
       // voltar ao início guarda o trabalho
       await js("document.getElementById('voltar').click()");
       conferir((await js('document.body.dataset.estado')) === 'vazio', 'voltar ao início mostra a tela inicial');
@@ -184,7 +192,7 @@ app.on('browser-window-created', (_e, win) => {
       await ate("!document.getElementById('salvo').hidden", 'conclusão');
       await foto('5-concluido.png');
       const cartao = await js("document.getElementById('salvo').textContent");
-      conferir(cartao.includes('Salvo') && cartao.includes('5 mockups'), `aparece o card "Salvo" com a quantidade ("${cartao.replace(/\s+/g, ' ').trim()}")`);
+      conferir(cartao.includes('Finalizado') && cartao.includes('5 mockups') && cartao.includes('Outra arte deste cliente'), `aparece o card "Finalizado" com a quantidade e o botão de outra arte ("${cartao.replace(/\s+/g, ' ').trim()}")`);
       conferir((await js("document.getElementById('mensagem').textContent")) === '', 'a mensagem do topo é limpa depois de salvar');
       conferir(!/MKP|[\\\\/]/.test(cartao + (await js("document.getElementById('mensagem').textContent"))), 'nenhum caminho de pasta aparece na tela');
       conferir(await js("document.body.dataset.estado") === 'pronto', 'com o card aberto, a arte continua aberta por trás (nada foi descartado)');
@@ -200,6 +208,7 @@ app.on('browser-window-created', (_e, win) => {
       const linhaHist = await js("document.querySelector('#historico-lista .historico-linha').textContent");
       conferir(linhaHist.includes('CAPAS.pdf') && linhaHist.includes('5 capas') && linhaHist.includes('Frente'), `o histórico mostra PDF, capas e imagens ("${linhaHist.replace(/\s+/g, ' ').trim()}")`);
       const salvos = await js("window.mockupApi.listarHistorico().then(l => l[0])");
+      conferir(salvos.finalizado === true && salvos.geradas === 5, `Finalizar marca o trabalho como finalizado com 5 imagens (finalizado=${salvos.finalizado}, geradas=${salvos.geradas})`);
       conferir(Array.isArray(salvos.ajustes) && salvos.ajustes[0] && salvos.ajustes[0].zoom > 1 && salvos.ajustes[1] === null, `o histórico guarda o zoom da arte da capa 1 e deixa as outras sem ajuste (${JSON.stringify(salvos.ajustes)})`);
       const arquivoHist = path.join(pastaDeDados, 'usuarios');
       conferir(fs.existsSync(arquivoHist) && fs.readdirSync(arquivoHist).length === 1, 'o histórico fica numa pasta própria do operador');
@@ -288,7 +297,13 @@ app.on('browser-window-created', (_e, win) => {
       await ate("!document.getElementById('salvo').hidden", 'conclusão do verso', 240000);
       const cartao3 = await js("document.getElementById('salvo').textContent");
       conferir(cartao3.includes('5 mockups'), `o card conta as 5 imagens do verso ("${cartao3.replace(/\s+/g, ' ').trim()}")`);
-      await js("document.getElementById('salvo-ok').click()");
+      // Outra arte deste cliente: dá o serviço como terminado e abre a escolha de arquivo já na pasta do cliente
+      arquivoDoDialogo = path.join(saida, 'nao-existe.pdf');
+      await js("document.getElementById('salvo-outra').click()");
+      await espera(900);
+      conferir(ultimasOpcoesDoDialogo && ultimasOpcoesDoDialogo.defaultPath === path.dirname(pdfDoTrabalho), `Outra arte deste cliente abre a escolha de arquivo na pasta do cliente (${ultimasOpcoesDoDialogo && ultimasOpcoesDoDialogo.defaultPath})`);
+      conferir(await js("document.getElementById('salvo').hidden"), 'Outra arte deste cliente fecha o card');
+      arquivoDoDialogo = pdfDoTrabalho;
       const nomes3 = fs.readdirSync(pastaMkp).sort();
       conferir(nomes3.length === 20 && nomes3.includes('CAPAS_capa-01_verso.png') && nomes3.includes('CAPAS_capa-05_verso.png'), `gravou o verso de cada capa (${nomes3.length} arquivos)`);
       conferir(Buffer.compare(fs.readFileSync(path.join(pastaMkp, 'CAPAS_capa-01_verso.png')), fs.readFileSync(path.join(pastaMkp, 'CAPAS_capa-01.png'))) !== 0, 'o verso é diferente da frente');

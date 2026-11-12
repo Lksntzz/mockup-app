@@ -75,6 +75,8 @@ progress { width: 150px; height: 8px; accent-color: var(--acento); }
 .escolhida { margin-top: 6px; font-size: 12px; color: var(--suave); }
 .acoes { margin-top: auto; display: flex; flex-direction: column; gap: 10px; padding-top: 6px; border-top: 1px solid var(--borda); }
 .acoes { padding-top: 16px; }
+.acoes-linha { display: flex; gap: 10px; }
+.acoes-linha button { flex: 1; }
 [hidden] { display: none !important; }
 
 /* tela inicial: só o centro; trabalhando: lista, prévia e painel */

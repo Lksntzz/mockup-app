@@ -84,7 +84,10 @@
         </fieldset>
         <div class="acoes">
           <button id="copiar" class="secundario" type="button">Copiar estas cores para todas as capas</button>
-          <button id="exportar" class="primario grande" type="button">Concluir e salvar</button>
+          <div class="acoes-linha">
+            <button id="salvar-app" class="secundario" type="button" title="Guarda o trabalho no app (cores e ajustes), sem gerar as imagens. Você continua depois pelo Histórico.">Salvar</button>
+            <button id="exportar" class="primario grande" type="button" title="Gera as imagens na pasta MKP e dá o serviço como terminado.">Finalizar</button>
+          </div>
         </div>
       </aside>
     </main>
@@ -146,12 +149,13 @@
     <div id="cortina" class="cortina" hidden></div>
     <div id="salvo" class="salvo" role="status" aria-live="polite" hidden>
       <div class="salvo-icone" aria-hidden="true">✓</div>
-      <div class="salvo-titulo">Salvo</div>
+      <div id="salvo-titulo" class="salvo-titulo">Finalizado</div>
       <div id="salvo-detalhe" class="salvo-detalhe"></div>
       <div class="salvo-botoes">
         <button id="salvo-continuar" class="secundario" type="button">Continuar com esta arte</button>
+        <button id="salvo-outra" class="secundario" type="button">Outra arte deste cliente</button>
         <button id="salvo-aprovar" class="secundario" type="button" hidden>Enviar para Aprovar</button>
-        <button id="salvo-ok" class="primario" type="button">Terminar</button>
+        <button id="salvo-ok" class="primario" type="button">Fechar</button>
       </div>
     </div>
     <script src="app.js"></script>

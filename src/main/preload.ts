@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron';
 
 contextBridge.exposeInMainWorld('mockupApi', {
   carregarPacote: (nome?: string) => ipcRenderer.invoke('carregar-pacote', nome),
-  escolherPdf: () => ipcRenderer.invoke('escolher-pdf'),
+  escolherPdf: (pastaInicial?: string) => ipcRenderer.invoke('escolher-pdf', pastaInicial),
   lerPdf: (caminho: string) => ipcRenderer.invoke('ler-pdf', caminho),
   caminhoDoArquivo: (arquivo: File) => webUtils.getPathForFile(arquivo),
   prepararMkp: (caminhoDoPdf: string) => ipcRenderer.invoke('preparar-mkp', caminhoDoPdf),

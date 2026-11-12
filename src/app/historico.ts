@@ -24,6 +24,8 @@ export interface EntradaHistorico {
   /** Zoom e posição da arte de cada capa (frente e verso); null = sem ajuste. Trabalhos antigos não têm. */
   ajustes?: (Partial<Ajuste> | null)[];
   ajustesVerso?: (Partial<Ajuste> | null)[];
+  /** true quando o designer apertou "Finalizar" (imagens geradas e serviço dado como terminado). */
+  finalizado?: boolean;
 }
 
 export function entradaValida(x: unknown): x is EntradaHistorico {
@@ -36,6 +38,7 @@ export function entradaValida(x: unknown): x is EntradaHistorico {
     typeof e.pdfNome === 'string' &&
     typeof e.pdfCaminho === 'string' &&
     typeof e.geradas === 'number' &&
+    (e.finalizado === undefined || typeof e.finalizado === 'boolean') &&
     (e.ajustes === undefined || Array.isArray(e.ajustes)) &&
     (e.ajustesVerso === undefined || Array.isArray(e.ajustesVerso)) &&
     Array.isArray(e.escolhas) &&
@@ -100,4 +103,10 @@ export function ajustesDoEstado(s: AppState): { ajustes: (Ajuste | null)[] | und
     return l.some((a) => a) ? l : undefined;
   };
   return { ajustes: lista('ajuste'), ajustesVerso: lista('ajusteVerso') };
+}
+
+/** Em que pé está o trabalho, em palavras: salvo só no app, em andamento (já gerou imagens) ou finalizado. */
+export function situacaoDoTrabalho(e: EntradaHistorico): string {
+  if (e.finalizado) return 'Finalizado';
+  return e.geradas === 0 ? 'Salvo no app (sem imagens)' : 'Em andamento';
 }

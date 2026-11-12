@@ -106,3 +106,22 @@ describe('ajuste da arte no histórico', () => {
     expect(entradaValida({ ...base, ajustes: 'oi' })).toBe(false);
   });
 });
+
+import { situacaoDoTrabalho } from '../../src/app/historico';
+
+describe('situacaoDoTrabalho', () => {
+  const base: EntradaHistorico = { id: 'a', data: '2026-11-12T10:00:00Z', pdfNome: 'a.pdf', pdfCaminho: 'C:/a.pdf', saidas: { frente: true, vt: false, semCanguru: false, verso: false }, escolhas: [], geradas: 0 };
+  test('trabalho salvo só no app (nenhuma imagem gerada) aparece como "Salvo no app"', () => {
+    expect(situacaoDoTrabalho(base)).toBe('Salvo no app (sem imagens)');
+  });
+  test('trabalho com imagens mas não finalizado aparece como "Em andamento"', () => {
+    expect(situacaoDoTrabalho({ ...base, geradas: 5 })).toBe('Em andamento');
+  });
+  test('trabalho finalizado aparece como "Finalizado"', () => {
+    expect(situacaoDoTrabalho({ ...base, geradas: 5, finalizado: true })).toBe('Finalizado');
+  });
+  test('entradas antigas (com imagens, sem o campo finalizado) continuam válidas', () => {
+    expect(entradaValida({ ...base, geradas: 5 })).toBe(true);
+    expect(entradaValida({ ...base, finalizado: 'sim' })).toBe(false);
+  });
+});

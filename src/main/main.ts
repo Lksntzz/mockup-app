@@ -121,9 +121,10 @@ async function lerPdf(caminho: string) {
   };
 }
 
-ipcMain.handle("escolher-pdf", async () => {
+ipcMain.handle("escolher-pdf", async (_e, pastaInicial?: unknown) => {
   const r = await dialog.showOpenDialog({
     title: "Escolher o PDF das capas (ou uma imagem PNG/JPG)",
+    ...(typeof pastaInicial === "string" && pastaInicial ? { defaultPath: pastaInicial } : {}),
     properties: ["openFile"],
     filters: [
       { name: "PDF ou imagem", extensions: ["pdf", "png", "jpg", "jpeg"] },
