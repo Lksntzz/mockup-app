@@ -56,3 +56,18 @@ export function pedidoDeNovaArte(px: Pixels, area: AreaMm = AREA_PADRAO_MM, limi
     `O ideal é um arquivo com pelo menos ${min.largura} × ${min.altura} pixels, ou um PDF/arquivo vetorial.`
   );
 }
+
+/**
+ * Pixels reais da arte recortada, a partir da densidade da imagem dentro do PDF.
+ * `arte` é o recorte (em pixels da renderização), `pagina` é a página inteira renderizada e `densidade` diz quantos
+ * pixels do arquivo cabem na largura/altura da página inteira. Devolve null se algum número não faz sentido.
+ */
+export function pixelsNativosDaArte(
+  arte: Pixels,
+  pagina: Pixels,
+  densidade: { pxPorLarguraDaPagina: number; pxPorAlturaDaPagina: number },
+): Pixels | null {
+  const { pxPorLarguraDaPagina: pw, pxPorAlturaDaPagina: ph } = densidade;
+  if (!(pw > 0 && ph > 0 && pagina.largura > 0 && pagina.altura > 0 && arte.largura > 0 && arte.altura > 0)) return null;
+  return { largura: Math.round((arte.largura / pagina.largura) * pw), altura: Math.round((arte.altura / pagina.altura) * ph) };
+}

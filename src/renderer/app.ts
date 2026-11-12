@@ -19,7 +19,7 @@ import { openPdf, PdfError } from '../pdf/reader';
 import type { ArquivoPdf, EstadoAtualizacao, MockupApi } from './global';
 import { criarTrabalhos } from '../app/trabalhos';
 import type { Rascunho } from '../app/rascunhos';
-import { avaliarQualidade, AREA_PADRAO_MM, LIMITES_PADRAO, pedidoDeNovaArte } from '../app/qualidade';
+import { avaliarQualidade, AREA_PADRAO_MM, LIMITES_PADRAO, pedidoDeNovaArte, pixelsNativosDaArte } from '../app/qualidade';
 import type { ConfigDesigner } from '../main/config-designer';
 import type { Cliente } from '../main/clientes';
 import type { FaceDoMolde, ResultadoDoMolde } from '../main/corel';
@@ -36,8 +36,12 @@ const TOLERANCIA_DE_PROPORCAO = 0.1;
 
 interface InfoDaCapa {
   pagina: number;
-  /** Tamanho original da imagem (só para PNG/JPG); em PDF não é medido. */
+  /** Tamanho real da arte em pixels: da imagem (PNG/JPG) ou, em PDF, estimado pela imagem da página. */
   pixels?: { largura: number; altura: number };
+  /** Em PDF: a medida é uma estimativa (a imagem da página, já recortada na arte). */
+  pixelsEstimados?: boolean;
+  /** Por que não há medida: PDF do Corel (arte já em outro formato) ou PDF sem imagem grande (vetorial). */
+  semMedida?: 'corel' | 'sem-imagem';
   semVerso: boolean;
   avisoProporcao: boolean;
 }
@@ -482,8 +486,14 @@ const paginaInteiraEm = new Set<string>();
 let paginaInteiraAtual = false;
 
 /** Renderiza a página e fica só com a arte (sem margens nem o fundo esticado de alguns PDFs). */
-async function lerArteDaPagina(doc: PdfAberto, n: number, larguraDaArte = 1200): Promise<Raster> {
+async function lerArteDaPagina(
+  doc: PdfAberto,
+  n: number,
+  larguraDaArte = 1200,
+  medida?: { pixels?: { largura: number; altura: number }; semMedida?: 'corel' | 'sem-imagem' },
+): Promise<Raster> {
   if (paginaInteiraAtual) {
+    if (medida) medida.semMedida = 'corel';
     const molde = caixaDoMolde();
     const pagina = await doc.renderPage(n, widthForArt(1500, molde));
     if (ehPaginaA4(pagina.width, pagina.height)) return cropToBox(pagina, molde);
@@ -491,7 +501,15 @@ async function lerArteDaPagina(doc: PdfAberto, n: number, larguraDaArte = 1200):
   }
   const caixa = await doc.artBox(n);
   const pagina = await doc.renderPage(n, widthForArt(larguraDaArte, caixa));
-  return cropMargins(caixa ? cropToBox(pagina, caixa) : pagina);
+  const arte = cropMargins(caixa ? cropToBox(pagina, caixa) : pagina);
+  if (medida) {
+    // quantos pixels de verdade a arte tem no arquivo (e não nos pixels desta renderização)
+    const densidade = await doc.artDensidade(n);
+    const nativos = densidade && pixelsNativosDaArte({ largura: arte.width, altura: arte.height }, { largura: pagina.width, altura: pagina.height }, densidade);
+    if (nativos) medida.pixels = nativos;
+    else medida.semMedida = 'sem-imagem';
+  }
+  return arte;
 }
 
 /** PNG (bytes) a partir dos pixels, para entregar ao Corel uma página de PDF já recortada na arte. */
@@ -673,10 +691,14 @@ async function abrirPdf(arquivo: ArquivoPdf, retomada?: Retomada): Promise<void>
         progresso(i / paginas.length);
         await proximoQuadro();
         // a arte é a imagem de cima da página (em PDFs com fundo esticado + arte menor, é só a menor)
-        const recortada = await lerArteDaPagina(doc, n);
+        const medida: { pixels?: { largura: number; altura: number }; semMedida?: 'corel' | 'sem-imagem' } = {};
+        const recortada = await lerArteDaPagina(doc, n, 1200, medida);
         const proporcao = recortada.width / recortada.height;
         novaInfo.push({
           pagina: n,
+          pixels: medida.pixels,
+          pixelsEstimados: medida.pixels ? true : undefined,
+          semMedida: medida.semMedida,
           semVerso: n + 1 > doc.pageCount,
           avisoProporcao: Math.abs(proporcao / razaoDaCapa - 1) > TOLERANCIA_DE_PROPORCAO,
         });
@@ -1165,7 +1187,10 @@ function desenharQualidade(): void {
   el.replaceChildren();
   if (!dados.pixels) {
     el.className = 'qualidade';
-    el.textContent = 'Qualidade medida só para imagens PNG/JPG. Em PDF ainda não é medida: confira a arte original.';
+    el.textContent =
+      dados.semMedida === 'corel'
+        ? 'PDF exportado do Corel: a qualidade não é medida. Confira a arte original.'
+        : 'Não encontrei uma imagem grande nesta página (pode ser vetorial ou várias imagens pequenas): a qualidade não foi medida. Confira a arte original.';
     return;
   }
   const r = avaliarQualidade(dados.pixels, AREA_PADRAO_MM, LIMITES_PADRAO);
@@ -1177,7 +1202,9 @@ function desenharQualidade(): void {
   detalhe.textContent = `${dados.pixels.largura} × ${dados.pixels.altura} px · cerca de ${Math.round(r.dpi)} DPI em ${AREA_PADRAO_MM.largura} × ${AREA_PADRAO_MM.altura} mm`;
   const nota = document.createElement('div');
   nota.className = 'nota';
-  nota.textContent = 'Estimativa: o tamanho da área e os limites ainda não foram calibrados.';
+  nota.textContent = dados.pixelsEstimados
+    ? 'Estimativa pela imagem da página do PDF. O tamanho da área e os limites ainda não foram calibrados.'
+    : 'Estimativa: o tamanho da área e os limites ainda não foram calibrados.';
   el.append(selo, detalhe, nota);
   if (r.nivel !== 'boa') {
     const botao = document.createElement('button');

@@ -42,3 +42,16 @@ describe('pedidoDeNovaArte', () => {
     expect(t).toContain('985 × 1969'); // 250 dpi em 100x200 mm
   });
 });
+
+import { pixelsNativosDaArte } from '../../src/app/qualidade';
+
+describe('pixelsNativosDaArte', () => {
+  test('arte renderizada em metade da página tem metade dos pixels nativos da página', () => {
+    // página renderizada com 1000 × 1400 px; a imagem tem 2000 px por largura de página e 2800 por altura
+    const r = pixelsNativosDaArte({ largura: 500, altura: 700 }, { largura: 1000, altura: 1400 }, { pxPorLarguraDaPagina: 2000, pxPorAlturaDaPagina: 2800 });
+    expect(r).toEqual({ largura: 1000, altura: 1400 });
+  });
+  test('densidade inválida (zero ou negativa) devolve null: não inventa medida', () => {
+    expect(pixelsNativosDaArte({ largura: 500, altura: 700 }, { largura: 1000, altura: 1400 }, { pxPorLarguraDaPagina: 0, pxPorAlturaDaPagina: 10 })).toBeNull();
+  });
+});
