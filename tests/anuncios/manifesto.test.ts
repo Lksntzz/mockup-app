@@ -8,6 +8,16 @@ describe('manifesto', () => {
     expect(texto.split('\r\n')[2]).toMatch(/mod=[01]{95}$/);
     expect(lerManifesto(texto)).toEqual({ destino: 'C:\\A\\x.cdr', capas });
   });
+  test('capa sem EAN fica no manifesto com ean= e mod= vazios, entre duas válidas', () => {
+    const tres = [capas[0]!, { frente: 'b.pdf', paginaFrente: 3, ean: '' }, capas[1]!];
+    const texto = montarManifesto({ destino: 'd.cdr', capas: tres });
+    const l = texto.split('\r\n');
+    expect(l[1]).toBe('capas=3');
+    expect(l[2]).toMatch(/mod=[01]{95}$/);
+    expect(l[3]).toBe('frente=b.pdf|pf=3|verso=|pv=|ean=|mod=');
+    expect(l[4]).toMatch(/mod=[01]{95}$/);
+    expect(lerManifesto(texto).capas).toEqual(tres);
+  });
   test('lerManifesto aceita LF e linha final vazia', () => {
     const texto = montarManifesto({ destino: 'd.cdr', capas }).replace(/\r\n/g, '\n') + '\n';
     expect(lerManifesto(texto)).toEqual({ destino: 'd.cdr', capas });

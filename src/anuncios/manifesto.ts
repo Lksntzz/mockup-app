@@ -29,7 +29,7 @@ export function montarManifesto(m: { destino: string; capas: CapaDoManifesto[] }
       `verso=${campoSeguro('verso', c.verso ?? '')}`,
       `pv=${paginaSegura('pv', c.paginaVerso)}`,
       `ean=${campoSeguro('ean', c.ean)}`,
-      `mod=${encodeEan13(c.ean)}`,
+      `mod=${c.ean === '' ? '' : encodeEan13(c.ean)}`,
     ].join('|'));
   }
   return linhas.join('\r\n');

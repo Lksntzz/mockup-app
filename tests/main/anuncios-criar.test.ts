@@ -116,4 +116,25 @@ describe('criarAnuncio', () => {
     expect(r.ok).toBe(false);
     expect(await readdir(join(raiz2, 'Shopee', 'Agenda'))).toEqual([]);
   });
+  test('variação sem EAN continua no manifesto, sem código de barras, com aviso', async () => {
+    const r = await criarAnuncio(entrada({
+      variacoes: [{ capa: 'A', sku: '', ean: E1 }, { capa: 'B', sku: '', ean: '  ' }, { capa: 'C', sku: '', ean: E2 }],
+      fontes: [1, 3, 5].map((p) => ({ tipo: 'pdf' as const, arquivo: pdf, paginaCapa: p })),
+    }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const linhas = r.manifestoTexto.split('\r\n').slice(2);
+    expect(linhas).toHaveLength(3);
+    expect(linhas[0]).toContain(`ean=${E1}|mod=`);
+    expect(linhas[1]).toMatch(/\|pf=3\|.*\|ean=\|mod=$/);
+    expect(linhas[2]).toContain(`ean=${E2}|mod=`);
+    expect(r.avisos.some((a) => a.includes('variação 2') && a.includes('SEM código de barras'))).toBe(true);
+  });
+  test('todas as variações sem EAN: não recusa, só avisos', async () => {
+    const r = await criarAnuncio(entrada({ variacoes: [{ capa: 'A', sku: '', ean: '' }, { capa: 'B', sku: '', ean: '' }] }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.manifestoTexto.split('\r\n').slice(2)).toHaveLength(2);
+    expect(r.avisos).toHaveLength(2);
+  });
 });

@@ -86,8 +86,8 @@ export async function criarAnuncio(e: EntradaDoAnuncio): Promise<ResultadoCriar>
         capa.verso = verso;
       }
     }
-    if (!ean) avisos.push(`A variação ${i + 1} está sem EAN e não entra no manifesto do Corel.`);
-    else capas.push(capa);
+    if (!ean) avisos.push(`A variação ${i + 1} está sem EAN: as páginas dela serão montadas SEM código de barras.`);
+    capas.push(capa);
   });
 
   let manifestoTexto: string;
@@ -99,7 +99,12 @@ export async function criarAnuncio(e: EntradaDoAnuncio): Promise<ResultadoCriar>
   if (!cabeEmLatin1(manifestoTexto)) {
     return falha('O caminho ou os nomes têm letras que o Corel não consegue ler (fora do alfabeto latino). Use nomes mais simples.');
   }
-  const txt = montarTxt({ plataforma, categoria, arte, titulo, variacoes: e.variacoes.map((v, i) => ({ ...v, ean: eans[i]! })) });
+  let txt: string;
+  try {
+    txt = montarTxt({ plataforma, categoria, arte, titulo, variacoes: e.variacoes.map((v, i) => ({ ...v, ean: eans[i]! })) });
+  } catch (err) {
+    return falha(err instanceof Error ? err.message : 'Não consegui montar o arquivo de texto do anúncio.');
+  }
 
   let criei = false;
   try {
