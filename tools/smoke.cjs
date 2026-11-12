@@ -121,6 +121,9 @@ app.on('browser-window-created', (_e, win) => {
       await espera(150);
       const larguraDurante = Number(await js("document.getElementById('previa').getBoundingClientRect().width"));
       conferir(Math.abs(larguraDurante - larguraAntes) < 2, `o cartão da prévia mantém o tamanho durante o arrasto (${larguraAntes} → ${larguraDurante})`);
+      const proporcao = await js("(() => { const r = document.getElementById('previa').getBoundingClientRect(); return Math.abs(r.width - r.height); })()");
+      conferir(Number(proporcao) < 2, 'o cartão da prévia continua quadrado durante o arrasto (não achata)');
+      conferir(await js("document.getElementById('previa').width === document.getElementById('previa').height"), 'os pixels do canvas continuam quadrados durante o arrasto');
       await js("document.getElementById('previa').dispatchEvent(new PointerEvent('pointerup', { button: 0, pointerId: 8, bubbles: true }))");
       await espera(400);
       const antesRoda = Number(await js('document.body.dataset.previa'));

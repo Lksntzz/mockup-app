@@ -53,15 +53,29 @@ const trabalhos = criarTrabalhos<AppState, InfoDaCapa[]>();
 
 const proximoQuadro = () => new Promise<void>((r) => setTimeout(r, 0));
 
-// Prévias de rascunho (metade do tamanho) mostradas no mesmo tamanho da completa: sem isso o cartão encolhe ao arrastar e cresce ao parar.
+// Prévias de rascunho (metade do tamanho) são esticadas para o tamanho cheio dentro do próprio canvas: o cartão mantém as mesmas
+// proporções e o mesmo tamanho na tela (mexer na largura por CSS achatava a imagem quando a janela é baixa).
 const rascunhos = new WeakSet<Raster>();
 
-/** `escala` > 1 mostra a imagem maior que seus pixels (rascunho = 2); sem ela o tamanho de exibição não é mexido. */
-function pintar(canvas: HTMLCanvasElement, r: Raster, escala?: number): void {
-  canvas.width = r.width;
-  canvas.height = r.height;
-  if (escala !== undefined) canvas.style.width = `${r.width * escala}px`;
-  canvas.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(r.data), r.width, r.height), 0, 0);
+/** `escala` > 1 estica a imagem (rascunho = 2); o canvas fica sempre com o tamanho da prévia completa. */
+function pintar(canvas: HTMLCanvasElement, r: Raster, escala = 1): void {
+  const imagem = new ImageData(new Uint8ClampedArray(r.data), r.width, r.height);
+  if (escala === 1) {
+    canvas.width = r.width;
+    canvas.height = r.height;
+    canvas.getContext('2d')!.putImageData(imagem, 0, 0);
+    return;
+  }
+  const pequeno = document.createElement('canvas');
+  pequeno.width = r.width;
+  pequeno.height = r.height;
+  pequeno.getContext('2d')!.putImageData(imagem, 0, 0);
+  canvas.width = Math.round(r.width * escala);
+  canvas.height = Math.round(r.height * escala);
+  const ctx = canvas.getContext('2d')!;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(pequeno, 0, 0, canvas.width, canvas.height);
 }
 
 function mensagem(texto: string, erro = false): void {
