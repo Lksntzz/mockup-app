@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 /** Macros do módulo MKP (tools/corel/MKP.bas) que o app sabe chamar. */
-export type MacroDoCorel = 'ArteDoClienteNoMolde' | 'ExportarPDFparaMKP';
+export type MacroDoCorel = 'ArteDoClienteNoMolde' | 'ExportarPDFparaMKP' | 'AnuncioNoMolde';
 
 export type ResultadoCorel = { ok: true } | { ok: false; motivo: string; aberto?: true };
 
@@ -20,6 +20,7 @@ export interface OpcoesCorel {
 const ARQUIVO_DO_CAMINHO: Record<MacroDoCorel, string> = {
   ArteDoClienteNoMolde: 'mockup-arte.txt',
   ExportarPDFparaMKP: 'mockup-pdf.txt',
+  AnuncioNoMolde: 'mockup-anuncio.txt',
 };
 
 /** O VBA lê o arquivo na página de código do Windows em português (letras até 0xFF, sem a faixa de controle 0x80–0x9F). */
@@ -43,7 +44,7 @@ export const CAMINHO_DO_MOLDE = 'C:\\MOLDE\\MOLDE.cdr';
  * Corel fechado + macro do PDF: não abre nada, porque o PDF é do documento que já está aberto.
  */
 export function scriptVbs(macro: MacroDoCorel): string {
-  const arte = macro === 'ArteDoClienteNoMolde';
+  const arte = macro === 'ArteDoClienteNoMolde' || macro === 'AnuncioNoMolde';
   // Corel que "existe" mas não aceita conexão (travado ou resto de uma queda): para a arte, finaliza e abre de novo; para o PDF, avisa.
   const naoResponde = arte
     ? [
@@ -256,6 +257,45 @@ export async function lerResultadoDoMolde(pasta: string = tmpdir()): Promise<Res
     const texto = (await readFile(arquivo)).toString('latin1');
     await unlink(arquivo).catch(() => undefined);
     return interpretarResultadoDoMolde(texto);
+  } catch {
+    return undefined;
+  }
+}
+
+export interface CapaMontada {
+  n: number;
+  estado: 'ok' | 'erro';
+  /** Fator de ampliação (105% = 1.05). */
+  ampliacao?: number;
+  detalhe?: string;
+}
+
+/** Lê o que o macro do anúncio anotou ("capa1=OK 105%", "capa2=ERRO texto"); ignora linhas que não entende. */
+export function interpretarResultadoDoAnuncio(texto: string): { capas: CapaMontada[] } {
+  const capas: CapaMontada[] = [];
+  for (const linha of texto.split(/\r?\n/)) {
+    const m = /^capa(\d+)\s*=\s*(ok|erro)\b\s*(.*)$/i.exec(linha.trim());
+    if (!m) continue;
+    const n = Number(m[1]);
+    const resto = (m[3] ?? '').trim();
+    if (m[2]!.toLowerCase() === 'ok') {
+      const p = /^(\d+(?:[.,]\d+)?)\s*%/.exec(resto);
+      const ampliacao = p ? Math.round((Number(p[1]!.replace(',', '.')) / 100) * 10000) / 10000 : undefined;
+      capas.push({ n, estado: 'ok', ...(ampliacao !== undefined ? { ampliacao } : {}) });
+    } else {
+      capas.push({ n, estado: 'erro', ...(resto ? { detalhe: resto } : {}) });
+    }
+  }
+  return { capas };
+}
+
+/** Lê (e apaga) o arquivo de resultado que o macro do anúncio grava na pasta temporária. */
+export async function lerResultadoDoAnuncio(pasta: string = tmpdir()): Promise<{ capas: CapaMontada[] } | undefined> {
+  const arquivo = join(pasta, 'mockup-resultado.txt');
+  try {
+    const texto = (await readFile(arquivo)).toString('latin1');
+    await unlink(arquivo).catch(() => undefined);
+    return interpretarResultadoDoAnuncio(texto);
   } catch {
     return undefined;
   }

@@ -249,3 +249,57 @@ describe('rodarMacroDoCorel: Corel estava fechado', () => {
     }
   });
 });
+
+describe('macro AnuncioNoMolde', () => {
+  test('o macro do anúncio abre o molde quando o Corel está fechado, como o da arte', () => {
+    expect(scriptVbs('AnuncioNoMolde')).toBe(scriptVbs('ArteDoClienteNoMolde').replace(/ArteDoClienteNoMolde/g, 'AnuncioNoMolde'));
+  });
+  test('os scripts dos macros antigos não mudaram: arte abre o molde, PDF não', () => {
+    const arte = scriptVbs('ArteDoClienteNoMolde');
+    expect(arte).toContain('ABERTO:');
+    expect(arte).toContain('sh.Run """C:\\MOLDE\\MOLDE.cdr"""');
+    expect(arte).toContain('taskkill /F /IM CorelDRW.exe');
+    const pdf = scriptVbs('ExportarPDFparaMKP');
+    expect(pdf).not.toContain('ABERTO:');
+    expect(pdf).not.toContain('taskkill');
+    expect(pdf).toContain('nao esta aberto');
+  });
+  test('interpretarResultadoDoAnuncio lê ok com ampliação e erro com detalhe', async () => {
+    const { interpretarResultadoDoAnuncio } = await import('../../src/main/corel');
+    expect(interpretarResultadoDoAnuncio('capa1=OK 105%\r\ncapa2=ERRO sem retangulo')).toEqual({
+      capas: [{ n: 1, estado: 'ok', ampliacao: 1.05 }, { n: 2, estado: 'erro', detalhe: 'sem retangulo' }],
+    });
+  });
+  test('interpretarResultadoDoAnuncio é tolerante: decimais, vírgula, maiúsculas, linhas estranhas, ERRO vazio', async () => {
+    const { interpretarResultadoDoAnuncio } = await import('../../src/main/corel');
+    const r = interpretarResultadoDoAnuncio('\r\nlixo\r\nCAPA3=ok 104,5%\ncapa1=Ok 104.5%\ncapa2=erro\nx=1\n');
+    expect(r).toEqual({
+      capas: [
+        { n: 3, estado: 'ok', ampliacao: 1.045 },
+        { n: 1, estado: 'ok', ampliacao: 1.045 },
+        { n: 2, estado: 'erro' },
+      ],
+    });
+    expect(interpretarResultadoDoAnuncio('')).toEqual({ capas: [] });
+  });
+  test('lerResultadoDoAnuncio lê, devolve e apaga; sem arquivo devolve nada', async () => {
+    const { writeFile } = await import('node:fs/promises');
+    const { lerResultadoDoAnuncio } = await import('../../src/main/corel');
+    expect(await lerResultadoDoAnuncio(tmp)).toBeUndefined();
+    await writeFile(join(tmp, 'mockup-resultado.txt'), 'capa1=OK 105%\r\n', 'latin1');
+    expect(await lerResultadoDoAnuncio(tmp)).toEqual({ capas: [{ n: 1, estado: 'ok', ampliacao: 1.05 }] });
+    expect(await readdir(tmp)).toEqual([]);
+  });
+  test('rodarMacroDoCorel grava o caminho em mockup-anuncio.txt', async () => {
+    let existe = false;
+    await rodarMacroDoCorel('AnuncioNoMolde', 'I:\\a', {
+      plataforma: 'win32',
+      pastaTemporaria: tmp,
+      executar: async () => {
+        existe = (await readdir(tmp)).includes('mockup-anuncio.txt');
+        return { codigo: 0, saida: 'OK' };
+      },
+    });
+    expect(existe).toBe(true);
+  });
+});
