@@ -205,7 +205,7 @@ app.on('browser-window-created', (_e, win) => {
       conferir(await js("document.getElementById('em-andamento').hidden"), 'ao concluir, o trabalho sai de "Em andamento"');
       // operador e histórico
       const operador = await js("document.getElementById('operador').textContent");
-      conferir(operador.length > 0, `o topo mostra o operador ("${operador}")`);
+      conferir(await js("document.getElementById('operador').hidden"), `o nome genérico do Windows ("${operador}") não aparece fora do modo Designer`);
       await js("document.getElementById('tab-historico').click()");
       await ate("document.querySelectorAll('#historico-lista .historico-linha').length === 1", 'histórico com 1 trabalho');
       const linhaHist = await js("document.querySelector('#historico-lista .historico-linha').textContent");
@@ -358,6 +358,7 @@ app.on('browser-window-created', (_e, win) => {
       await foto('8a-carregando-designer.png');
       conferir(await ate("document.getElementById('designer-titulo').textContent === 'Bem-vindo, LK'", 'boas-vindas'), 'depois de carregar aparece "Bem-vindo, LK"');
       await foto('8b-bem-vindo.png');
+      conferir(await ate("!document.getElementById('operador').hidden && document.getElementById('operador').textContent === 'LK · Designer'", 'chip designer'), 'no modo Designer o topo mostra "LK · Designer"');
       await ate("document.getElementById('tela-designer').hidden", 'tela some');
       conferir(!(await js("document.getElementById('tab-pasta1').hidden")), 'depois das boas-vindas a aba Pasta 1 está liberada');
       // pastas falsas: nada de pastas reais de clientes

@@ -364,3 +364,41 @@ body:not([data-estado="pronto"]) #coluna-capas { display: none; }
 .faixa-arquivo .capas-pdf:empty { display: none; }
 .faixa-arquivo .mensagem { flex: 0 1 auto; text-align: right; }
 .faixa-arquivo .mensagem:not(:empty):not(.erro) { background: #e6f4ea; color: #1e5b32; border-radius: 999px; padding: 5px 12px; font-weight: 500; }
+
+/* ===== Visual sóbrio (v0.9.46): neutro, um só destaque, cantos de 6 px, sem animações de "pulo" ===== */
+:root {
+  --fundo: #f3f4f6;
+  --superficie: #ffffff;
+  --borda: #d9dde4;
+  --texto: #14181f;
+  --suave: #566070;
+  --acento: #1f4fb8;
+  --acento-escuro: #173f96;
+  --acento-claro: #eef3fc;
+  --erro: #b42318;
+  --sombra: none;
+}
+body { font-size: 13px; }
+button { border-radius: 6px; }
+button:hover:not(:disabled) { background: #f3f4f6; border-color: #c3c9d4; }
+button:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+button.secundario { background: #fff; border: 1px solid var(--borda); color: var(--texto); }
+button.secundario:hover:not(:disabled) { background: #f3f4f6; border-color: #c3c9d4; }
+.topo { box-shadow: none; }
+.marca-icone { border-radius: 6px; background: var(--texto); }
+.faixa-atualizacao { border-bottom-color: #c5d4f0; }
+.item, .zona, .cliente-linha, .previa, .cc-menu-itens { border-radius: 6px; }
+.item { background: #f3f4f6; }
+.item:hover:not(:disabled) { background: #e9ebef; }
+.previa { box-shadow: 0 1px 3px rgba(20, 24, 31, .18); }
+.zona { border-color: #c3c9d4; }
+.zona:hover, .zona:focus-visible { background: #fff; }
+.salvo, .alerta-arte { border-radius: 8px; box-shadow: 0 8px 28px rgba(20, 24, 31, .22); }
+.bolinha { width: 28px; height: 28px; border-width: 1px; box-shadow: inset 0 0 0 2px #fff; }
+.bolinha:hover:not(:disabled) { transform: none; border-color: #8a93a3; }
+.bolinha[aria-pressed="true"] { border: 2px solid var(--acento); box-shadow: inset 0 0 0 2px #fff, 0 0 0 1px var(--acento); }
+.resumo-item:hover, .cliente-linha:hover, .cc-acoes button:hover:not(:disabled) { transform: none; box-shadow: none; }
+.selo-situacao.arte-a-fazer::before { animation: none; }
+.tela-designer { background: #14181f; }
+.tela-atualizando { background: rgba(20, 24, 31, .92); }
+.titulo-coluna { font-size: 11px; }

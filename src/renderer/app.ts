@@ -960,7 +960,6 @@ async function iniciar(): Promise<void> {
     pacote = { pack: JSON.parse(json) as Pack, layers };
     void api.designerEstado().then(aplicarDesigner, () => undefined);
     void api.operador().then((nome) => {
-      $('operador').textContent = nome;
       $('historico-operador').textContent = nome;
     });
     irParaInicio();
@@ -1132,6 +1131,9 @@ const nomeDoCaminho = (p: string) => p.slice(Math.max(p.lastIndexOf('\\'), p.las
 function aplicarDesigner(c: ConfigDesigner): void {
   designer = c;
   if (c.designer) void api.iniciarComWindowsEstado().then((v) => ($<HTMLInputElement>('iniciar-windows').checked = v), () => undefined);
+  // O nome genérico do Windows ("User") não aparece mais: só o designer reconhecido, e só no modo Designer.
+  $('operador').textContent = `${NOME_DO_DESIGNER} · Designer`;
+  $('operador').hidden = !c.designer;
   $('tab-pasta1').hidden = !c.designer;
   $('tab-config').hidden = !c.designer;
   if (!c.designer && ($('pasta1').hidden === false || $('config').hidden === false)) mostrarAba('novo');
