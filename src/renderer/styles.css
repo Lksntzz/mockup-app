@@ -261,8 +261,10 @@ body:not([data-estado="pronto"]) #coluna-capas { display: none; }
 .secao-qtd { font-size: 12px; font-weight: 700; padding: 1px 9px; border-radius: 999px; background: #ececf4; color: var(--suave); }
 
 .grade-clientes { grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 16px; }
-.cliente-linha { gap: 12px; padding: 14px 16px 12px; border: 1px solid var(--borda); border-left-width: 1px; border-radius: 14px; position: relative; overflow: hidden; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
-.cliente-linha::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #cfd3e1; transition: background .2s; }
+.cliente-linha { gap: 12px; padding: 14px 16px 12px; border: 1px solid var(--borda); border-left-width: 1px; border-radius: 14px; position: relative; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+/* sem overflow:hidden no card: ele cortava o menu "Abrir arquivo". A faixa colorida arredonda sozinha. */
+.cliente-linha::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #cfd3e1; border-radius: 14px 0 0 14px; transition: background .2s; }
+.cliente-linha:has(.cc-menu[open]) { z-index: 20; }
 .cliente-linha:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(20,24,50,.07), 0 12px 28px rgba(20,24,50,.12); border-color: #cdd1e6; }
 .cliente-linha:has(.selo-situacao.arte-a-fazer)::before { background: #f59e0b; }
 .cliente-linha:has(.selo-situacao.em-andamento)::before { background: #3b82f6; }
