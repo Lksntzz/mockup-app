@@ -402,3 +402,5 @@ button.secundario:hover:not(:disabled) { background: #f3f4f6; border-color: #c3c
 .tela-designer { background: #14181f; }
 .tela-atualizando { background: rgba(20, 24, 31, .92); }
 .titulo-coluna { font-size: 11px; }
+.marca-icone { width: 28px; height: 28px; background: none; border-radius: 0; display: block; }
+.designer-logo { width: 56px; height: 56px; }
