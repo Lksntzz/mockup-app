@@ -15,10 +15,10 @@ export interface LimitesDpi {
   limite: number;
 }
 
-// PROVISÓRIOS: ainda não foram calibrados com as artes que o designer aceita/recusa
+// PROVISÓRIOS: calibrados só com 1 arte aceita (AMETISTA.pdf, ~174 DPI = boa); falta uma arte recusada para o limite de baixo
 // nem com a medida real do quadro menor do Corel. Ajustar só aqui.
 export const AREA_PADRAO_MM: AreaMm = { largura: 148, altura: 210 };
-export const LIMITES_PADRAO: LimitesDpi = { boa: 250, limite: 150 };
+export const LIMITES_PADRAO: LimitesDpi = { boa: 150, limite: 100 };
 
 const MM_POR_POLEGADA = 25.4;
 

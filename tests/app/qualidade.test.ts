@@ -55,3 +55,11 @@ describe('pixelsNativosDaArte', () => {
     expect(pixelsNativosDaArte({ largura: 500, altura: 700 }, { largura: 1000, altura: 1400 }, { pxPorLarguraDaPagina: 0, pxPorAlturaDaPagina: 10 })).toBeNull();
   });
 });
+
+import { LIMITES_PADRAO, AREA_PADRAO_MM } from '../../src/app/qualidade';
+
+describe('limites padrão (calibrados com artes reais da empresa)', () => {
+  test('a arte do AMETISTA.pdf (1093 × 1437 px), que o designer considera de boa resolução, sai como "boa"', () => {
+    expect(avaliarQualidade({ largura: 1093, altura: 1437 }, AREA_PADRAO_MM, LIMITES_PADRAO).nivel).toBe('boa');
+  });
+});

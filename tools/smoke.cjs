@@ -460,7 +460,7 @@ app.on('browser-window-created', (_e, win) => {
       await js("document.querySelector('#pasta1-lista .primario').click()");
       await ate("document.body.dataset.estado === 'pronto'", 'abrir a arte PNG');
       conferir((await js("document.querySelectorAll('#lista .item').length")) === 1, 'a imagem PNG abre como uma capa');
-      conferir(await js("document.getElementById('qualidade').className.includes('limite')"), 'o painel de qualidade marca a imagem 1238×1562 como "no limite"');
+      conferir(await js("document.getElementById('qualidade').className.includes('boa')"), 'o painel de qualidade marca a imagem 1238×1562 como "boa"');
       await foto('9-qualidade.png');
       await js("document.getElementById('exportar').click()");
       await ate("!document.getElementById('salvo').hidden", 'conclusão da arte PNG', 240000);
