@@ -258,6 +258,21 @@ app.on('browser-window-created', (_e, win) => {
       await ate(`document.body.dataset.previa !== ${JSON.stringify(antesDaPrevia)}`, 'prévia do verso');
       await foto('7-verso.png');
       conferir((await js("document.getElementById('aba-verso').getAttribute('aria-pressed')")) === 'true', 'a aba Verso fica marcada');
+
+      // editar a arte do verso arrastando na prévia (a guia só aparece depois do pacote do verso carregar)
+      await espera(800);
+      const antesVerso = Number(await js('document.body.dataset.previa'));
+      await js(`(() => {
+        const c = document.getElementById('previa'); const r = c.getBoundingClientRect();
+        const x = r.left + r.width * 0.5, y = r.top + r.height * 0.5;
+        const ev = (tipo, dx) => new PointerEvent(tipo, { clientX: x + dx, clientY: y, button: 0, pointerId: 9, bubbles: true });
+        c.dispatchEvent(ev('pointerenter', 0)); c.dispatchEvent(ev('pointerdown', 0));
+        c.dispatchEvent(ev('pointermove', 30)); c.dispatchEvent(ev('pointerup', 30));
+      })()`);
+      conferir(await ate(`Number(document.body.dataset.previa) > ${antesVerso}`, 'prévia do verso depois de arrastar'), 'arrastar a arte do verso atualizou a prévia do verso');
+      conferir(await js("(() => { const r = document.getElementById('previa').getBoundingClientRect(); return Math.abs(r.width - r.height) < 2; })()"), 'o cartão do verso continua quadrado depois de arrastar');
+      await espera(500);
+      await foto('7b-verso-arrastado.png');
       await marcar('saida-verso', true);
       await marcar('saida-vt', false);
       await marcar('saida-sem-canguru', false);

@@ -88,6 +88,8 @@ function progresso(valor: number | null): void {
   const el = $<HTMLProgressElement>('progresso');
   el.hidden = valor === null;
   if (valor !== null) el.value = valor;
+  // avisa o app principal: com barra de progresso na tela, a atualização automática espera
+  void window.mockupApi.ocupado(valor !== null);
 }
 
 function definirEstado(e: 'carregando-pacote' | 'vazio' | 'carregando' | 'pronto'): void {
@@ -179,22 +181,30 @@ let arrasto: { tipo: 'corpo' | 'canto'; de: [number, number]; inicial: import('.
 let mapaDaArte: { pack: Pack; mapa: ReturnType<typeof criarMapa> } | null = null;
 let temporizadorDoPainel = 0;
 
+/** O pacote da prévia que a guia está editando: o da frente ou o do verso (já carregado), conforme a aba. */
+function pacoteDaGuia(): { pack: Pack; layers: Map<string, Raster> } | null {
+  if (modoPrevia === 'frente') return pacote;
+  if (modoPrevia === 'verso' && estado?.capas[estado.selecionada]?.back) return pacotesCarregados.get('verso') ?? null;
+  return null;
+}
 function guiaAtiva(): boolean {
-  return !!estado && !!pacote && modoPrevia === 'frente';
+  return !!estado && !!pacoteDaGuia();
 }
 function mapaAtual() {
-  if (!pacote) return null;
-  if (mapaDaArte?.pack !== pacote.pack) mapaDaArte = { pack: pacote.pack, mapa: criarMapa(pacote.pack.artCorners) };
+  const p = pacoteDaGuia();
+  if (!p) return null;
+  if (mapaDaArte?.pack !== p.pack) mapaDaArte = { pack: p.pack, mapa: criarMapa(p.pack.artCorners) };
   return mapaDaArte.mapa;
 }
 /** Quanto a prévia mostrada é menor que o pacote (1 = tamanho cheio, 0,5 = rascunho). */
 function escalaDaPrevia(): number {
   const canvas = $<HTMLCanvasElement>('previa');
-  return pacote && pacote.pack.canvas.width > 0 ? canvas.width / pacote.pack.canvas.width : 1;
+  const p = pacoteDaGuia();
+  return p && p.pack.canvas.width > 0 ? canvas.width / p.pack.canvas.width : 1;
 }
 function ajusteAtual() {
   const capa = estado?.capas[estado.selecionada];
-  return ajusteValido(capa?.ajuste ?? AJUSTE_NULO);
+  return ajusteValido((modoPrevia === 'verso' ? capa?.ajusteVerso : capa?.ajuste) ?? AJUSTE_NULO);
 }
 /** Ponto do mouse na folha da arte (0 a 1), ou null se a guia não está ativa. */
 function pontoDaArte(ev: MouseEvent | PointerEvent): [number, number] | null {
@@ -242,7 +252,7 @@ function desenharGuia(): void {
 }
 function aplicarAjusteDaGuia(novo: import('../engine/ajuste').Ajuste): void {
   if (!estado) return;
-  estado = setAjuste(estado, estado.selecionada, novo);
+  estado = setAjuste(estado, estado.selecionada, novo, modoPrevia === 'verso' ? 'verso' : 'frente');
   pedirPrevia(true);
   desenharGuia();
   // parou de mexer: refaz em tamanho cheio e guarda o rascunho
@@ -259,7 +269,8 @@ function aplicarAjusteDaGuia(novo: import('../engine/ajuste').Ajuste): void {
   canvas.addEventListener('pointerenter', () => {
     mouseNaPrevia = true;
     // prepara a versão leve das camadas antes do primeiro arrasto, para ele não engasgar na largada
-    if (pacote && modoPrevia === 'frente') window.setTimeout(() => pacote && pacoteDeRascunho(pacote.pack, pacote.layers), 0);
+    const p = pacoteDaGuia();
+    if (p) window.setTimeout(() => pacoteDeRascunho(p.pack, p.layers), 0);
     desenharGuia();
   });
   canvas.addEventListener('pointerleave', () => {
@@ -338,7 +349,14 @@ const agendador = createPreviewScheduler(
     }
     if (req.modo === 'verso' && capa.back) {
       const v = await carregarPacoteNomeado('verso');
-      return compose(v.pack, v.layers, capa.back, escolhasDoVerso(v.pack, req.choices), paraRazao(capa.art, razaoDaFaixa(v.pack)));
+      const faixa = paraRazao(capa.art, razaoDaFaixa(v.pack));
+      if (req.rascunho) {
+        const r = pacoteDeRascunho(v.pack, v.layers);
+        const leve = compose(r.pack, r.layers, capa.back, escolhasDoVerso(v.pack, req.choices), faixa, undefined, capa.ajusteVerso);
+        rascunhos.add(leve);
+        return leve;
+      }
+      return compose(v.pack, v.layers, capa.back, escolhasDoVerso(v.pack, req.choices), faixa, undefined, capa.ajusteVerso);
     }
     if (req.rascunho) {
       const r = pacoteDeRascunho(pacote.pack, pacote.layers);
@@ -363,7 +381,7 @@ function pedirPrevia(rascunho = false): void {
   const capa = estado.capas[estado.selecionada];
   if (!capa) return;
   atualizarAbas();
-  agendador.request({ capa: estado.selecionada, choices: { ...capa.choices }, modo: modoPrevia, ...(rascunho && modoPrevia === 'frente' ? { rascunho: true } : {}) });
+  agendador.request({ capa: estado.selecionada, choices: { ...capa.choices }, modo: modoPrevia, ...(rascunho && (modoPrevia === 'frente' || modoPrevia === 'verso') ? { rascunho: true } : {}) });
 }
 
 // A lista só precisa de miniaturas: guardar a capa inteira em cada uma gasta memória à toa.
@@ -609,6 +627,7 @@ interface Retomada {
   selecionada?: number;
   /** Zoom e posição de cada capa (só nos rascunhos). */
   ajustes?: (Partial<import('../engine/ajuste').Ajuste> | null)[];
+  ajustesVerso?: (Partial<import('../engine/ajuste').Ajuste> | null)[];
   /** Registro do histórico a atualizar quando salvar de novo (só ao editar do histórico). */
   idHistorico?: string;
 }
@@ -678,6 +697,9 @@ async function abrirPdf(arquivo: ArquivoPdf, retomada?: Retomada): Promise<void>
       estado = aplicarEscolhas(estado, retomada.escolhas);
       retomada.ajustes?.forEach((a, i) => {
         if (a && estado && i < estado.capas.length) estado = setAjuste(estado, i, ajusteValido(a));
+      });
+      retomada.ajustesVerso?.forEach((a, i) => {
+        if (a && estado && i < estado.capas.length) estado = setAjuste(estado, i, ajusteValido(a), 'verso');
       });
       if (retomada.selecionada !== undefined) estado = select(estado, Math.min(Math.max(retomada.selecionada, 0), estado.capas.length - 1));
       if (retomada.idHistorico) idsDoHistorico.set(caminho, retomada.idHistorico);
@@ -757,6 +779,7 @@ function salvarRascunho(): void {
     saidas: saidasMarcadas(),
     escolhas: estado.capas.map((c) => ({ ...c.choices })),
     ajustes: estado.capas.map((c) => c.ajuste ?? null),
+    ajustesVerso: estado.capas.map((c) => c.ajusteVerso ?? null),
   };
   window.clearTimeout(temporizadorRascunho);
   temporizadorRascunho = window.setTimeout(() => naFila(() => api.salvarRascunho(r)), 400);
@@ -778,7 +801,7 @@ async function continuarRascunho(r: Rascunho): Promise<void> {
     if (!arquivo) arquivo = await api.escolherPdf();
     if (!arquivo) return;
     if (arquivo.caminho !== r.caminho) descartarRascunho(r.caminho);
-    await abrirPdf(arquivo, { escolhas: r.escolhas, saidas: r.saidas, selecionada: r.selecionada, ...(r.ajustes ? { ajustes: r.ajustes } : {}) });
+    await abrirPdf(arquivo, { escolhas: r.escolhas, saidas: r.saidas, selecionada: r.selecionada, ...(r.ajustes ? { ajustes: r.ajustes } : {}), ...(r.ajustesVerso ? { ajustesVerso: r.ajustesVerso } : {}) });
   } catch (e) {
     mensagem(textoDoErro(e), true);
   }
@@ -1883,7 +1906,7 @@ $('exportar').addEventListener('click', async () => {
         montar: (pronta) => {
           const c = originais.get(pronta);
           if (!c?.back) return null;
-          return { art: c.back, back: paraRazao(c.art, razaoDaFaixa(v.pack)), choices: escolhasDoVerso(v.pack, c.choices) };
+          return { art: c.back, ...(c.ajusteVerso ? { ajuste: c.ajusteVerso } : {}), back: paraRazao(c.art, razaoDaFaixa(v.pack)), choices: escolhasDoVerso(v.pack, c.choices) };
         },
       });
     }

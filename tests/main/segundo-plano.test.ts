@@ -16,8 +16,10 @@ describe('segundo plano (só no Modo designer)', () => {
     const base = { designer: true, janelaEmUso: true, segundosParado: 0 };
     expect(atualizacaoPodeInstalarSozinha(base)).toBe(false); // janela aberta e usuário mexendo
     expect(atualizacaoPodeInstalarSozinha({ ...base, janelaEmUso: false })).toBe(true); // escondido perto do relógio
-    expect(atualizacaoPodeInstalarSozinha({ ...base, segundosParado: 299 })).toBe(false);
-    expect(atualizacaoPodeInstalarSozinha({ ...base, segundosParado: 300 })).toBe(true); // janela aberta mas ninguém mexe há 5 min
+    expect(atualizacaoPodeInstalarSozinha({ ...base, segundosParado: 14 })).toBe(false);
+    expect(atualizacaoPodeInstalarSozinha({ ...base, segundosParado: 15 })).toBe(true); // janela aberta mas ninguém mexe há 15 s
+    expect(atualizacaoPodeInstalarSozinha({ ...base, janelaEmUso: false, ocupado: true })).toBe(false); // exportando ou comandando o Corel: espera
+    expect(atualizacaoPodeInstalarSozinha({ ...base, segundosParado: 60, ocupado: true })).toBe(false);
     expect(atualizacaoPodeInstalarSozinha({ ...base, designer: false, janelaEmUso: false })).toBe(false); // operador comum: nunca sozinho
   });
 });

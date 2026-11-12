@@ -99,3 +99,14 @@ describe('ajuste da arte', () => {
     expect(setAjuste(createState(pack, capas()), 9, { zoom: 1.1, x: 0, y: 0 }).lastError).toBeDefined();
   });
 });
+
+describe('ajuste da arte do verso', () => {
+  test('é separado do ajuste da frente', () => {
+    const s1 = setAjuste(setAjuste(createState(pack, capas()), 0, { zoom: 1.2, x: 0, y: 0 }), 0, { zoom: 0.8, x: 0.1, y: 0 }, 'verso');
+    expect(s1.capas[0]!.ajuste).toEqual({ zoom: 1.2, x: 0, y: 0 });
+    expect(s1.capas[0]!.ajusteVerso).toEqual({ zoom: 0.8, x: 0.1, y: 0 });
+    const s2 = setAjuste(s1, 0, { zoom: 1, x: 0, y: 0 }, 'verso');
+    expect(s2.capas[0]!.ajusteVerso).toBeUndefined();
+    expect(s2.capas[0]!.ajuste).toEqual({ zoom: 1.2, x: 0, y: 0 });
+  });
+});

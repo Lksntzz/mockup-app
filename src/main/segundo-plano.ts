@@ -8,10 +8,11 @@ export function iniciaOculto(argv: string[], config: { designer: boolean }): boo
   return config.designer && argv.includes('--oculto');
 }
 
-/** Segundos sem mexer no computador para a atualização já baixada reiniciar o app sozinha, mesmo com a janela aberta. */
-const PARADO_PARA_ATUALIZAR_S = 5 * 60;
+/** Segundos sem mexer no computador para a atualização já baixada reiniciar o app sozinha, mesmo com a janela aberta (pausa curta: a pessoa não está no meio de um movimento). */
+const PARADO_PARA_ATUALIZAR_S = 15;
 
 /** Instala a atualização baixada sem perguntar: só no Modo designer, com o app escondido ou com a pessoa longe do computador. */
-export function atualizacaoPodeInstalarSozinha(e: { designer: boolean; janelaEmUso: boolean; segundosParado: number }): boolean {
+export function atualizacaoPodeInstalarSozinha(e: { designer: boolean; janelaEmUso: boolean; segundosParado: number; ocupado?: boolean }): boolean {
+  if (e.ocupado) return false; // exportando, gerando PDF ou comandando o Corel: espera acabar
   return e.designer && (!e.janelaEmUso || e.segundosParado >= PARADO_PARA_ATUALIZAR_S);
 }

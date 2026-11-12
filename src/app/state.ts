@@ -9,6 +9,8 @@ export interface CapaState {
   choices: Choices;
   /** Zoom e posição da arte da frente, ajustados à mão; ausente = como veio do PDF. */
   ajuste?: Ajuste;
+  /** O mesmo para a arte do verso (página par), usada no mockup de verso. */
+  ajusteVerso?: Ajuste;
 }
 
 export interface AppState {
@@ -57,13 +59,14 @@ export function select(s: AppState, capa: number): AppState {
   return { ...s, selecionada: capa };
 }
 
-/** Guarda o ajuste da arte da frente de uma capa. Ajuste "sem mudança" remove o campo. */
-export function setAjuste(s: AppState, capa: number, ajuste: Ajuste): AppState {
+/** Guarda o ajuste da arte de uma capa (frente ou verso). Ajuste "sem mudança" remove o campo. */
+export function setAjuste(s: AppState, capa: number, ajuste: Ajuste, lado: 'frente' | 'verso' = 'frente'): AppState {
   const atual = s.capas[capa];
   if (!atual) return recusar(s, 'Essa capa não existe.');
+  const campo = lado === 'verso' ? 'ajusteVerso' : 'ajuste';
   const valido = ajusteValido(ajuste);
-  const { ajuste: _antigo, ...semAjuste } = atual;
-  const nova: CapaState = ajusteEhNulo(valido) ? semAjuste : { ...semAjuste, ajuste: valido };
+  const { [campo]: _antigo, ...semAjuste } = atual;
+  const nova: CapaState = ajusteEhNulo(valido) ? semAjuste : { ...semAjuste, [campo]: valido };
   const { lastError: _descartado, ...resto } = s;
   return { ...resto, capas: s.capas.map((c, i) => (i === capa ? nova : c)) };
 }

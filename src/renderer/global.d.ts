@@ -32,6 +32,7 @@ export interface MockupApi {
   removerRascunho(caminho: string): Promise<void>;
   designerEstado(): Promise<ConfigDesigner>;
   fluxoConferido(caminho: string): Promise<boolean>;
+  ocupado(ocupado: boolean): Promise<void>;
   fluxoVoltouVisto(caminho: string): Promise<boolean>;
   salvarTemporario(nome: string, bytes: Uint8Array): Promise<string>;
   corelArteNoMolde(entrada: { frente?: string; verso?: string; destino: string; copiar?: string }): Promise<{ ok: true; detalhes?: ResultadoDoMolde } | { ok: false; motivo: string; aberto?: true }>;

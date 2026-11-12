@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('mockupApi', {
   removerRascunho: (caminho: string) => ipcRenderer.invoke('rascunhos-remover', caminho),
   designerEstado: () => ipcRenderer.invoke('designer-estado'),
   fluxoConferido: (caminho: string) => ipcRenderer.invoke('fluxo-conferido', caminho),
+  ocupado: (ocupado: boolean) => ipcRenderer.invoke('ocupado', ocupado),
   fluxoVoltouVisto: (caminho: string) => ipcRenderer.invoke('fluxo-voltou-visto', caminho),
   salvarTemporario: (nome: string, bytes: Uint8Array) => ipcRenderer.invoke('salvar-temporario', nome, bytes),
   corelArteNoMolde: (entrada: { frente?: string; verso?: string; destino: string; copiar?: string }) => ipcRenderer.invoke('corel-arte-no-molde', entrada),
