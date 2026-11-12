@@ -110,6 +110,19 @@ app.on('browser-window-created', (_e, win) => {
         c.dispatchEvent(ev('pointermove', 40)); c.dispatchEvent(ev('pointerup', 40));
       })()`);
       conferir(await ate(`Number(document.body.dataset.previa) > ${antesArrasto}`, 'prévia depois de arrastar'), 'arrastar a arte na prévia atualizou a prévia');
+      // o cartão da prévia não pode encolher durante o arrasto (a prévia leve tem metade dos pixels)
+      const larguraAntes = Number(await js("document.getElementById('previa').getBoundingClientRect().width"));
+      await js(`(() => {
+        const c = document.getElementById('previa'); const r = c.getBoundingClientRect();
+        const x = r.left + r.width * 0.45, y = r.top + r.height * 0.5;
+        const ev = (tipo, dy) => new PointerEvent(tipo, { clientX: x, clientY: y + dy, button: 0, pointerId: 8, bubbles: true });
+        c.dispatchEvent(ev('pointerdown', 0)); c.dispatchEvent(ev('pointermove', 25)); c.dispatchEvent(ev('pointermove', 50));
+      })()`);
+      await espera(150);
+      const larguraDurante = Number(await js("document.getElementById('previa').getBoundingClientRect().width"));
+      conferir(Math.abs(larguraDurante - larguraAntes) < 2, `o cartão da prévia mantém o tamanho durante o arrasto (${larguraAntes} → ${larguraDurante})`);
+      await js("document.getElementById('previa').dispatchEvent(new PointerEvent('pointerup', { button: 0, pointerId: 8, bubbles: true }))");
+      await espera(400);
       const antesRoda = Number(await js('document.body.dataset.previa'));
       await js("(() => { const c = document.getElementById('previa'); c.dispatchEvent(new WheelEvent('wheel', { deltaY: -200, bubbles: true, cancelable: true })); })()");
       conferir(await ate(`Number(document.body.dataset.previa) > ${antesRoda}`, 'prévia depois da roda'), 'a roda do mouse atualizou a prévia');

@@ -53,9 +53,14 @@ const trabalhos = criarTrabalhos<AppState, InfoDaCapa[]>();
 
 const proximoQuadro = () => new Promise<void>((r) => setTimeout(r, 0));
 
-function pintar(canvas: HTMLCanvasElement, r: Raster): void {
+// Prévias de rascunho (metade do tamanho) mostradas no mesmo tamanho da completa: sem isso o cartão encolhe ao arrastar e cresce ao parar.
+const rascunhos = new WeakSet<Raster>();
+
+/** `escala` > 1 mostra a imagem maior que seus pixels (rascunho = 2); sem ela o tamanho de exibição não é mexido. */
+function pintar(canvas: HTMLCanvasElement, r: Raster, escala?: number): void {
   canvas.width = r.width;
   canvas.height = r.height;
+  if (escala !== undefined) canvas.style.width = `${r.width * escala}px`;
   canvas.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(r.data), r.width, r.height), 0, 0);
 }
 
@@ -192,7 +197,7 @@ function desenharGuia(): void {
   const canvas = $<HTMLCanvasElement>('previa');
   const mapa = mapaAtual();
   if (!guiaAtiva() || !mapa || !ultimaPrevia) return;
-  pintar(canvas, ultimaPrevia);
+  pintar(canvas, ultimaPrevia, rascunhos.has(ultimaPrevia) ? 2 : 1);
   const ctx = canvas.getContext('2d')!;
   const r = canvas.getBoundingClientRect();
   const k = r.width > 0 ? canvas.width / r.width : 1;
@@ -245,7 +250,7 @@ function aplicarAjusteDaGuia(novo: import('../engine/ajuste').Ajuste): void {
   });
   canvas.addEventListener('pointerleave', () => {
     mouseNaPrevia = false;
-    if (!arrasto && ultimaPrevia && guiaAtiva()) pintar(canvas, ultimaPrevia);
+    if (!arrasto && ultimaPrevia && guiaAtiva()) pintar(canvas, ultimaPrevia, rascunhos.has(ultimaPrevia) ? 2 : 1);
   });
   canvas.addEventListener('pointerdown', (ev) => {
     const p = pontoDaArte(ev);
@@ -323,14 +328,16 @@ const agendador = createPreviewScheduler(
     }
     if (req.rascunho) {
       const r = pacoteDeRascunho(pacote.pack, pacote.layers);
-      return compose(r.pack, r.layers, capa.art, req.choices, versoDaFrente(capa.back), undefined, capa.ajuste);
+      const leve = compose(r.pack, r.layers, capa.art, req.choices, versoDaFrente(capa.back), undefined, capa.ajuste);
+      rascunhos.add(leve);
+      return leve;
     }
     return compose(pacote.pack, pacote.layers, capa.art, req.choices, versoDaFrente(capa.back), undefined, capa.ajuste);
   },
   (capa, resultado) => {
     if (!estado || capa !== estado.selecionada) return;
     ultimaPrevia = resultado;
-    pintar($<HTMLCanvasElement>('previa'), resultado);
+    pintar($<HTMLCanvasElement>('previa'), resultado, rascunhos.has(resultado) ? 2 : 1);
     if (mouseNaPrevia || arrasto) desenharGuia();
     document.body.dataset.previa = String(++contadorDePrevias);
   },
