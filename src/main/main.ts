@@ -33,6 +33,7 @@ import {
 } from "node:path";
 import { PNG } from "pngjs";
 import { entradaValida } from "../app/historico";
+import type { EntradaDoAnuncio } from "../anuncios/tipos";
 import { criarHistorico, nomeSeguro } from "./historico";
 import { rascunhoValido } from "../app/rascunhos";
 import { criarRascunhos } from "./rascunhos";
@@ -51,6 +52,14 @@ import {
   norm,
   ultimaAlteracao,
 } from "./clientes";
+import {
+  criarEMontar,
+  resolverPlataforma,
+  resolverRaizDosAnuncios,
+  validarFontes,
+  validarFormaDaEntrada,
+} from "./anuncios";
+import { criarCategoria, listarCategorias, listarPlataformas } from "./anuncios-pastas";
 import { criarPortaoDePin } from "./pin";
 import { acharPastasDoFluxo } from "./achar-pastas";
 import { arquivoAbrivel } from "./abrir-arquivo";
@@ -420,6 +429,43 @@ ipcMain.handle("designer-procurar-pastas", async (_e, substituir: unknown) => {
     Object.keys(novas).length > 0 ? await configDoDesigner().salvar(novas) : c;
   return { config, achou: Object.keys(novas).length, avisos: r.avisos };
 });
+// ---- Anúncios 2027 ----
+async function raizDosAnuncios() {
+  const c = await exigirDesigner();
+  return resolverRaizDosAnuncios(c.pastaAnuncios, raizesDeBusca());
+}
+ipcMain.handle("anuncios-pastas", async () => {
+  const r = await raizDosAnuncios();
+  if (!r.pasta) return { plataformas: [] as string[], avisos: r.avisos };
+  const plataformas = await listarPlataformas(r.pasta).catch(() => [] as string[]);
+  return { pastaAnuncios: r.pasta, plataformas, ...(r.avisos.length ? { avisos: r.avisos } : {}) };
+});
+ipcMain.handle("anuncios-categorias", async (_e, plataforma: unknown) => {
+  const r = await raizDosAnuncios();
+  if (!r.pasta) return [] as string[];
+  const pasta = await resolverPlataforma(r.pasta, plataforma);
+  return pasta ? listarCategorias(pasta).catch(() => [] as string[]) : [];
+});
+ipcMain.handle("anuncios-criar-categoria", async (_e, plataforma: unknown, nome: unknown) => {
+  const r = await raizDosAnuncios();
+  if (!r.pasta) return { ok: false as const, motivo: "Não achei a pasta de anúncios. Escolha na mão." };
+  const pasta = await resolverPlataforma(r.pasta, plataforma);
+  if (!pasta || typeof nome !== "string") return { ok: false as const, motivo: "Escolha uma plataforma da lista." };
+  return criarCategoria(pasta, nome);
+});
+ipcMain.handle("anuncios-criar", (_e, entrada: unknown, montarNoCorel: unknown) =>
+  marcarCorel(async () => {
+    const r = await raizDosAnuncios();
+    const recusa = (motivo: string) => ({ ok: false as const, motivo, avisos: [] as string[] });
+    if (!r.pasta) return recusa("Não achei a pasta de anúncios. Escolha na mão.");
+    const forma = validarFormaDaEntrada(entrada);
+    if (forma) return recusa(forma);
+    const e = entrada as EntradaDoAnuncio;
+    const fontes = await validarFontes(e.fontes);
+    if (fontes) return recusa(fontes);
+    return criarEMontar({ ...e, raiz: r.pasta }, montarNoCorel === true);
+  }),
+);
 ipcMain.handle("clientes-listar", async () => {
   const c = await exigirDesigner();
   const r = await listarClientes(c, Date.now(), 30_000, c.enviados);

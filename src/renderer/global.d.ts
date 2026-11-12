@@ -3,6 +3,9 @@ import type { Rascunho } from '../app/rascunhos';
 import type { ConfigDesigner } from '../main/config-designer';
 import type { Cliente } from '../main/clientes';
 import type { ResultadoDoMolde } from '../main/corel';
+import type { ResultadoAnuncio } from '../main/anuncios';
+import type { EntradaDoAnuncio } from '../anuncios/tipos';
+import type { ResultadoCategoria } from '../main/anuncios-pastas';
 import type { ResultadoMover } from '../main/pasta-fluxo';
 export interface CamadaBruta {
   width: number;
@@ -41,6 +44,10 @@ export interface MockupApi {
   designerProcurarPastas(substituir: boolean): Promise<{ config: ConfigDesigner; achou: number; avisos: string[] }>;
   designerLigar(ligado: boolean, pin?: string): Promise<ConfigDesigner>;
   designerEscolherPasta(qual: 'pasta1' | 'pasta2' | 'pasta3' | 'pasta4'): Promise<ConfigDesigner>;
+  anunciosPastas(): Promise<{ pastaAnuncios?: string; plataformas: string[]; avisos?: string[] }>;
+  anunciosCategorias(plataforma: string): Promise<string[]>;
+  anunciosCriarCategoria(plataforma: string, nome: string): Promise<ResultadoCategoria>;
+  anunciosCriar(entrada: EntradaDoAnuncio, montarNoCorel: boolean): Promise<ResultadoAnuncio>;
   iniciarComWindowsEstado(): Promise<boolean>;
   iniciarComWindows(ligado: boolean): Promise<boolean>;
   abrirArquivoCliente(caminho: string): Promise<{ ok: true } | { ok: false; motivo: string }>;
