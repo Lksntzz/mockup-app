@@ -471,6 +471,17 @@
       ]
     },
     {
+      "id": "marca-04",
+      "role": "fixed",
+      "file": "marca-04.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        0,
+        0
+      ]
+    },
+    {
       "id": "tassel-verde-01",
       "role": "fixed",
       "file": "tassel-verde-01.png",
@@ -842,17 +853,6 @@
       "offset": [
         1071,
         1063
-      ]
-    },
-    {
-      "id": "marca-04",
-      "role": "fixed",
-      "file": "marca-04.png",
-      "opacity": 1.0,
-      "blend": "normal",
-      "offset": [
-        0,
-        0
       ]
     },
     {
