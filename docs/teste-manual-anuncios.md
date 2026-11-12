@@ -8,7 +8,7 @@ Objetivo: confirmar, no CorelDRAW 2025 de verdade, que o macro do anúncio monta
 
 ## O que preparar antes
 
-1. O app já atualizado (com a aba **Anúncios**, no Modo designer).
+1. O app já atualizado (com a aba **Anúncios**, no Modo designer). Você vai receber o instalador (ou a pasta do app pronto) **direto do Claude**, junto com este passo a passo — ele ainda não está publicado na atualização automática. Instale/abra essa versão antes de começar.
 2. O molde em `C:\MOLDE\MOLDE.cdr` (o mesmo de sempre, com 2 páginas: capa e contra capa; na contra capa, embaixo e no centro, o **quadrado** do logo e o **retângulo** do código de barras).
 3. Arquivos de teste (podem ser artes velhas, qualquer uma serve):
    - um PDF com **2 páginas**;
@@ -26,10 +26,9 @@ Objetivo: confirmar, no CorelDRAW 2025 de verdade, que o macro do anúncio monta
 
 O Corel guarda os macros num lugar chamado **GlobalMacros**. Lá já existe um módulo chamado **MKP** (o do botão "Abrir no molde"). Vamos trocar esse módulo pelo novo, que tem tudo o que o antigo tinha **mais** os macros do anúncio.
 
-1. **Baixar o arquivo novo do macro.**
-   1. Abra https://github.com/Lksntzz/mockup-app/blob/feature/anuncios-2027/tools/corel/MKP.bas (entre com sua conta do GitHub se pedir).
-   2. Clique no botão de **download** (ícone de seta para baixo, "Download raw file"), no canto direito, em cima do código.
-      - **Resultado esperado:** o arquivo `MKP.bas` vai para a pasta **Downloads**.
+1. **Pegar o arquivo novo do macro.**
+   1. Use o arquivo `MKP.bas` que o Claude te enviou. Salve ele na pasta **Downloads**, **sem abrir**.
+      - **Resultado esperado:** o arquivo `MKP.bas` está na pasta **Downloads**.
    - **Não abra e não salve** esse arquivo no Bloco de Notas antes de importar (o Bloco de Notas pode trocar a codificação e estragar o macro).
 2. **Abrir o editor de macros do Corel.**
    1. Abra o CorelDRAW 2025 (pode ser com um documento qualquer, ou vazio).
@@ -53,6 +52,8 @@ O Corel guarda os macros num lugar chamado **GlobalMacros**. Lá já existe um m
 
 ---
 
+> **Se repetir um teste:** antes, apague o `.cdr` que tenha sobrado (inteiro ou pela metade) daquela pasta — ou apague a pasta do teste inteira e crie de novo. O app nunca apaga nem sobrescreve um `.cdr` que já existe.
+
 ## Teste 1 — PDF de 2 páginas (1 capa)
 
 1. Com o Corel **aberto** (pode estar vazio), abra o app → Modo designer → aba **Anúncios**.
@@ -60,7 +61,7 @@ O Corel guarda os macros num lugar chamado **GlobalMacros**. Lá já existe um m
    - **Resultado esperado:** aparece **1 linha** de variação.
 3. Escolha uma plataforma, a categoria **TESTE**, dê o nome de arte **Teste 1**, preencha o título, a capa e o EAN `7891234567895`.
 4. Clique em **Criar pasta e arquivos**.
-   - **Resultado esperado no app:** mensagem de que criou a pasta e montou no Corel, com a capa 1 **OK** e uma porcentagem de ampliação (algo entre 80% e 200%). Se a porcentagem estiver fora disso, o app mostra um aviso amarelo (isso é normal; anote o número).
+   - **Resultado esperado no app:** o título **"Anúncio criado"**, a linha **"Arquivo .cdr montado no Corel"** e a linha **"Aviso: Capa 1: montada, código de barras em 97% do tamanho padrão."** (o número pode ser outro; o normal é ficar entre 80% e 200%). Se ficar fora disso, aparece mais uma linha **"Aviso: Capa 1: Código de barras abaixo de 80%…"** (ou "acima de 200%"). Isso não é erro do teste: só anote o número.
 5. Olhe o Corel.
    - **Resultado esperado:** abriu um documento chamado **Teste 1.cdr** com **2 páginas**:
      - **Página 1:** o molde com a arte da página 1 do PDF, encaixada sem esticar.
@@ -76,7 +77,7 @@ O Corel guarda os macros num lugar chamado **GlobalMacros**. Lá já existe um m
    - **Resultado esperado:** **3 linhas** de variação.
 2. Use os EANs `7891234567901`, `7891234567918` e `7891234567925` (um em cada linha, nessa ordem).
 3. Clique em **Criar pasta e arquivos**.
-   - **Resultado esperado no app:** capas 1, 2 e 3 **OK**, cada uma com a porcentagem.
+   - **Resultado esperado no app:** três linhas **"Aviso: Capa 1: montada, código de barras em …%"**, **"Capa 2: …"** e **"Capa 3: …"**, cada uma com a porcentagem.
 4. No Corel, o **Teste 2.cdr** deve ter **6 páginas**:
    - páginas 1, 3 e 5 = capas (páginas 1, 3 e 5 do PDF, nessa ordem);
    - páginas 2, 4 e 6 = contra capas (páginas 2, 4 e 6 do PDF), cada uma com o molde completo (igual à página 2 do molde);
@@ -105,10 +106,11 @@ O Corel guarda os macros num lugar chamado **GlobalMacros**. Lá já existe um m
 
 1. **Feche o CorelDRAW** por completo.
 2. Monte um anúncio novo (PDF de 2 páginas, nome **Teste 5**, EAN `7891234567895`) e clique em **Criar pasta e arquivos**.
-   - **Resultado esperado:** o app cria a pasta e o `.txt` (confira no Explorador) e avisa que **abriu o CorelDRAW com o molde**, pedindo para esperar e clicar de novo.
-3. Espere o Corel abrir **por inteiro** (uns 30 segundos, sem mexer). Clique de novo no botão que o app indicar.
-   - **Resultado esperado:** o **Teste 5.cdr** é montado como no Teste 1.
-   - Se o app não tiver um botão para o segundo clique, use o **Teste 7** (plano B) com a pasta `Teste 5` e anote isso.
+   - **Resultado esperado:** o app cria a pasta e o `.txt` (confira no Explorador), avisa que **abriu o CorelDRAW com o molde** e mostra o botão **"Montar no Corel agora"** embaixo do resultado. A mensagem **não** deve falar do botão "Abrir no molde (Corel)" (esse botão é da aba MKP, não desta).
+3. Espere o Corel abrir **por inteiro** (uns 30 segundos, sem mexer). Clique em **Montar no Corel agora**.
+   - **Resultado esperado:** o título muda para **"Montagem no Corel"**, aparece **"Arquivo .cdr montado no Corel"** e o **Teste 5.cdr** é montado como no Teste 1.
+   - Depois de montar, o botão **Montar no Corel agora** some (não precisa mais dele).
+   - Se o Corel ainda não tinha terminado de abrir, o app pode pedir de novo para esperar: espere mais um pouco e clique outra vez no mesmo botão.
 
 ## Teste 6 — Corel aberto, com o molde já aberto
 
@@ -120,7 +122,7 @@ O Corel guarda os macros num lugar chamado **GlobalMacros**. Lá já existe um m
 
 ## Teste 7 — Plano B: macro AnuncioDaPasta (sem o app)
 
-1. Apague (ou mova para outro lugar) o arquivo `Teste 1.cdr` da pasta `TESTE\Teste 1`. **Deixe** a pasta `_corel` lá.
+1. **Feche o `Teste 1.cdr` no Corel** (se ele estiver aberto; não precisa salvar). Depois apague (ou mova para outro lugar) o arquivo `Teste 1.cdr` da pasta `TESTE\Teste 1`. **Deixe** a pasta `_corel` lá.
 2. Feche o app. Com o Corel aberto, rode o macro **AnuncioDaPasta**:
    - Jeito 1: **Alt + F11** → na esquerda, **GlobalMacros → Modules → MKP** (duplo clique) → clique em qualquer lugar **dentro** da parte `Sub AnuncioDaPasta()` → aperte **F5**.
    - Jeito 2: menu **Ferramentas → Scripts → Executar script…** → em "Macros em", escolha **GlobalMacros** → escolha **MKP.AnuncioDaPasta** → **Executar**.
@@ -129,6 +131,19 @@ O Corel guarda os macros num lugar chamado **GlobalMacros**. Lá já existe um m
 4. **Resultado esperado:** o Corel monta o **Teste 1.cdr** de novo, igual ao do Teste 1, e mostra a mensagem **"Pronto: …Teste 1.cdr"** com a linha `capa1=OK …%`.
 5. Rode o **AnuncioDaPasta** de novo na mesma pasta.
    - **Resultado esperado:** mensagem **"Já existe…, vou abrir o que já existe, sem alterar"**, e só abre o `.cdr` (não monta de novo).
+
+## Teste 7b — Capa sem EAN ("Só criar a pasta e o .txt")
+
+1. Na aba Anúncios, solte o **PDF de 2 páginas**. Nome **Teste 7b**. **Deixe o EAN vazio.**
+   - **Resultado esperado:** o campo do EAN **não** fica vermelho; embaixo dele aparece, em cinza, **"EAN pendente — só vale para 'Só criar a pasta'"**. O botão **"Criar pasta e arquivos"** fica apagado e o botão **"Só criar a pasta e o .txt"** fica liberado.
+2. Digite um EAN errado (por exemplo `123`).
+   - **Resultado esperado:** agora o campo fica **vermelho** e **os dois botões** ficam apagados. Apague o `123` de novo (campo vazio).
+3. Clique em **Só criar a pasta e o .txt**.
+   - **Resultado esperado no app:** "Anúncio criado", a frase "Você escolheu só criar a pasta e o .txt…" e o aviso **"A variação 1 está sem EAN: as páginas dela serão montadas SEM código de barras."**
+4. Abra o `Teste 7b.txt` da pasta no Bloco de Notas.
+   - **Resultado esperado:** a linha da variação 1 termina com **`EAN: (pendente)`**.
+5. Com o Corel aberto, rode o macro **AnuncioDaPasta** (igual ao Teste 7) e escolha o `montar.txt` da pasta `TESTE\Teste 7b\_corel`.
+   - **Resultado esperado:** o `Teste 7b.cdr` tem 2 páginas com a arte, e a página 2 tem o retângulo do código de barras **vazio** (sem código). A mensagem do Corel mostra `capa1=OK` **sem** porcentagem.
 
 ## Teste 8 — Ler o código de barras com o celular
 
@@ -147,7 +162,7 @@ O Corel guarda os macros num lugar chamado **GlobalMacros**. Lá já existe um m
 
 ## Se der errado
 
-- **O app disse "capa N: ERRO sem retangulo"**: o macro não achou o retângulo do código de barras. Conserto rápido no molde:
+- **O app mostrou "Aviso: Capa 1: sem retangulo"** (ou outro número de capa): o macro não achou o retângulo do código de barras. Conserto rápido no molde:
   1. Abra `C:\MOLDE\MOLDE.cdr`, vá na página 2 e clique **uma vez** no retângulo do código de barras.
   2. Menu **Janela → Janelas de encaixe → Objetos** (ou "Gerenciador de objetos"). O retângulo fica destacado na lista.
   3. Dê dois cliques no nome dele na lista, apague o nome e digite **EAN** (maiúsculo) e Enter.
@@ -161,7 +176,7 @@ O Corel guarda os macros num lugar chamado **GlobalMacros**. Lá já existe um m
 
 ## O que me enviar no fim
 
-- ✅ / ❌ para o Passo 0 e para cada teste de 1 a 9.
-- A porcentagem de ampliação que o app mostrou (basta uma, os números devem ser iguais em todas as capas do mesmo molde).
+- ✅ / ❌ para o Passo 0 e para cada teste de 1 a 9 (incluindo o 7b).
+- A porcentagem que o app mostrou na linha "Capa 1: montada, código de barras em …% do tamanho padrão" (basta uma; os números devem ser iguais em todas as capas do mesmo molde).
 - Se apareceu a janela "Importar PDF" (Teste 1, item 7) e quantas vezes.
 - Os prints e arquivos de "Se der errado" para cada ❌.
