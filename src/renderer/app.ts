@@ -438,6 +438,8 @@ function desenharPainel(): void {
   if (!estado || !pacote) return;
   const capa = estado.capas[estado.selecionada]!;
   $('titulo-capa').textContent = `Capa ${estado.selecionada + 1}`;
+  // copiar as cores para "todas as capas" só faz sentido quando há mais de uma
+  $('copiar').hidden = estado.capas.length < 2;
   const grupos = $('grupos');
   grupos.replaceChildren();
   for (const acc of ACESSORIOS) {

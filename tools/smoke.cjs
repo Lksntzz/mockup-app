@@ -84,6 +84,7 @@ app.on('browser-window-created', (_e, win) => {
       conferir((await js("document.querySelector('[data-acc=tassel][aria-pressed=true]').dataset.id")) === 'laranja', 'o tassel laranja funciona com wire-o rose gold');
       await foto('3a-tassel-laranja.png');
       await js("document.querySelector('[data-acc=tassel][data-id=rosa]').click()");
+      conferir(!(await js("document.getElementById('copiar').hidden")), 'com várias capas, o botão "Copiar estas cores para todas as capas" aparece');
       await js("document.querySelectorAll('#lista .item')[1].click()");
       await espera(1500);
       conferir(!(await js("document.querySelector('[data-acc=tassel][data-id=laranja]').disabled")), 'o tassel laranja também está disponível com wire-o preto');
@@ -482,6 +483,7 @@ app.on('browser-window-created', (_e, win) => {
       await js("document.querySelector('#pasta1-lista .primario').click()");
       await ate("document.body.dataset.estado === 'pronto'", 'abrir a arte PNG');
       conferir((await js("document.querySelectorAll('#lista .item').length")) === 1, 'a imagem PNG abre como uma capa');
+      conferir(await js("document.getElementById('copiar').hidden"), 'com uma capa só, o botão "Copiar estas cores para todas as capas" não aparece');
       conferir(await js("document.getElementById('qualidade').className.includes('boa')"), 'o painel de qualidade marca a imagem 1238×1562 como "boa"');
       await foto('9-qualidade.png');
       await js("document.getElementById('exportar').click()");
