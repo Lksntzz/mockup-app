@@ -2,7 +2,8 @@ import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { acharPastaAnuncios, criarCategoria, listarCategorias, listarPlataformas } from '../../src/main/anuncios-pastas';
+import type { ConfigDesigner } from '../../src/main/config-designer';
+import { acharPastaAnuncios, criarCategoria, mesclarPastasAchadas, listarCategorias, listarPlataformas } from '../../src/main/anuncios-pastas';
 import { ehPasta } from '../../src/main/pasta-fluxo';
 
 let base = '';
@@ -34,5 +35,24 @@ describe('pastas de anúncios', () => {
     const dois = await acharPastaAnuncios([base]);
     expect(dois.pasta).toBeUndefined();
     expect(dois.avisos.length).toBeGreaterThan(0);
+  });
+});
+
+describe('mesclarPastasAchadas', () => {
+  const cfg = (extra: Partial<ConfigDesigner> = {}): ConfigDesigner => ({ designer: true, ...extra });
+  test('não troca uma pastaAnuncios já escolhida sem substituir', () => {
+    expect(mesclarPastasAchadas(cfg({ pastaAnuncios: 'D:\\a' }), { pastaAnuncios: 'E:\\b' }, false)).toEqual({});
+  });
+  test('preenche quando está vazia ou ausente', () => {
+    expect(mesclarPastasAchadas(cfg(), { pastaAnuncios: 'E:\\b' }, false)).toEqual({ pastaAnuncios: 'E:\\b' });
+    expect(mesclarPastasAchadas(cfg({ pastaAnuncios: '' }), { pastaAnuncios: 'E:\\b' }, false)).toEqual({ pastaAnuncios: 'E:\\b' });
+  });
+  test('troca com substituir', () => {
+    expect(mesclarPastasAchadas(cfg({ pastaAnuncios: 'D:\\a' }), { pastaAnuncios: 'E:\\b' }, true)).toEqual({ pastaAnuncios: 'E:\\b' });
+  });
+  test('ignora achado ausente ou vazio', () => {
+    expect(mesclarPastasAchadas(cfg(), {}, true)).toEqual({});
+    expect(mesclarPastasAchadas(cfg(), { pastaAnuncios: '' }, true)).toEqual({});
+    expect(mesclarPastasAchadas(cfg(), { pastaAnuncios: undefined }, true)).toEqual({});
   });
 });

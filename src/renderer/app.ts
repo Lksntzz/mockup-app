@@ -1132,6 +1132,7 @@ iniciarAnuncios();
 /** Mostra na Configuração o caminho de cada pasta do fluxo. */
 function atualizarCaminhos(): void {
   for (const n of [1, 2, 3, 4] as const) $(`caminho-pasta${n}`).textContent = designer[`pasta${n}`] ?? 'não escolhida';
+  $('caminho-anuncios').textContent = designer.pastaAnuncios ?? 'não escolhida';
 }
 
 // ---- Modo designer (só aparece para quem liga; desligado por padrão) ----
@@ -1847,6 +1848,24 @@ for (const qual of ['pasta1', 'pasta2', 'pasta3', 'pasta4'] as const) {
     }, (e) => mensagem(textoDoErro(e), true));
   });
 }
+$('escolher-anuncios').addEventListener('click', () => {
+  void api.designerEscolherPasta('pastaAnuncios').then((c) => aplicarDesigner(c), (e) => mensagem(textoDoErro(e), true));
+});
+$('procurar-anuncios').addEventListener('click', () => {
+  const botao = $<HTMLButtonElement>('procurar-anuncios');
+  botao.disabled = true;
+  botao.textContent = 'Procurando…';
+  void api.designerProcurarPastas(true, true).then(
+    (r) => {
+      aplicarDesigner(r.config);
+      mensagem([r.achou > 0 ? 'Achei a pasta Anúncio 2027. Confira o caminho abaixo.' : 'Não achei a pasta Anúncio 2027.', ...r.avisos].join(' '), r.achou === 0 || r.avisos.length > 0);
+    },
+    (e) => mensagem(textoDoErro(e), true),
+  ).finally(() => {
+    botao.disabled = false;
+    botao.textContent = 'Procurar sozinho';
+  });
+});
 $('iniciar-windows').addEventListener('change', () => {
   const caixaIniciar = $<HTMLInputElement>('iniciar-windows');
   void api.iniciarComWindows(caixaIniciar.checked).then(

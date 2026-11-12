@@ -61,7 +61,7 @@ import {
   validarFontes,
   validarFormaDaEntrada,
 } from "./anuncios";
-import { criarCategoria, listarCategorias, listarPlataformas } from "./anuncios-pastas";
+import { acharPastaAnuncios, criarCategoria, listarCategorias, listarPlataformas, mesclarPastasAchadas } from "./anuncios-pastas";
 import { criarPortaoDePin } from "./pin";
 import { acharPastasDoFluxo } from "./achar-pastas";
 import { arquivoAbrivel } from "./abrir-arquivo";
@@ -397,6 +397,7 @@ ipcMain.handle("designer-escolher-pasta", async (_e, qual: unknown) => {
     pasta2: "Escolher a Pasta 2 (APROVAR)",
     pasta3: "Escolher a Pasta 3 (AGUARDA IMPRESSÃO)",
     pasta4: "Escolher a Pasta 4 (FINALIZADOS)",
+    pastaAnuncios: "Escolher a pasta Anúncio 2027",
   } as const;
   if (typeof qual !== "string" || !(qual in titulos))
     throw new Error("Pasta inválida.");
@@ -419,14 +420,20 @@ function raizesDeBusca(): string[] {
     .filter((r) => existsSync(r));
   return [...unidades, homedir()];
 }
-ipcMain.handle("designer-procurar-pastas", async (_e, substituir: unknown) => {
+ipcMain.handle("designer-procurar-pastas", async (_e, substituir: unknown, somenteAnuncios: unknown) => {
   const c = await exigirDesigner();
-  const r = await acharPastasDoFluxo(raizesDeBusca());
+  const soAnuncios = somenteAnuncios === true;
+  const r = soAnuncios
+    ? { pastas: {} as Partial<Record<"pasta1" | "pasta2" | "pasta3" | "pasta4", string>>, avisos: [] as string[] }
+    : await acharPastasDoFluxo(raizesDeBusca());
   const novas: Partial<ConfigDesigner> = {};
   for (const k of ["pasta1", "pasta2", "pasta3", "pasta4"] as const) {
     const achada = r.pastas[k];
     if (achada && (substituir === true || !c[k])) novas[k] = achada;
   }
+  const anuncios = await acharPastaAnuncios(raizesDeBusca());
+  Object.assign(novas, mesclarPastasAchadas(c, { pastaAnuncios: anuncios.pasta }, substituir === true));
+  r.avisos.push(...anuncios.avisos);
   const config =
     Object.keys(novas).length > 0 ? await configDoDesigner().salvar(novas) : c;
   return { config, achou: Object.keys(novas).length, avisos: r.avisos };

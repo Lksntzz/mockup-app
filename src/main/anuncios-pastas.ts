@@ -1,5 +1,6 @@
 import { mkdir, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import type { ConfigDesigner } from './config-designer';
 import { mesmoNome, nomeDePastaSeguro } from '../anuncios/nomes';
 import { ehPasta, nomesEm } from './pasta-fluxo';
 
@@ -87,4 +88,12 @@ export async function criarCategoria(pastaPlataforma: string, nome: string): Pro
     return { ok: false, motivo: `Não consegui criar a pasta: ${e instanceof Error ? e.message : String(e)}` };
   }
   return { ok: true, pasta, nome: seguro };
+}
+
+/** Decide o que gravar depois da busca automática: só devolve os campos a escrever. */
+export function mesclarPastasAchadas(config: ConfigDesigner, achadas: Partial<ConfigDesigner>, substituir: boolean): Partial<ConfigDesigner> {
+  const novas: Partial<ConfigDesigner> = {};
+  const achada = achadas.pastaAnuncios;
+  if (typeof achada === 'string' && achada && (substituir || !config.pastaAnuncios)) novas.pastaAnuncios = achada;
+  return novas;
 }

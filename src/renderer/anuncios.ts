@@ -223,7 +223,7 @@ export async function mostrarAnuncios(): Promise<void> {
   try {
     const r = await api.anunciosPastas();
     semPasta = !r.pastaAnuncios;
-    const aviso = [semPasta ? 'A pasta dos anúncios não foi encontrada. Defina a "Pasta dos Anúncios 2027" nas Configurações.' : '', ...(r.avisos ?? [])].filter(Boolean).join(' ');
+    const aviso = [semPasta ? 'Escolha a pasta Anúncio 2027 na Configuração' : '', ...(r.avisos ?? [])].filter(Boolean).join(' ');
     texto($('an-aviso'), aviso);
     const sel = $<HTMLSelectElement>('an-plataforma');
     preencher(sel, r.plataformas, form.plataforma);

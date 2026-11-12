@@ -41,9 +41,9 @@ export interface MockupApi {
   corelArteNoMolde(entrada: { frente?: string; verso?: string; destino: string; copiar?: string }): Promise<{ ok: true; detalhes?: ResultadoDoMolde } | { ok: false; motivo: string; aberto?: true }>;
   corelGerarPdf(caminho: string): Promise<ResultadoMover>;
   notificacaoTestar(): Promise<{ suportada: boolean }>;
-  designerProcurarPastas(substituir: boolean): Promise<{ config: ConfigDesigner; achou: number; avisos: string[] }>;
+  designerProcurarPastas(substituir: boolean, somenteAnuncios?: boolean): Promise<{ config: ConfigDesigner; achou: number; avisos: string[] }>;
   designerLigar(ligado: boolean, pin?: string): Promise<ConfigDesigner>;
-  designerEscolherPasta(qual: 'pasta1' | 'pasta2' | 'pasta3' | 'pasta4'): Promise<ConfigDesigner>;
+  designerEscolherPasta(qual: 'pasta1' | 'pasta2' | 'pasta3' | 'pasta4' | 'pastaAnuncios'): Promise<ConfigDesigner>;
   anunciosPastas(): Promise<{ pastaAnuncios?: string; plataformas: string[]; avisos?: string[] }>;
   anunciosCategorias(plataforma: string): Promise<string[]>;
   anunciosCriarCategoria(plataforma: string, nome: string): Promise<ResultadoCategoria>;
