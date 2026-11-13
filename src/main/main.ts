@@ -549,7 +549,7 @@ ipcMain.handle("anuncios-pendentes", async () => {
     return { ok: false as const, motivo: e instanceof Error ? e.message : String(e) };
   }
 });
-ipcMain.handle("anuncios-concluir-pendente", async (_e, pasta: unknown, eans: unknown) => {
+ipcMain.handle("anuncios-concluir-pendente", async (_e, pasta: unknown, eans: unknown, skus: unknown) => {
   const r = await raizDosAnuncios();
   const recusa = (motivo: string) => ({ ok: false as const, motivo });
   if (!r.pasta) return recusa("Não achei a pasta de anúncios. Escolha na mão.");
@@ -562,7 +562,17 @@ ipcMain.handle("anuncios-concluir-pendente", async (_e, pasta: unknown, eans: un
     if (!/^\d+$/.test(k) || typeof v !== "string") return recusa("Lista de EANs inválida.");
     lista[Number(k)] = v;
   }
-  return concluirPendente(r.pasta, pasta, lista);
+  const listaSkus: Record<number, string> = {};
+  if (skus !== undefined) {
+    if (skus === null || typeof skus !== "object" || Array.isArray(skus) || Object.getPrototypeOf(skus) !== Object.prototype) {
+      return recusa("Lista de SKUs inválida.");
+    }
+    for (const [k, v] of Object.entries(skus as Record<string, unknown>)) {
+      if (!/^\d+$/.test(k) || typeof v !== "string") return recusa("Lista de SKUs inválida.");
+      listaSkus[Number(k)] = v;
+    }
+  }
+  return concluirPendente(r.pasta, pasta, lista, listaSkus);
 });
 ipcMain.handle("anuncios-abrir-pasta", async (_e, caminho: unknown) => {
   const r = await raizDosAnuncios();

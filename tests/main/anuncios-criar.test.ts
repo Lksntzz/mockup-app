@@ -267,7 +267,7 @@ describe('criarAnuncio', () => {
   });
 
   test('pendente.json: gravado com EAN vazio, ausente com todos os EAN', async () => {
-    const r = await criarAnuncio(entrada({ variacoes: [{ capa: 'A', sku: '', ean: E1 }, { capa: 'B', sku: 'S2', ean: '' }] }));
+    const r = await criarAnuncio(entrada({ variacoes: [{ capa: 'A', sku: 'S1', ean: E1 }, { capa: 'B', sku: 'S2', ean: '' }] }));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     const j = JSON.parse(await readFile(join(r.pasta, 'pendente.json'), 'utf8'));
@@ -275,6 +275,13 @@ describe('criarAnuncio', () => {
     const completo = await criarAnuncio(entrada({ arte: 'Arte 2' }));
     expect(completo.ok).toBe(true);
     if (completo.ok) expect(await existe(join(completo.pasta, 'pendente.json'))).toBe(false);
+  });
+  test('pendente.json: só SKU vazio (com EAN) também fica pendente', async () => {
+    const r = await criarAnuncio(entrada({ arte: 'Arte 3', variacoes: [{ capa: 'A', sku: '', ean: E1 }, { capa: 'B', sku: 'S2', ean: E2 }] }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const j = JSON.parse(await readFile(join(r.pasta, 'pendente.json'), 'utf8'));
+    expect(j.capas).toEqual([{ n: 1, capa: 'A', faltaEan: false, faltaSku: true }]);
   });
   test('falha ao gravar pendente.json (montar.txt já gravado) remove a pasta toda', async () => {
     falharPendente.ligado = true;

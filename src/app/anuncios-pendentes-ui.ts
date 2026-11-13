@@ -31,9 +31,9 @@ export function linhasDoCard(c: CardPendenteEntrada): LinhasDoCard {
   return { titulo: c.arte, caminho, falta: falta.length ? [`Falta: ${falta.join(', ')}`] : [], ...(c.erro ? { erro: c.erro } : {}) };
 }
 
-/** Só as capas que ainda precisam de EAN (as do formulário de concluir). */
-export function capasSemEan(c: CardPendenteEntrada): CapaPendente[] {
-  return c.capas.filter((x) => x.faltaEan);
+/** As capas que ainda precisam de EAN e/ou SKU (as do formulário de concluir). */
+export function capasPendentes(c: CardPendenteEntrada): CapaPendente[] {
+  return c.capas.filter((x) => x.faltaEan || x.faltaSku);
 }
 
 export interface ValidacaoConcluir {
@@ -60,6 +60,34 @@ export function validarEansConcluir(valores: Record<number, string>, jaUsados: s
     else { vistos.set(ean, chave); eans[chave] = ean; }
   }
   return { erros, eans, podeSalvar: Object.keys(eans).length > 0 && Object.keys(erros).length === 0 };
+}
+
+export interface ValidacaoSkus {
+  erros: Record<number, string>;
+  /** SKUs (sem espaços nas pontas) das capas preenchidas e válidas. */
+  skus: Record<number, string>;
+  /** Avisos que não impedem salvar (SKU igual ao de outra capa). */
+  avisos: Record<number, string>;
+}
+
+/** SKU: sem "|" (quebraria a linha do .txt); repetido só avisa, como no formulário principal. */
+export function validarSkusConcluir(valores: Record<number, string>, jaUsados: string[] = []): ValidacaoSkus {
+  const erros: Record<number, string> = {};
+  const avisos: Record<number, string> = {};
+  const skus: Record<number, string> = {};
+  const vistos = new Map<string, number>();
+  const usados = new Set(jaUsados.map((x) => x.trim()).filter(Boolean));
+  for (const chave of Object.keys(valores).map(Number).sort((a, b) => a - b)) {
+    const sku = (valores[chave] ?? '').trim();
+    if (!sku) continue;
+    if (/[|\r\n]/.test(sku)) { erros[chave] = 'O SKU não pode ter o caractere "|"'; continue; }
+    if (sku.length > 100) { erros[chave] = 'SKU longo demais'; continue; }
+    skus[chave] = sku;
+    if (vistos.has(sku)) avisos[chave] = `SKU igual ao da capa ${vistos.get(sku)}`;
+    else if (usados.has(sku)) avisos[chave] = 'Este SKU já está em outra capa desta arte';
+    else vistos.set(sku, chave);
+  }
+  return { erros, skus, avisos };
 }
 
 export function textoFaltam(n: number): string {

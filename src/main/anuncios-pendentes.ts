@@ -105,7 +105,7 @@ async function gravarAtomico(arquivo: string, conteudo: string | Buffer, enc?: '
 const filas = new Map<string, Promise<unknown>>();
 
 /** Uma conclusão por vez em cada pasta (a validação também roda dentro da fila). */
-export function concluirPendente(raiz: string, pasta: unknown, eans: Record<number, string>): Promise<ResultadoConcluir> {
+export function concluirPendente(raiz: string, pasta: unknown, eans: Record<number, string>, skus: Record<number, string> = {}): Promise<ResultadoConcluir> {
   let chave = '';
   if (typeof pasta === 'string' && pasta) {
     chave = resolve(pasta);
@@ -113,14 +113,14 @@ export function concluirPendente(raiz: string, pasta: unknown, eans: Record<numb
     if (process.platform === 'win32') chave = chave.toLowerCase();
   }
   const anterior = filas.get(chave) ?? Promise.resolve();
-  const atual = anterior.then(() => concluir(raiz, pasta, eans), () => concluir(raiz, pasta, eans));
+  const atual = anterior.then(() => concluir(raiz, pasta, eans, skus), () => concluir(raiz, pasta, eans, skus));
   filas.set(chave, atual);
   const limpar = () => { if (filas.get(chave) === atual) filas.delete(chave); };
   atual.then(limpar, limpar);
   return atual;
 }
 
-async function concluir(raiz: string, pasta: unknown, eans: Record<number, string>): Promise<ResultadoConcluir> {
+async function concluir(raiz: string, pasta: unknown, eans: Record<number, string>, skus: Record<number, string>): Promise<ResultadoConcluir> {
   const recusa = (motivo: string): ResultadoConcluir => ({ ok: false, motivo });
   if (typeof pasta !== 'string' || !pasta || !dentroDaRaiz(raiz, pasta) || !(await ehPasta(pasta))) {
     return recusa('Essa pasta não está dentro da pasta dos Anúncios 2027.');
@@ -143,8 +143,10 @@ async function concluir(raiz: string, pasta: unknown, eans: Record<number, strin
   const arquivoTxt = join(pasta, `${pend.arte}.txt`);
   if (!dentroDaRaiz(pasta, arquivoTxt)) return recusa('pendente.json está estragado (nome da arte inválido).');
   if (eans === null || typeof eans !== 'object') return recusa('Informe os EANs a gravar.');
+  if (skus === null || typeof skus !== 'object') return recusa('Informe os SKUs a gravar.');
   const entradas = Object.entries(eans);
-  if (entradas.length === 0) return recusa('Informe pelo menos um EAN.');
+  const entradasSku = Object.entries(skus);
+  if (entradas.length === 0 && entradasSku.length === 0) return recusa('Informe pelo menos um EAN ou SKU.');
 
   const novos = new Map<number, string>();
   for (const [chave, bruto] of entradas) {
@@ -159,6 +161,21 @@ async function concluir(raiz: string, pasta: unknown, eans: Record<number, strin
     if (ean === '') return recusa(`O EAN da capa ${n} está vazio.`);
     if (!isValidGtin13(ean)) return recusa(`O EAN da capa ${n} é inválido.`);
     novos.set(n, ean);
+  }
+  const novosSkus = new Map<number, string>();
+  for (const [chave, bruto] of entradasSku) {
+    if (!/^\d+$/.test(chave)) return recusa(`Capa "${chave}" desconhecida.`);
+    const n = Number(chave);
+    if (novosSkus.has(n)) return recusa(`A capa ${n} aparece mais de uma vez.`);
+    const capa = pend.capas.find((c) => c.n === n);
+    if (!capa) return recusa(`A capa ${n} não está na lista de pendências.`);
+    if (!capa.faltaSku) return recusa(`A capa ${n} já tem SKU.`);
+    if (typeof bruto !== 'string') return recusa(`O SKU da capa ${n} é inválido.`);
+    const sku = bruto.trim();
+    if (sku === '') return recusa(`O SKU da capa ${n} está vazio.`);
+    if (/[|\r\n]/.test(sku)) return recusa(`O SKU da capa ${n} não pode ter "|" nem quebra de linha.`);
+    if (sku.length > 100) return recusa(`O SKU da capa ${n} é longo demais.`);
+    novosSkus.set(n, sku);
   }
   const vistos = new Set<string>();
   for (const [n, ean] of novos) {
@@ -210,9 +227,24 @@ async function concluir(raiz: string, pasta: unknown, eans: Record<number, strin
     if (gravados.some((g) => g.ean === ean && g.n !== n)) return recusa(`O EAN ${ean} (capa ${n}) já está em uso em outra capa desta arte.`);
   }
 
+  const skuDoTxt = new Map<number, string>();
+  if (txt !== undefined) {
+    for (const m of txt.matchAll(/^(\d+) \|.*? SKU: (.*?) \| EAN: /gm)) skuDoTxt.set(Number(m[1]), m[2]!);
+  }
+  for (const [n, sku] of novosSkus) {
+    const atual = skuDoTxt.get(n);
+    if (atual !== undefined && atual !== '(pendente)' && atual !== sku) return recusa(`A linha ${n} do .txt já tem outro SKU (${atual}); confira à mão.`);
+  }
+
   // planeja o .txt antes de gravar qualquer coisa
   const avisos: string[] = [];
   let novoTxt = txt;
+  for (const [n, sku] of novosSkus) {
+    if (skuDoTxt.get(n) === sku) continue; // retomada: a linha já foi trocada
+    const re = new RegExp(`^(${n} \\|.*? SKU: )\\(pendente\\)`, 'm');
+    if (novoTxt !== undefined && re.test(novoTxt)) novoTxt = novoTxt.replace(re, (_, ini: string) => `${ini}${sku}`);
+    else avisos.push(`Não achei a linha da variação ${n} no arquivo de texto; o SKU não foi gravado nele.`);
+  }
   for (const [n, ean] of novos) {
     if (doTxt.get(n) === ean) continue; // retomada: a linha já foi trocada
     const re = new RegExp(`^(${n} \\|.*?EAN: )\\(pendente\\)`, 'm');
@@ -223,18 +255,20 @@ async function concluir(raiz: string, pasta: unknown, eans: Record<number, strin
   const linhasCorel = [...novos].map(([n, ean]) => `${n}|${ean}|${encodeEan13(ean)}`);
 
   try {
-    await mkdir(pastaBarras, { recursive: true });
+    if (svgs.length > 0) await mkdir(pastaBarras, { recursive: true });
     for (const s of svgs) await writeFile(join(pastaBarras, s.nome), s.svg, 'utf8');
     if (txt !== undefined && novoTxt !== txt) await gravarAtomico(arquivoTxt, novoTxt!, 'utf8');
-    await mkdir(pastaCorel, { recursive: true });
-    const todas = [...linhasAntes, ...linhasCorel.filter((l) => !linhasAntes.includes(l))];
-    await gravarAtomico(arqEan, Buffer.from(`${todas.join('\r\n')}\r\n`, 'latin1'));
-    const resto = aposConcluir(pend, [...novos.keys()]);
+    if (linhasCorel.length > 0) {
+      await mkdir(pastaCorel, { recursive: true });
+      const todas = [...linhasAntes, ...linhasCorel.filter((l) => !linhasAntes.includes(l))];
+      await gravarAtomico(arqEan, Buffer.from(`${todas.join('\r\n')}\r\n`, 'latin1'));
+    }
+    const resto = aposConcluir(pend, { eans: [...novos.keys()], skus: [...novosSkus.keys()] });
     if (resto) await gravarAtomico(join(pasta, ARQ), serializarPendencia(resto), 'utf8');
     else await rm(join(pasta, ARQ), { force: true });
     const montarPrimeiro = await existeArquivo(join(pastaCorel, 'montar.txt'));
-    return { ok: true, faltam: resto ? resto.capas.filter((c) => c.faltaEan).length : 0, avisos, montarPrimeiro };
+    return { ok: true, faltam: resto ? resto.capas.length : 0, avisos, montarPrimeiro };
   } catch (e) {
-    return recusa(`Não consegui gravar os EANs: ${e instanceof Error ? e.message : String(e)}`);
+    return recusa(`Não consegui gravar: ${e instanceof Error ? e.message : String(e)}`);
   }
 }

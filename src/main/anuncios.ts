@@ -180,7 +180,9 @@ export async function criarEMontar(e: EntradaDoAnuncio, usarCorel: boolean, deps
   if (!c.ok) return falha(c.motivo, c.existente);
   // capa sem EAN não é falha: a arte fica pendente (informação, não aviso)
   const avisos = c.avisos.filter((a) => !ehAvisoSemEan(a));
-  const detalhes: string[] = c.avisos.length === avisos.length ? [] : ['Arte criada como pendente: falta o EAN.'];
+  const semEan = c.avisos.length !== avisos.length;
+  const semSku = e.variacoes.some((v) => v.sku.trim() === '');
+  const detalhes: string[] = semEan || semSku ? [`Arte criada como pendente: falta ${semEan && semSku ? 'o EAN e o SKU' : semEan ? 'o EAN' : 'o SKU'}.`] : [];
   if (!usarCorel) {
     aoProgredir?.('corel', 'pulado');
     return { ok: true, pasta: c.pasta, etapaCorel: 'pulado', avisos, detalhes, imagensEan: c.imagensEan };

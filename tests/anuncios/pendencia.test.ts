@@ -4,7 +4,7 @@ import { aposConcluir, lerPendencia, montarPendencia, serializarPendencia } from
 const v = (capa: string, sku: string, ean: string) => ({ capa, sku, ean });
 
 describe('pendencia', () => {
-  test('tudo com EAN não gera pendência', () => {
+  test('tudo com EAN e SKU não gera pendência', () => {
     expect(montarPendencia('arte', [v('a', 's1', '7898764983584'), v('b', 's2', '7898764983584')])).toBeUndefined();
   });
   test('EAN parcial marca só as vazias', () => {
@@ -26,9 +26,19 @@ describe('pendencia', () => {
   });
   test('aposConcluir parcial e total', () => {
     const p = montarPendencia('arte', [v('a', 's', ''), v('b', 's', '')])!;
-    const parcial = aposConcluir(p, [1])!;
+    const parcial = aposConcluir(p, { eans: [1], skus: [] })!;
     expect(parcial.capas.map((c) => c.n)).toEqual([2]);
-    expect(aposConcluir(parcial, [2])).toBeUndefined();
+    expect(aposConcluir(parcial, { eans: [2], skus: [] })).toBeUndefined();
+  });
+  test('só SKU faltando também gera pendência (com EAN já preenchido)', () => {
+    const p = montarPendencia('arte', [v('a', '', '7898764983584'), v('b', 's', '7898764983591')])!;
+    expect(p.capas).toEqual([{ n: 1, capa: 'a', faltaEan: false, faltaSku: true }]);
+  });
+  test('aposConcluir limpa EAN e SKU por separado', () => {
+    const p = montarPendencia('arte', [v('a', '', '')])!;
+    const r = aposConcluir(p, { eans: [1], skus: [] })!;
+    expect(r.capas).toEqual([{ n: 1, capa: 'a', faltaEan: false, faltaSku: true }]);
+    expect(aposConcluir(r, { eans: [], skus: [1] })).toBeUndefined();
   });
 
   const ok = { n: 1, capa: 'a', faltaEan: true, faltaSku: false };

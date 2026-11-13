@@ -1,7 +1,7 @@
 import { aplicarPar, aplicarPdf, definirVariacao, formVazio, validar, type FormAnuncio } from '../app/anuncios-form';
 import { caminhoPrevisto, ehArteAceita, limparArte, removerPar, ehPdf, montarEntrada, textoDaEtapaCorel } from '../app/anuncios-ui';
 import { aplicarProgresso, fecharPassosPendentes, passosIniciais, rotuloDoPasso, svgParaDataUri, tituloFinal, type Passo } from '../app/anuncios-passos';
-import { capasSemEan, linhasDoCard, textoFaltam, textoOrientacaoCorel, validarEansConcluir } from '../app/anuncios-pendentes-ui';
+import { capasPendentes, linhasDoCard, textoFaltam, textoOrientacaoCorel, validarEansConcluir, validarSkusConcluir } from '../app/anuncios-pendentes-ui';
 import { openPdf } from '../pdf/reader';
 import type { CardPendente } from '../main/anuncios-pendentes';
 import type { MockupApi } from './global';
@@ -119,7 +119,7 @@ function atualizar(): void {
     lista.append(li);
   }
   const livre = !semPasta && !rodando && !lendo && !carregandoSubcategorias;
-  $<HTMLButtonElement>('an-criar').textContent = Object.keys(v.pendentes).length > 0 ? 'Criar como pendente' : 'Criar pasta e arquivos';
+  $<HTMLButtonElement>('an-criar').textContent = Object.keys(v.pendentes).length > 0 || form.variacoes.some((x) => x.sku.trim() === '') ? 'Criar como pendente' : 'Criar pasta e arquivos';
   $<HTMLButtonElement>('an-criar').disabled = !(v.podeCriar && livre);
   $<HTMLButtonElement>('an-so-pasta').disabled = !(v.podeCriarSoPasta && livre);
   $<HTMLButtonElement>('an-montar-agora').disabled = !livre || !pastaCriada;
@@ -345,7 +345,7 @@ let seqPendentes = 0;
 let concluindo = false;
 let ultimaLista: CardPendente[] = [];
 /** Formulário de concluir aberto: valores digitados e mensagem ficam aqui, para sobreviver a qualquer redesenho. */
-let abertoConcluir: { pasta: string; valores: Record<number, string>; msg: string } | undefined;
+let abertoConcluir: { pasta: string; valores: Record<number, string>; skus: Record<number, string>; msg: string } | undefined;
 /** Caixa de sucesso depois de concluir (some ao fechar, ao começar outra conclusão ou ao sair da aba). */
 let sucessoConcluir: string[] | undefined;
 
@@ -413,7 +413,7 @@ function desenharPendentes(): void {
         b.disabled = concluindo;
         b.addEventListener('click', () => {
           if (concluindo) return;
-          abertoConcluir = { pasta: c.pasta, valores: {}, msg: '' };
+          abertoConcluir = { pasta: c.pasta, valores: {}, skus: {}, msg: '' };
           sucessoConcluir = undefined;
           desenharPendentes();
         });
@@ -432,22 +432,33 @@ function formularioConcluir(c: CardPendente): HTMLElement {
   const caixaForm = document.createElement('div');
   caixaForm.className = 'an-pend-form';
   const inputs = new Map<number, { inp: HTMLInputElement; erro: HTMLElement }>();
-  for (const capa of capasSemEan(c)) {
-    estado.valores[capa.n] ??= '';
+  const inputsSku = new Map<number, { inp: HTMLInputElement; erro: HTMLElement }>();
+  const campo = (rotulo: string, valor: string, tipoNum: boolean) => {
     const lab = document.createElement('label');
-    lab.append(`${capa.capa.trim() || `Capa ${capa.n}`} — EAN (13 dígitos)`);
+    lab.append(rotulo);
     const inp = document.createElement('input');
     inp.type = 'text';
-    inp.inputMode = 'numeric';
-    inp.maxLength = 20;
-    inp.value = estado.valores[capa.n] ?? '';
+    if (tipoNum) inp.inputMode = 'numeric';
+    inp.maxLength = tipoNum ? 20 : 100;
+    inp.value = valor;
     inp.disabled = concluindo;
     const erro = document.createElement('span');
     erro.className = 'an-erro';
     erro.hidden = true;
     lab.append(inp, erro);
     caixaForm.append(lab);
-    inputs.set(capa.n, { inp, erro });
+    return { inp, erro };
+  };
+  for (const capa of capasPendentes(c)) {
+    const nome = capa.capa.trim() || `Capa ${capa.n}`;
+    if (capa.faltaEan) {
+      estado.valores[capa.n] ??= '';
+      inputs.set(capa.n, campo(`${nome} — EAN (13 dígitos)`, estado.valores[capa.n] ?? '', true));
+    }
+    if (capa.faltaSku) {
+      estado.skus[capa.n] ??= '';
+      inputsSku.set(capa.n, campo(`${nome} — SKU`, estado.skus[capa.n] ?? '', false));
+    }
   }
   const msg = document.createElement('div');
   msg.className = 'an-erro';
@@ -456,7 +467,7 @@ function formularioConcluir(c: CardPendente): HTMLElement {
   const salvar = document.createElement('button');
   salvar.type = 'button';
   salvar.className = 'primario';
-  salvar.textContent = 'Salvar EAN';
+  salvar.textContent = 'Salvar';
   const cancelar = document.createElement('button');
   cancelar.type = 'button';
   cancelar.className = 'discreto';
@@ -469,15 +480,23 @@ function formularioConcluir(c: CardPendente): HTMLElement {
 
   const revalidar = () => {
     const v = validarEansConcluir(estado.valores);
+    const vs = validarSkusConcluir(estado.skus);
     for (const [n, { inp, erro }] of inputs) {
       texto(erro, v.erros[n] ?? '');
       inp.classList.toggle('invalido', Boolean(v.erros[n]));
     }
-    salvar.disabled = concluindo || !v.podeSalvar;
-    return v;
+    for (const [n, { inp, erro }] of inputsSku) {
+      texto(erro, vs.erros[n] ?? vs.avisos[n] ?? '');
+      inp.classList.toggle('invalido', Boolean(vs.erros[n]));
+    }
+    const semErro = Object.keys(v.erros).length === 0 && Object.keys(vs.erros).length === 0;
+    const podeSalvar = semErro && (Object.keys(v.eans).length > 0 || Object.keys(vs.skus).length > 0);
+    salvar.disabled = concluindo || !podeSalvar;
+    return { ...v, skus: vs.skus, podeSalvar };
   };
   revalidar();
   for (const [n, { inp }] of inputs) inp.addEventListener('input', () => { estado.valores[n] = inp.value; estado.msg = ''; texto(msg, ''); revalidar(); });
+  for (const [n, { inp }] of inputsSku) inp.addEventListener('input', () => { estado.skus[n] = inp.value; estado.msg = ''; texto(msg, ''); revalidar(); });
   cancelar.addEventListener('click', () => {
     if (concluindo) return;
     abertoConcluir = undefined;
@@ -493,12 +512,12 @@ function formularioConcluir(c: CardPendente): HTMLElement {
     void (async () => {
       let ok = false;
       try {
-        const r = await api.anunciosConcluirPendente(c.pasta, v.eans);
+        const r = await api.anunciosConcluirPendente(c.pasta, v.eans, v.skus);
         if (!r.ok) { estado.msg = r.motivo; return; }
         ok = true;
-        const linhas = ['Código de barras gerado.'];
+        const linhas = [Object.keys(v.eans).length > 0 ? 'Código de barras gerado.' : 'Dados salvos.'];
         linhas.push(r.faltam > 0 ? `${textoFaltam(r.faltam)} (o card continua aqui).` : 'Nada mais falta: esta arte não está mais pendente.');
-        linhas.push(textoOrientacaoCorel(r.montarPrimeiro));
+        if (Object.keys(v.eans).length > 0) linhas.push(textoOrientacaoCorel(r.montarPrimeiro));
         for (const a of r.avisos) linhas.push(`Aviso: ${a}`);
         sucessoConcluir = linhas;
         abertoConcluir = undefined;

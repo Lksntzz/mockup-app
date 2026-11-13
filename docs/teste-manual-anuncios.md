@@ -202,13 +202,13 @@ Aqui você cria uma arte **sem** o código de barras, ela fica na lista **Penden
 2. **Conferir a pasta.** Abra a pasta `TESTE\SUB\Teste P` no Explorer.
    - **Resultado esperado:** existe o arquivo **`pendente.json`**; existe o `Teste P.cdr` em `TESTE\SUB\Teste P\Corel\Teste P.cdr` (se o Corel estava aberto) **sem** código de barras nas contra capas.
 3. **Ver o card.** Na mesma aba, role até a seção **Pendentes** (embaixo). Se não aparecer, clique em **Atualizar**.
-   - **Resultado esperado:** um card **Teste P** com a etiqueta **Pendente**, o caminho **"Shopee › TESTE › SUB"** (ou a plataforma que você escolheu) e a frase **"Falta: EAN da capa 1 (Capa 1), EAN da capa 2 (Capa 2), EAN da capa 3 (Capa 3)"** (com o SKU preenchido, só os EANs aparecem; se o SKU ficou vazio, entram também "SKU da capa 1 (Capa 1)" etc.).
+   - **Resultado esperado:** um card **Teste P** com a etiqueta **Pendente**, o caminho **"Shopee › TESTE › SUB"** (ou a plataforma que você escolheu) e a frase **"Falta: EAN da capa 1 (Capa 1), EAN da capa 2 (Capa 2), EAN da capa 3 (Capa 3)"** (com o SKU preenchido, só os EANs aparecem; se o SKU ficou vazio, entram também "SKU da capa 1 (Capa 1)" etc. — veja o Teste P2).
 4. **EAN errado.** No card, clique em **Concluir**. Aparecem 3 campos. No da Capa 1 digite `123`.
-   - **Resultado esperado:** o campo fica vermelho com **"EAN inválido: confira os 13 dígitos"** e o botão **Salvar EAN** fica apagado. Digite agora o `7891234567895` na Capa 1 e repita o mesmo número na Capa 2: aparece **"EAN repetido"** e o botão continua apagado. Apague o da Capa 2.
-5. **Concluir só uma capa (parcial).** Com `7891234567895` só na Capa 1, clique em **Salvar EAN**.
+   - **Resultado esperado:** o campo fica vermelho com **"EAN inválido: confira os 13 dígitos"** e o botão **Salvar** fica apagado. Digite agora o `7891234567895` na Capa 1 e repita o mesmo número na Capa 2: aparece **"EAN repetido"** e o botão continua apagado. Apague o da Capa 2.
+5. **Concluir só uma capa (parcial).** Com `7891234567895` só na Capa 1, clique em **Salvar**.
    - **Resultado esperado:** **no topo da lista** Pendentes (acima do card, não dentro dele) aparece uma caixa com **"Código de barras gerado."**, **"Ainda faltam 2 capas (o card continua aqui)."** e a orientação do Corel. O card **continua** na lista e agora diz que faltam só a **Capa 2** e a **Capa 3**.
 6. **Concluir o resto.** Clique em **Concluir** de novo.
-   - **Resultado esperado:** só aparecem os campos da **Capa 2** e da **Capa 3** (a Capa 1 não aparece mais). Digite `7891234567901` e `7891234567918` e clique em **Salvar EAN**.
+   - **Resultado esperado:** só aparecem os campos da **Capa 2** e da **Capa 3** (a Capa 1 não aparece mais). Digite `7891234567901` e `7891234567918` e clique em **Salvar**.
    - **Resultado esperado:** o card **Teste P some** da lista e, **no topo da lista**, aparece uma **caixa verde** com **"Código de barras gerado."**, **"Nada mais falta: esta arte não está mais pendente."** e a orientação do Corel (se o `.cdr` ainda não foi montado, ela diz **"Monte o .cdr primeiro (Montar no Corel) e depois rode a macro AdicionarEanNoCdr…"**). A caixa fica até você clicar em **Fechar** (ou trocar de aba).
 7. **Conferir os arquivos.** Na pasta `TESTE\SUB\Teste P`:
    - **Resultado esperado:** a pasta `Codigo de barras` tem **Capa 1 - EAN.svg**, **Capa 2 - EAN.svg** e **Capa 3 - EAN.svg**; o `Teste P.txt` (Bloco de Notas) tem os 3 EANs nas linhas das variações (nenhuma com "(pendente)"); o `pendente.json` não existe mais (ou não lista mais nenhuma capa); na pasta `Corel` existe o **`ean.txt`**.
@@ -220,6 +220,29 @@ Aqui você cria uma arte **sem** o código de barras, ela fica na lista **Penden
    - **Resultado esperado:** como o `ean.txt` já foi apagado, o macro abre uma janela pedindo para escolher o **ean.txt** (título **"Escolha o ean.txt (dentro da pasta Corel da arte)"**). Clique em **Cancelar**. (Se, em vez disso, você escolher um `ean.txt` de **outra** arte, o macro pergunta **"Vou colocar os codigos de barras da arte … no arquivo …. Continuar?"**: responda **Não** e nada é alterado.) Aparece a mensagem **"Nao achei o ean.txt para este .cdr (ele fica em <pasta da arte>\Corel\ean.txt). Conclua o anuncio pendente no app e rode o macro de novo."** Nada é desenhado, então **nada fica duplicado** (confira que ainda há só 1 código por página par).
    - Observação: a frase **"Ja existiam"** só aparece quando o `ean.txt` ainda está lá (por exemplo, se numa rodada outra capa falhou e o arquivo foi mantido). Nesse caso as capas que já tinham código são puladas.
 10. **(Opcional) Outro computador.** Em outro computador com o mesmo Drive, abra o app, aba **Anúncios** › **Pendentes**: os mesmos cards aparecem (o pendente fica dentro da pasta da arte, no `pendente.json`).
+
+## Teste P2 — Completar o SKU no card pendente
+
+Use o **PDF de 6 páginas** (3 capas) e o nome **Teste P2**.
+
+1. Solte o PDF, nome **Teste P2**, categoria **TESTE**, subcategoria **SUB**, digite um título, e **deixe o SKU e o EAN das 3 capas vazios**. Clique em **Criar como pendente**.
+2. Na seção **Pendentes**, o card **Teste P2** diz **"Falta: EAN da capa 1 (Capa 1), SKU da capa 1 (Capa 1), EAN da capa 2 …"** (EAN e SKU das 3 capas).
+3. Clique em **Concluir**.
+   - **Resultado esperado:** para **cada capa** aparecem **dois campos**: **"… — EAN (13 dígitos)"** e **"… — SKU"**.
+4. Na Capa 1, digite no SKU `A|B`.
+   - **Resultado esperado:** o campo fica vermelho com **'O SKU não pode ter o caractere "|"'** e o botão **Salvar** fica apagado. Troque por `SKU1`: o botão libera (pode salvar só o SKU, sem EAN).
+5. Digite `SKU1` também no SKU da Capa 2.
+   - **Resultado esperado:** aparece um **aviso** "SKU igual ao da capa 1", mas o botão **Salvar continua liberado** (SKU repetido só avisa).
+   Troque o da Capa 2 por `SKU2`. Clique em **Salvar**.
+6. **Resultado esperado:** caixa no topo: **"Dados salvos."** e **"Ainda faltam 3 capas (o card continua aqui)."** (sem a orientação do Corel, pois nenhum EAN foi salvo). O card agora diz que falta: os **3 EANs** e o **SKU da capa 3**.
+7. Abra o `Teste P2.txt` no Bloco de Notas.
+   - **Resultado esperado:** a linha 1 tem `SKU: SKU1`, a linha 2 tem `SKU: SKU2`, a linha 3 continua `SKU: (pendente)`; os EANs continuam `(pendente)`.
+8. Clique em **Concluir** de novo.
+   - **Resultado esperado:** a Capa 1 e a Capa 2 só mostram o campo **EAN**; a Capa 3 mostra **EAN** e **SKU**. Preencha o SKU da Capa 3 (`SKU3`) e os 3 EANs de teste e clique em **Salvar**.
+   - **Resultado esperado:** o card **some** e aparece **"Nada mais falta: esta arte não está mais pendente."**
+9. **Só o SKU faltando.** Crie uma arte **Teste P3** (PDF de 2 páginas) com **EAN válido** e **SKU vazio** e clique no botão grande.
+   - **Resultado esperado:** o botão grande já se chama **"Criar como pendente"** e, no fim, a mensagem diz **"Arte criada como pendente: falta o SKU."**. O card mostra só **"Falta: SKU da capa 1 (Capa 1)"**; em **Concluir** só aparece o campo SKU. Ao salvar, o card some.
+10. **Cards antigos.** Um card criado antes desta versão que já listava "SKU da capa …" (como o **FLOR DE ESMALTE**) agora também mostra o campo SKU em **Concluir**.
 
 ## Teste W — Wire-o rose gold no mockup de Especificação
 
@@ -248,7 +271,7 @@ Aqui você cria uma arte **sem** o código de barras, ela fica na lista **Penden
 
 ## O que me enviar no fim
 
-- ✅ / ❌ para o Passo 0 e para cada teste de 1 a 9 (incluindo o 7b), mais o **Teste P** e o **Teste W**.
+- ✅ / ❌ para o Passo 0 e para cada teste de 1 a 9 (incluindo o 7b), mais o **Teste P**, o **Teste P2** e o **Teste W**.
 - A porcentagem que o app mostrou na linha "Capa 1: montada, código de barras em …% do tamanho padrão" (basta uma; os números devem ser iguais em todas as capas do mesmo molde).
 - Se apareceu a janela "Importar PDF" (Teste 1, item 7) e quantas vezes.
 - Os prints e arquivos de "Se der errado" para cada ❌.

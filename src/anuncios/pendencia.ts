@@ -4,12 +4,13 @@ import type { Variacao } from './tipos';
 export interface CapaPendente { n: number; capa: string; faltaEan: boolean; faltaSku: boolean }
 export interface Pendencia { versao: 1; arte: string; capas: CapaPendente[] }
 
-/** Monta a pendência (n = posição da capa, a partir de 1); undefined se todas têm EAN. */
+/** Monta a pendência (n = posição da capa, a partir de 1); undefined se todas têm EAN e SKU. */
 export function montarPendencia(arte: string, variacoes: Variacao[]): Pendencia | undefined {
   const capas: CapaPendente[] = [];
   variacoes.forEach((v, i) => {
-    if (normalizarEan(v.ean) !== '') return;
-    capas.push({ n: i + 1, capa: v.capa, faltaEan: true, faltaSku: v.sku.trim() === '' });
+    const faltaEan = normalizarEan(v.ean) === '';
+    const faltaSku = v.sku.trim() === '';
+    if (faltaEan || faltaSku) capas.push({ n: i + 1, capa: v.capa, faltaEan, faltaSku });
   });
   return capas.length ? { versao: 1, arte, capas } : undefined;
 }
@@ -46,8 +47,14 @@ export function lerPendencia(texto: string): Pendencia {
   return { versao: 1, arte: p.arte, capas };
 }
 
-/** Remove faltaEan das capas preenchidas; undefined quando nenhuma capa falta EAN. */
-export function aposConcluir(p: Pendencia, preenchidos: number[]): Pendencia | undefined {
-  const capas = p.capas.filter((c) => !(c.faltaEan && preenchidos.includes(c.n)));
-  return capas.some((c) => c.faltaEan) ? { ...p, capas } : undefined;
+/** Tira o que foi preenchido (EAN e/ou SKU) de cada capa; capas sem mais nada faltando saem. undefined quando nada mais falta. */
+export function aposConcluir(p: Pendencia, preenchidos: { eans: number[]; skus: number[] }): Pendencia | undefined {
+  const capas = p.capas
+    .map((c) => ({
+      ...c,
+      faltaEan: c.faltaEan && !preenchidos.eans.includes(c.n),
+      faltaSku: c.faltaSku && !preenchidos.skus.includes(c.n),
+    }))
+    .filter((c) => c.faltaEan || c.faltaSku);
+  return capas.length ? { ...p, capas } : undefined;
 }

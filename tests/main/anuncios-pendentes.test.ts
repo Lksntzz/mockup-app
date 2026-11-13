@@ -312,3 +312,60 @@ describe('concluirPendente', () => {
     expect(await existe(join(p, 'Corel', 'ean.txt.tmp'))).toBe(false);
   });
 });
+
+describe('concluirPendente com SKU', () => {
+  const TXT_SKU = `${BOM}Arte: A1\r\n\r\nVariações:\r\n1 | Capa: X | SKU: (pendente) | EAN: (pendente)\r\n2 | Capa: Y | SKU: (pendente) | EAN: (pendente)`;
+  async function arteSku(faltas: Array<[boolean, boolean]>) {
+    const pasta = join(raiz, 'Shopee', 'Agenda', 'A1');
+    await mkdir(join(pasta, 'Corel'), { recursive: true });
+    await writeFile(join(pasta, 'A1.txt'), TXT_SKU, 'utf8');
+    await writeFile(join(pasta, 'pendente.json'), serializarPendencia({ versao: 1, arte: 'A1', capas: faltas.map(([e, s], i) => ({ n: i + 1, capa: `C${i + 1}`, faltaEan: e, faltaSku: s })) }), 'utf8');
+    return pasta;
+  }
+  test('só SKU: troca na linha certa, sem SVG nem ean.txt, e mantém o que falta', async () => {
+    const p = await arteSku([[true, true], [true, true]]);
+    const r = await concluirPendente(raiz, p, {}, { 1: ' SKU-1 ' });
+    expect(r).toEqual({ ok: true, faltam: 2, avisos: [], montarPrimeiro: false });
+    const txt = await readFile(join(p, 'A1.txt'), 'utf8');
+    expect(txt).toContain('1 | Capa: X | SKU: SKU-1 | EAN: (pendente)');
+    expect(txt).toContain('2 | Capa: Y | SKU: (pendente) | EAN: (pendente)');
+    expect(txt.startsWith(BOM)).toBe(true);
+    expect(await existe(join(p, 'Corel', 'ean.txt'))).toBe(false);
+    expect(await existe(join(p, 'Codigo de barras'))).toBe(false);
+    const j = JSON.parse(await readFile(join(p, 'pendente.json'), 'utf8'));
+    expect(j.capas[0]).toMatchObject({ n: 1, faltaEan: true, faltaSku: false });
+  });
+  test('SKU + EAN completam a capa e o card some quando nada mais falta', async () => {
+    const p = await arteSku([[true, true]]);
+    const r = await concluirPendente(raiz, p, { 1: E1 }, { 1: 'S-9' });
+    expect(r).toMatchObject({ ok: true, faltam: 0 });
+    expect(await readFile(join(p, 'A1.txt'), 'utf8')).toContain('1 | Capa: X | SKU: S-9 | EAN: ' + E1);
+    expect(await existe(join(p, 'pendente.json'))).toBe(false);
+  });
+  test('arte que só falta SKU conclui só com SKU', async () => {
+    const p = await arteSku([[false, true]]);
+    expect(await concluirPendente(raiz, p, {}, { 1: 'Z' })).toMatchObject({ ok: true, faltam: 0 });
+    expect(await existe(join(p, 'pendente.json'))).toBe(false);
+  });
+  test('recusa SKU com |, vazio, capa que já tem SKU e pedido vazio (nada gravado)', async () => {
+    const p = await arteSku([[true, true], [true, false]]);
+    const antes = await readFile(join(p, 'A1.txt'), 'utf8');
+    expect((await concluirPendente(raiz, p, {}, { 1: 'A|B' })).ok).toBe(false);
+    expect((await concluirPendente(raiz, p, {}, { 1: '  ' })).ok).toBe(false);
+    expect((await concluirPendente(raiz, p, {}, { 2: 'X' })).ok).toBe(false);
+    expect((await concluirPendente(raiz, p, {}, {})).ok).toBe(false);
+    expect(await readFile(join(p, 'A1.txt'), 'utf8')).toBe(antes);
+  });
+  test('retomada com o mesmo SKU funciona; outro SKU na linha é recusado', async () => {
+    const p = await arteSku([[true, true]]);
+    await concluirPendente(raiz, p, {}, { 1: 'A' });
+    await writeFile(join(p, 'pendente.json'), serializarPendencia({ versao: 1, arte: 'A1', capas: [{ n: 1, capa: 'C1', faltaEan: true, faltaSku: true }] }), 'utf8');
+    expect((await concluirPendente(raiz, p, {}, { 1: 'B' })).ok).toBe(false);
+    expect((await concluirPendente(raiz, p, {}, { 1: 'A' })).ok).toBe(true);
+  });
+  test('"$&" no SKU entra literal', async () => {
+    const p = await arteSku([[false, true]]);
+    await concluirPendente(raiz, p, {}, { 1: '$&-1' });
+    expect(await readFile(join(p, 'A1.txt'), 'utf8')).toContain('SKU: $&-1 | EAN');
+  });
+});

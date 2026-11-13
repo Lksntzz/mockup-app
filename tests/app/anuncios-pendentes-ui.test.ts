@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { capasSemEan, linhasDoCard, textoFaltam, validarEansConcluir } from '../../src/app/anuncios-pendentes-ui';
+import { capasPendentes, linhasDoCard, textoFaltam, validarEansConcluir, validarSkusConcluir } from '../../src/app/anuncios-pendentes-ui';
 
 const card = {
   pasta: 'C:\\x', arte: 'Arte 1', plataforma: 'Shopee', categoria: 'TESTE', subcategoria: 'SUB',
@@ -38,8 +38,8 @@ describe('validarEansConcluir', () => {
 });
 
 describe('textos', () => {
-  it('capasSemEan e faltam', () => {
-    expect(capasSemEan(card)).toHaveLength(2);
+  it('capasPendentes e faltam', () => {
+    expect(capasPendentes(card)).toHaveLength(2);
     expect(textoFaltam(1)).toBe('Ainda falta 1 capa');
     expect(textoFaltam(2)).toBe('Ainda faltam 2 capas');
   });
@@ -56,5 +56,14 @@ describe('textoOrientacaoCorel', () => {
   it('sem .cdr montado manda montar primeiro', () => {
     expect(textoOrientacaoCorel(true)).toContain('Monte o .cdr primeiro (Montar no Corel) e depois rode a macro AdicionarEanNoCdr');
     expect(textoOrientacaoCorel(true)).not.toContain('abra o arquivo .cdr');
+  });
+});
+
+describe('validarSkusConcluir', () => {
+  it('ignora vazio, recusa | e só avisa repetido', () => {
+    const v = validarSkusConcluir({ 1: ' ABC ', 2: 'A|B', 3: 'ABC', 4: '' });
+    expect(v.skus).toEqual({ 1: 'ABC', 3: 'ABC' });
+    expect(v.erros[2]).toMatch(/\|/);
+    expect(v.avisos[3]).toMatch(/capa 1/);
   });
 });
