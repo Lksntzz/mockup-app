@@ -26,6 +26,15 @@ let ultimaCategoria = '';
 let pastaAnuncios: string | undefined;
 /** Pasta do anúncio que acabou de ser criada (para o botão "Montar no Corel agora"). */
 let pastaCriada: string | undefined;
+/** O formulário de novo anúncio só aparece quando o usuário pede ("Novo anúncio"); fecha sozinho ao criar uma arte pendente. */
+let formAberto = false;
+
+function mostrarForm(aberto: boolean): void {
+  formAberto = aberto;
+  $('an-form').hidden = !aberto;
+  $('an-novo-anuncio').textContent = aberto ? 'Fechar formulário' : 'Novo anúncio';
+  if (aberto) $('an-form').scrollIntoView({ block: 'start', behavior: 'smooth' });
+}
 let passos: Passo[] = [];
 let etapaCorelFinal: string | undefined;
 
@@ -597,6 +606,13 @@ async function criar(montar: boolean): Promise<void> {
     parar = comecarPassos(false);
     const res = await api.anunciosCriar(montarEntrada(form), montar);
     mostrarResultado(res, 'criar');
+    // arte pendente criada: limpa e fecha o formulário (o card aparece no topo); para continuar é só clicar no card
+    const ficouPendente = res.ok && (res.detalhes ?? []).some((d) => d.startsWith('Arte criada como pendente'));
+    if (ficouPendente && res.etapaCorel !== 'aguardando-clique' && res.etapaCorel !== 'erro') {
+      novoAnuncio(true);
+      mostrarForm(false);
+      $('an-pendentes').scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }
     void carregarPendentes();
   } catch (e) {
     passos = fecharPassosPendentes(passos);
@@ -690,15 +706,17 @@ function mostrarResultado(r: Awaited<ReturnType<MockupApi['anunciosCriar']>>, or
   $('an-resultado').hidden = false;
 }
 
-function novoAnuncio(): void {
-  if (rodando || lendo) return;
-  pastaCriada = undefined;
-  $('an-montar-agora').hidden = true;
+function novoAnuncio(manterResultado = false): void {
+  if (!manterResultado && (rodando || lendo)) return;
+  if (!manterResultado) pastaCriada = undefined;
+  if (!manterResultado) $('an-montar-agora').hidden = true;
   form = { ...formVazio(), plataforma: form.plataforma, categoria: form.categoria, subcategoria: form.subcategoria, temSubcategorias: form.temSubcategorias };
   $<HTMLInputElement>('an-arte').value = '';
   $<HTMLInputElement>('an-titulo').value = '';
-  $('an-resultado').hidden = true;
-  $('an-passos').hidden = true;
+  if (!manterResultado) {
+    $('an-resultado').hidden = true;
+    $('an-passos').hidden = true;
+  }
   texto($('an-fontes'), '');
   mensagem('');
   desenharLinhas();
@@ -822,7 +840,12 @@ export function iniciarAnuncios(): void {
     $<HTMLInputElement>('an-arte').focus();
     $<HTMLInputElement>('an-arte').select();
   });
-  $('an-novo').addEventListener('click', novoAnuncio);
+  $('an-novo').addEventListener('click', () => { novoAnuncio(); mostrarForm(true); });
+  $('an-novo-anuncio').addEventListener('click', () => {
+    if (rodando || lendo) return;
+    if (formAberto) mostrarForm(false);
+    else mostrarForm(true);
+  });
   $('an-pend-atualizar').addEventListener('click', () => void carregarPendentes());
   $('an-montar-agora').addEventListener('click', () => void montarAgora());
   atualizar();

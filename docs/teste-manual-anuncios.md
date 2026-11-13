@@ -193,6 +193,16 @@ Na aba Anúncios, depois da **Categoria** existe a lista **Subcategoria**: ela m
 
 ---
 
+## Teste P0 — Painel: pendentes no topo e formulário que fecha sozinho
+
+1. Abra a aba **Anúncios**.
+   - **Resultado esperado:** no topo aparece a seção **Pendentes** (com os cards) e, ao lado de **Atualizar**, o botão azul **Novo anúncio**. O formulário **não** aparece.
+2. Clique em **Novo anúncio**.
+   - **Resultado esperado:** o formulário abre logo abaixo dos cards e o botão passa a se chamar **Fechar formulário**. (Se você fechar sem criar, o que digitou fica guardado.)
+3. Preencha uma arte **sem EAN** (ou sem SKU) e clique em **Criar como pendente**.
+   - **Resultado esperado:** o formulário **fecha e fica limpo** (plataforma/categoria continuam escolhidas), a tela sobe para os Pendentes, o card novo aparece **no topo da lista** e abaixo dele a caixa "Concluído… Arte criada como pendente". Para criar outra, clique em **Novo anúncio**; para continuar uma pendente, clique em **Concluir** no card.
+   - Se o Corel pedir o clique (aguardando) ou der erro, o formulário **não** fecha, para você ver o aviso e o botão **Montar no Corel agora**.
+
 ## Teste P — Anúncio pendente (sem EAN, concluído depois)
 
 Aqui você cria uma arte **sem** o código de barras, ela fica na lista **Pendentes**, e depois você completa os EANs aos poucos. Use o **PDF de 6 páginas** (3 capas) e o nome **Teste P**.

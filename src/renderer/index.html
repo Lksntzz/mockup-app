@@ -119,7 +119,18 @@
       <section id="anuncios" class="pagina estreita" hidden>
         <div class="pagina-topo"><h2 class="pagina-titulo">Anúncios 2027</h2></div>
         <div id="an-aviso" class="an-aviso" role="status" hidden></div>
-        <div id="an-form">
+        <div id="an-pendentes" class="an-pendentes an-pendentes-topo-pagina">
+          <div class="an-pendentes-topo">
+            <h3 class="config-titulo">Pendentes</h3>
+            <div class="an-botoes">
+              <button id="an-pend-atualizar" class="discreto" type="button">Atualizar</button>
+              <button id="an-novo-anuncio" class="primario" type="button">Novo anúncio</button>
+            </div>
+          </div>
+          <div id="an-pend-estado" class="dica" role="status"></div>
+          <div id="an-pend-lista" class="an-pend-lista"></div>
+        </div>
+        <div id="an-form" hidden>
           <div id="an-zona" class="zona an-zona" role="button" tabindex="0" aria-label="Escolher o PDF ou as imagens das capas, ou arrastar para cá">
             <strong>Solte aqui o PDF ou as imagens (PNG, JPG)</strong>
             <div class="dica">PDF: cada 2 páginas viram uma capa. Imagens: a 1ª é a capa e a 2ª é a contra capa.</div>
@@ -172,14 +183,6 @@
             <button id="an-outro-nome" class="secundario" type="button">Escolher outro nome</button>
           </div>
           <div class="an-botoes"><button id="an-novo" class="discreto" type="button">Fazer outro anúncio</button></div>
-        </div>
-        <div id="an-pendentes" class="an-pendentes">
-          <div class="an-pendentes-topo">
-            <h3 class="config-titulo">Pendentes</h3>
-            <button id="an-pend-atualizar" class="discreto" type="button">Atualizar</button>
-          </div>
-          <div id="an-pend-estado" class="dica" role="status"></div>
-          <div id="an-pend-lista" class="an-pend-lista"></div>
         </div>
       </section>
       <section id="config" class="pagina estreita" hidden>
