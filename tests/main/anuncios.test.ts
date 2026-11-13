@@ -91,7 +91,7 @@ describe('criarEMontar', () => {
     const rodarMacro = vi.fn(async (macro: string, texto: string) => {
       expect(macro).toBe('AnuncioNoMolde');
       const pasta = join(raiz, 'Shopee', 'Agenda', 'Arte 1');
-      viu = (await existe(pasta)) && (await existe(join(pasta, 'Arte 1.txt'))) && (await existe(join(pasta, '_corel', 'montar.txt')));
+      viu = (await existe(pasta)) && (await existe(join(pasta, 'Arte 1.txt'))) && (await existe(join(pasta, 'Corel', 'montar.txt')));
       return macroQueCria()(macro, texto);
     });
     const r = await criarEMontar(entrada(), true, { rodarMacro, lerResultado: resultado([{ n: 1, estado: 'ok', ampliacao: 1 }, { n: 2, estado: 'ok', ampliacao: 1 }]) });
@@ -134,6 +134,36 @@ describe('criarEMontar', () => {
     const r = await criarEMontar(entrada(), true, { rodarMacro, lerResultado: resultado([{ n: 1, estado: 'ok' }, { n: 2, estado: 'ok' }]) });
     expect(r).toMatchObject({ ok: true, etapaCorel: 'erro' });
     expect(r.avisos.join(' ')).toMatch(/\.cdr/);
+  });
+  test('tudo ok: devolve imagensEan, apaga só o montar.txt e eventos em ordem', async () => {
+    const eventos: string[] = [];
+    const r = await criarEMontar(entrada(), true, {
+      rodarMacro: macroQueCria(), lerResultado: resultado([{ n: 1, estado: 'ok', ampliacao: 1 }, { n: 2, estado: 'ok', ampliacao: 1 }]),
+    }, (et, es) => eventos.push(`${et} ${es}`));
+    expect(r.etapaCorel).toBe('feito');
+    expect(r.imagensEan?.length).toBe(2);
+    const p = join(raiz, 'Shopee', 'Agenda', 'Arte 1');
+    expect(await existe(join(p, 'Corel', 'montar.txt'))).toBe(false);
+    expect(await existe(join(p, 'Corel', 'Arte 1.cdr'))).toBe(true);
+    expect(await existe(join(p, 'Arte 1.txt'))).toBe(true);
+    expect(await existe(join(p, 'Arte'))).toBe(true);
+    expect(await existe(join(p, 'Codigo de barras'))).toBe(true);
+    expect(eventos.slice(-2)).toEqual(['corel andamento', 'corel feito']);
+    expect(eventos.length).toBe(8);
+  });
+
+  test('erro, aberto ou sem Corel: montar.txt continua existindo', async () => {
+    const lista = join(raiz, 'Shopee', 'Agenda', 'Arte 1', 'Corel', 'montar.txt');
+    await criarEMontar(entrada(), true, { rodarMacro: vi.fn(async () => ({ ok: false as const, motivo: 'x' })), lerResultado: resultado([]) });
+    expect(await existe(lista)).toBe(true);
+    await rm(join(raiz, 'Shopee', 'Agenda', 'Arte 1'), { recursive: true });
+    await criarEMontar(entrada(), true, { rodarMacro: vi.fn(async () => ({ ok: false as const, motivo: MOTIVO_MKP, aberto: true as const })), lerResultado: resultado([]) });
+    expect(await existe(lista)).toBe(true);
+    await rm(join(raiz, 'Shopee', 'Agenda', 'Arte 1'), { recursive: true });
+    const eventos: string[] = [];
+    await criarEMontar(entrada(), false, {}, (et, es) => eventos.push(`${et} ${es}`));
+    expect(await existe(lista)).toBe(true);
+    expect(eventos.slice(-1)).toEqual(['corel pulado']);
   });
 });
 
@@ -219,7 +249,7 @@ describe('montarPastaExistente', () => {
     const pasta = await criarPasta();
     const outra = join(raiz, 'Shopee', 'Agenda', 'Outra');
     await mkdir(outra);
-    await writeFile(join(pasta, '_corel', 'montar.txt'), `destino=${join(outra, 'Outra.cdr')}\r\ncapas=0`);
+    await writeFile(join(pasta, 'Corel', 'montar.txt'), `destino=${join(outra, 'Outra.cdr')}\r\ncapas=0`);
     const rodarMacro = vi.fn();
     const r = await montarPastaExistente(raiz, pasta, { rodarMacro });
     expect(r).toMatchObject({ ok: false, motivo: 'A lista do Corel aponta para outra pasta.' });
@@ -228,7 +258,7 @@ describe('montarPastaExistente', () => {
 
   test('.cdr já existe: recusa, não chama o Corel e não apaga nada', async () => {
     const pasta = await criarPasta();
-    const cdr = join(pasta, 'Arte 1.cdr');
+    const cdr = join(pasta, 'Corel', 'Arte 1.cdr');
     await writeFile(cdr, 'trabalho do designer');
     const rodarMacro = vi.fn();
     const r = await montarPastaExistente(raiz, pasta, { rodarMacro });
@@ -237,19 +267,19 @@ describe('montarPastaExistente', () => {
     expect(rodarMacro).not.toHaveBeenCalled();
     expect(await readFile(cdr, 'utf8')).toBe('trabalho do designer');
     expect(await existe(join(pasta, 'Arte 1.txt'))).toBe(true);
-    expect(await existe(join(pasta, '_corel', 'montar.txt'))).toBe(true);
+    expect(await existe(join(pasta, 'Corel', 'montar.txt'))).toBe(true);
   });
 
   test('caminho feliz: manda ao macro exatamente o texto do montar.txt e fica "feito"', async () => {
     const pasta = await criarPasta();
-    const texto = (await readFile(join(pasta, '_corel', 'montar.txt'))).toString('latin1');
+    const texto = (await readFile(join(pasta, 'Corel', 'montar.txt'))).toString('latin1');
     const rodarMacro = macroQueCria();
     const r = await montarPastaExistente(raiz, pasta, {
       rodarMacro, lerResultado: resultado([{ n: 1, estado: 'ok', ampliacao: 1 }, { n: 2, estado: 'ok', ampliacao: 1 }]),
     });
     expect(rodarMacro).toHaveBeenCalledWith('AnuncioNoMolde', texto);
     expect(r).toMatchObject({ ok: true, pasta, etapaCorel: 'feito' });
-    expect(await existe(join(pasta, 'Arte 1.cdr'))).toBe(true);
+    expect(await existe(join(pasta, 'Corel', 'Arte 1.cdr'))).toBe(true);
   });
 
   test('Corel fechado de novo: aguardando-clique, sem o texto do MKP', async () => {
@@ -259,5 +289,43 @@ describe('montarPastaExistente', () => {
     expect(r).toMatchObject({ ok: true, pasta, etapaCorel: 'aguardando-clique' });
     expect(r.avisos.some((a) => /Abrir no molde/.test(a))).toBe(false);
     expect(r.avisos.join(' ')).toContain('Montar no Corel agora');
+  });
+
+  test('layout novo: monta, apaga Corel/montar.txt e emite progresso', async () => {
+    const pasta = await criarPasta();
+    const eventos: string[] = [];
+    const r = await montarPastaExistente(raiz, pasta, {
+      rodarMacro: macroQueCria(), lerResultado: resultado([{ n: 1, estado: 'ok', ampliacao: 1 }, { n: 2, estado: 'ok', ampliacao: 1 }]),
+    }, (et, es) => eventos.push(`${et} ${es}`));
+    expect(r.etapaCorel).toBe('feito');
+    expect(await existe(join(pasta, 'Corel', 'montar.txt'))).toBe(false);
+    expect(await existe(join(pasta, 'Corel', 'Arte 1.cdr'))).toBe(true);
+    expect(await existe(join(pasta, 'Arte 1.txt'))).toBe(true);
+    expect(eventos).toEqual(['corel andamento', 'corel feito']);
+  });
+
+  test('pasta antiga (_corel e .cdr na raiz): monta e apaga só _corel/montar.txt', async () => {
+    const pasta = pastaArte();
+    await mkdir(join(pasta, '_corel'), { recursive: true });
+    await writeFile(join(pasta, '_corel', 'montar.txt'), `destino=${join(pasta, 'Arte 1.cdr')}\r\ncapas=0`, 'latin1');
+    await writeFile(join(pasta, 'Arte 1.txt'), 't');
+    await writeFile(join(pasta, 'capa.pdf'), 'p');
+    const r = await montarPastaExistente(raiz, pasta, { rodarMacro: macroQueCria(), lerResultado: resultado([]) });
+    expect(r.etapaCorel).toBe('feito');
+    expect(await existe(join(pasta, '_corel', 'montar.txt'))).toBe(false);
+    expect(await existe(join(pasta, 'Arte 1.cdr'))).toBe(true);
+    expect(await existe(join(pasta, 'Arte 1.txt'))).toBe(true);
+    expect(await existe(join(pasta, 'capa.pdf'))).toBe(true);
+    expect(await existe(join(pasta, '_corel'))).toBe(true);
+  });
+
+  test('destino fora da raiz, de Corel e de _corel é recusado', async () => {
+    const pasta = await criarPasta();
+    await mkdir(join(pasta, 'Arte'), { recursive: true });
+    await writeFile(join(pasta, 'Corel', 'montar.txt'), `destino=${join(pasta, 'Arte', 'x.cdr')}\r\ncapas=0`);
+    const rodarMacro = vi.fn();
+    const r = await montarPastaExistente(raiz, pasta, { rodarMacro });
+    expect(r).toMatchObject({ ok: false, motivo: 'A lista do Corel aponta para outra pasta.' });
+    expect(rodarMacro).not.toHaveBeenCalled();
   });
 });
