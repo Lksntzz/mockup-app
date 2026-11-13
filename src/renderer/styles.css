@@ -474,3 +474,4 @@ button.secundario:hover:not(:disabled) { background: #f3f4f6; border-color: #c3c
 .an-pend-form input.invalido { border-color: var(--erro); }
 .an-pend-ok { margin-top: 8px; font-size: 13px; color: var(--texto); }
 .an-pend-ok li { overflow-wrap: anywhere; }
+.an-pend-sucesso { margin-top: 8px; padding: 10px 14px; border: 1px solid #2e9e5b; background: #eaf7ef; border-radius: 10px; }

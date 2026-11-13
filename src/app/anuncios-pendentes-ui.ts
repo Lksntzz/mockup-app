@@ -7,7 +7,7 @@ export interface CardPendenteEntrada {
 export interface LinhasDoCard { titulo: string; caminho: string; falta: string[]; erro?: string }
 
 export const TEXTO_ORIENTACAO_COREL =
-  'Agora abra o arquivo .cdr desta arte no CorelDRAW e rode a macro AdicionarEanNoCdr (Ferramentas › Scripts › Executar script, ou o botão da barra do MKP).';
+  'Agora abra o arquivo .cdr desta arte no CorelDRAW e rode a macro AdicionarEanNoCdr (Alt + F11, ou Ferramentas › Scripts › Executar script… › GlobalMacros › MKP.AdicionarEanNoCdr).';
 
 function nomeDaCapa(c: CapaPendente): string {
   return c.capa.trim() || `Capa ${c.n}`;

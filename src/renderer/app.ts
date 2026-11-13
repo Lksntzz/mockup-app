@@ -16,7 +16,7 @@ import { caixaDoMolde, ehArteDoMoldeDoCorel, ehPaginaA4 } from '../pdf/molde';
 import { coverCrop, reduzir } from '../pdf/fit';
 import { capaPageNumbers } from '../pdf/pages';
 import { openPdf, PdfError } from '../pdf/reader';
-import { iniciarAnuncios, mostrarAnuncios } from './anuncios';
+import { iniciarAnuncios, limparSucessoPendentes, mostrarAnuncios } from './anuncios';
 import type { ArquivoPdf, EstadoAtualizacao, MockupApi } from './global';
 import { criarTrabalhos } from '../app/trabalhos';
 import type { Rascunho } from '../app/rascunhos';
@@ -1116,6 +1116,7 @@ function mostrarAba(aba: 'novo' | 'historico' | 'pasta1' | 'config' | 'anuncios'
   if (aba === 'historico') void desenharHistorico();
   if (aba === 'config') atualizarCaminhos();
   if (aba === 'anuncios') void mostrarAnuncios();
+  else limparSucessoPendentes();
   if (aba === 'pasta1') {
     alertasNovos = 0;
     $('badge-cliente').hidden = true;

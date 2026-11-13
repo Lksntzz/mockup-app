@@ -207,23 +207,26 @@ Aqui você cria uma arte **sem** o código de barras, ela fica na lista **Penden
    - **Resultado esperado:** dentro do card aparecem **"Código de barras gerado."**, **"Ainda faltam 2 capas"** e a orientação do Corel. O card **continua** na lista e agora diz que faltam só a **Capa 2** e a **Capa 3**.
 6. **Concluir o resto.** Clique em **Concluir** de novo.
    - **Resultado esperado:** só aparecem os campos da **Capa 2** e da **Capa 3** (a Capa 1 não aparece mais). Digite `7891234567901` e `7891234567918` e clique em **Salvar EAN**.
-   - **Resultado esperado:** aparece **"Código de barras gerado."** e a orientação do Corel; o card **some** da lista (ou a lista mostra **"Nenhuma arte pendente."**).
+   - **Resultado esperado:** o card **Teste P some** da lista e, **no topo da lista**, aparece uma **caixa verde** com **"Código de barras gerado."**, "Nada mais falta…" e a orientação do Corel. A caixa fica até você clicar em **Fechar** (ou trocar de aba).
 7. **Conferir os arquivos.** Na pasta `TESTE\SUB\Teste P`:
-   - **Resultado esperado:** a pasta `Codigo de barras` tem **Capa 1 - EAN.svg**, **Capa 2 - EAN.svg** e **Capa 3 - EAN.svg**; o `Teste P.txt` (Bloco de Notas) tem os 3 EANs nas linhas das variações (nenhuma com "(pendente)"); o `pendente.json` não existe mais (ou não lista mais nenhuma capa).
-8. **Colocar o código no .cdr.** Abra o `Teste P.cdr` no CorelDRAW. Use **Ferramentas → Scripts → Executar script…**, em "Macros em" escolha **GlobalMacros**, escolha **MKP.AdicionarEanNoCdr** e clique **Executar** (ou use o botão da barra do MKP).
-   - **Resultado esperado:** em cada página **par** (2, 4 e 6) o código de barras aparece **dentro do retângulo do EAN**, com um **fundo branco de cantos arredondados**. Uma janelinha do Corel conta quantos foram desenhados.
-9. **Rodar de novo.** Rode **MKP.AdicionarEanNoCdr** mais uma vez no mesmo arquivo.
-   - **Resultado esperado:** a janelinha diz que os códigos **"ja existiam"** e **nada fica duplicado** (continua 1 código por página par; confira clicando no código: ele não tem outro igual embaixo).
-10. **Outro computador ou outra visão da pasta.** Crie outra arte pendente (repita só os passos 1 a 3, com nome **Teste P2**). Depois abra o app em **outro PC** que usa a mesma pasta Anúncio 2027 (ou feche e abra o app de novo neste PC) e entre na aba Anúncios.
-    - **Resultado esperado:** o card **Teste P2** aparece também lá, igualzinho, porque o pendente fica **dentro da pasta** da arte (no `pendente.json`), e não só no seu computador.
+   - **Resultado esperado:** a pasta `Codigo de barras` tem **Capa 1 - EAN.svg**, **Capa 2 - EAN.svg** e **Capa 3 - EAN.svg**; o `Teste P.txt` (Bloco de Notas) tem os 3 EANs nas linhas das variações (nenhuma com "(pendente)"); o `pendente.json` não existe mais (ou não lista mais nenhuma capa); na pasta `Corel` existe o **`ean.txt`**.
+8. **Colocar o código no .cdr.** Abra o `Teste P.cdr` no CorelDRAW e rode o macro **AdicionarEanNoCdr**:
+   - Jeito 1: **Alt + F11** → na esquerda, **GlobalMacros → Modules → MKP** (duplo clique) → clique em qualquer lugar **dentro** da parte `Sub AdicionarEanNoCdr()` → aperte **F5**.
+   - Jeito 2: menu **Ferramentas → Scripts → Executar script…** → em "Macros em", escolha **GlobalMacros** → escolha **MKP.AdicionarEanNoCdr** → **Executar**.
+   - **Resultado esperado:** em cada página **par** (2, 4 e 6) o código de barras aparece **dentro do retângulo do EAN**, com um **fundo branco de cantos arredondados**. Uma janela mostra **"Desenhados: 3 / Ja existiam: 0 / Falharam: 0"**. Salve o arquivo (Ctrl + S). O `ean.txt` some da pasta `Corel`.
+9. **Rodar de novo.** Com o mesmo `.cdr` aberto, rode **AdicionarEanNoCdr** outra vez (mesmo jeito do passo 8).
+   - **Resultado esperado:** como o `ean.txt` já foi apagado, o macro abre uma janela pedindo para escolher o `montar.txt` da pasta `Corel`. Clique em **Cancelar**. Aparece a mensagem **"Nao achei o ean.txt para este .cdr (ele fica em <pasta da arte>\Corel\ean.txt). Conclua o anuncio pendente no app e rode o macro de novo."** Nada é desenhado, então **nada fica duplicado** (confira que ainda há só 1 código por página par).
+   - Observação: a frase **"Ja existiam"** só aparece quando o `ean.txt` ainda está lá (por exemplo, se numa rodada outra capa falhou e o arquivo foi mantido). Nesse caso as capas que já tinham código são puladas.
+10. **(Opcional) Outro computador.** Em outro computador com o mesmo Drive, abra o app, aba **Anúncios** › **Pendentes**: os mesmos cards aparecem (o pendente fica dentro da pasta da arte, no `pendente.json`).
 
 ## Teste W — Wire-o rose gold no mockup de Especificação
 
-1. No app, abra a aba do mockup e escolha o modelo **Especificação VT** (o mesmo de sempre).
-2. Escolha **Wire-o: Rose Gold** e, um de cada vez, estes tassels: **Branco**, **Verde**, **Rosa**, **Azul**, **Nenhum** e **Laranja**.
-   - **Resultado esperado em todos os 6 casos:** os **5 anéis de cima da espiral da esquerda** aparecem **cor de cobre** (não brancos nem sumidos).
-3. Agora escolha **Wire-o: Preto** com tassel **Laranja**, e depois **Wire-o: Branco** com tassel **Laranja**.
-   - **Resultado esperado:** **nenhum anel de cobre** no alto da espiral; os anéis ficam pretos (ou brancos), sem cobre.
+1. No app, aba **Novo**, abra um PDF de capa (arraste para a janela). Quando a capa carregar, aparece o painel da direita com **Wire-o**, **Elástico**, **Tassel** e **Imagens a gerar**.
+2. Em **Imagens a gerar**, marque **Especificação VT (com envelope)**. A prévia passa para a aba da Especificação VT.
+3. No grupo **Wire-o**, escolha **Rose Gold**. Depois, **um de cada vez**, no grupo **Tassel** escolha: **Branco**, **Verde**, **Rosa**, **Azul**, **Nenhum** e **Laranja**.
+   - **Resultado esperado em todos os 6 casos:** os **anéis do topo da espiral da esquerda** (os 5 ao lado do tassel) aparecem **cor de cobre**.
+4. Agora escolha **Wire-o: Preto** com tassel **Laranja**, e depois **Wire-o: Branco** com tassel **Laranja**.
+   - **Resultado esperado:** **nenhum anel de cobre** no topo da espiral; os anéis ficam pretos (ou brancos).
 
 ---
 
