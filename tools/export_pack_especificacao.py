@@ -19,6 +19,7 @@ from scipy import ndimage
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from export_pack import export_pack  # noqa: E402
+from separar_aneis_rose import separar_pacote  # noqa: E402
 
 # Trechos do mockup (1200x1200) que viram zoom, achados comparando com os círculos do PSD de referência.
 FONTE_ANEL = (10, 909, 276, 274)        # wire-o + faixa amarela + borda de baixo
@@ -116,7 +117,9 @@ def export_especificacao(psd_vt, psd_sc, out_dir):
     stack.extend(zooms_vt)
     stack.extend(zooms_sc)
     (out / "mockup.json").write_text(json.dumps(pack, indent=2, ensure_ascii=False), encoding="utf-8")
-    return pack
+    # no PSD os anéis rose do topo só existem colados ao tassel laranja: separa em wireo-rose-topo-01 (ver o script)
+    separar_pacote(out)
+    return json.loads((out / "mockup.json").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

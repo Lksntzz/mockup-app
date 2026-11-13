@@ -482,6 +482,20 @@
       ]
     },
     {
+      "id": "wireo-rose-topo-01",
+      "role": "fixed",
+      "file": "wireo-rose-topo-01.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        44,
+        122
+      ],
+      "when": {
+        "wireo": "rose-gold"
+      }
+    },
+    {
       "id": "tassel-verde-01",
       "role": "fixed",
       "file": "tassel-verde-01.png",
