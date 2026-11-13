@@ -63,7 +63,8 @@ import {
   validarFontes,
   validarFormaDaEntrada,
 } from "./anuncios";
-import { acharPastaAnuncios, criarCategoria, listarCategorias, listarPlataformas, mesclarPastasAchadas } from "./anuncios-pastas";
+import { acharPastaAnuncios, criarCategoria, criarSubcategoria, listarCategorias, listarPlataformas, listarSubcategorias, mesclarPastasAchadas } from "./anuncios-pastas";
+import { mesmoNome } from "../anuncios/nomes";
 import { criarPortaoDePin } from "./pin";
 import { acharPastasDoFluxo } from "./achar-pastas";
 import { arquivoAbrivel } from "./abrir-arquivo";
@@ -476,6 +477,30 @@ ipcMain.handle("anuncios-criar-categoria", async (_e, plataforma: unknown, nome:
   const pasta = await resolverPlataforma(r.pasta, plataforma);
   if (!pasta || typeof nome !== "string") return { ok: false as const, motivo: "Escolha uma plataforma da lista." };
   return criarCategoria(pasta, nome);
+});
+// acha a pasta da categoria pelo nome real em disco (igual, ou equivalente por mesmoNome)
+async function resolverCategoria(pastaPlataforma: string, categoria: unknown): Promise<string | undefined> {
+  if (typeof categoria !== "string" || !categoria) return undefined;
+  const cats = await listarCategorias(pastaPlataforma).catch(() => [] as string[]);
+  const real = cats.find((c) => c === categoria) ?? cats.find((c) => mesmoNome(c, categoria));
+  return real === undefined ? undefined : join(pastaPlataforma, real);
+}
+ipcMain.handle("anuncios-subcategorias", async (_e, plataforma: unknown, categoria: unknown) => {
+  const r = await raizDosAnuncios();
+  if (!r.pasta) return [] as string[];
+  const pasta = await resolverPlataforma(r.pasta, plataforma);
+  if (!pasta) return [] as string[];
+  const pastaCat = await resolverCategoria(pasta, categoria);
+  return pastaCat ? listarSubcategorias(pastaCat).catch(() => [] as string[]) : [];
+});
+ipcMain.handle("anuncios-criar-subcategoria", async (_e, plataforma: unknown, categoria: unknown, nome: unknown) => {
+  const r = await raizDosAnuncios();
+  if (!r.pasta) return { ok: false as const, motivo: "Não achei a pasta de anúncios. Escolha na mão." };
+  const pasta = await resolverPlataforma(r.pasta, plataforma);
+  if (!pasta || typeof nome !== "string") return { ok: false as const, motivo: "Escolha uma plataforma da lista." };
+  const pastaCat = await resolverCategoria(pasta, categoria);
+  if (!pastaCat) return { ok: false as const, motivo: "Escolha uma categoria da lista." };
+  return criarSubcategoria(pastaCat, nome);
 });
 // manda o andamento à tela; nunca lança (janela pode fechar no meio)
 const progressoPara = (sender: Electron.WebContents) => (etapa: string, estado: string) => {

@@ -47,6 +47,8 @@ export interface MockupApi {
   anunciosPastas(): Promise<{ pastaAnuncios?: string; plataformas: string[]; avisos?: string[] }>;
   anunciosCategorias(plataforma: string): Promise<string[]>;
   anunciosCriarCategoria(plataforma: string, nome: string): Promise<ResultadoCategoria>;
+  anunciosSubcategorias(plataforma: string, categoria: string): Promise<string[]>;
+  anunciosCriarSubcategoria(plataforma: string, categoria: string, nome: string): Promise<ResultadoCategoria>;
   anunciosAbrirPasta(caminho: string): Promise<{ ok: true } | { ok: false; motivo: string }>;
   anunciosCriar(entrada: EntradaDoAnuncio, montarNoCorel: boolean): Promise<ResultadoAnuncio>;
   aoProgredirAnuncio(cb: (p: { etapa: string; estado: string }) => void): () => void;

@@ -14,6 +14,8 @@ let semPasta = true;
 let rodando = false;
 let lendo = false;
 let seqCategorias = 0;
+let seqSubcategorias = 0;
+let ultimaSubcategoria = '';
 let existente: string | undefined;
 let ultimaCategoria = '';
 let pastaAnuncios: string | undefined;
@@ -67,11 +69,11 @@ function mensagem(t: string, erro = true): void {
   el.setAttribute('role', erro ? 'alert' : 'status');
 }
 
-function preencher(sel: HTMLSelectElement, itens: string[], escolhido: string, extra?: string): void {
+function preencher(sel: HTMLSelectElement, itens: string[], escolhido: string, extra?: string, rotuloVazio = 'Escolha…'): void {
   sel.replaceChildren();
   const vazio = document.createElement('option');
   vazio.value = '';
-  vazio.textContent = 'Escolha…';
+  vazio.textContent = rotuloVazio;
   sel.append(vazio);
   for (const i of itens) {
     const o = document.createElement('option');
@@ -268,6 +270,27 @@ async function carregarCategorias(escolhida = ''): Promise<void> {
   ultimaCategoria = sel.value;
 }
 
+async function carregarSubcategorias(escolhida = ''): Promise<void> {
+  const sel = $<HTMLSelectElement>('an-subcategoria');
+  const semLista = () => {
+    preencher(sel, [], '', undefined, 'Sem subcategorias');
+    sel.disabled = true;
+    form = { ...form, subcategoria: '', temSubcategorias: false };
+    ultimaSubcategoria = '';
+  };
+  if (!form.plataforma || !form.categoria) { seqSubcategorias++; semLista(); return; }
+  const pedidaPlat = form.plataforma;
+  const pedidaCat = form.categoria;
+  const meu = ++seqSubcategorias;
+  const lista = await api.anunciosSubcategorias(pedidaPlat, pedidaCat).catch(() => [] as string[]);
+  if (meu !== seqSubcategorias || form.plataforma !== pedidaPlat || form.categoria !== pedidaCat) return;
+  if (lista.length === 0) { semLista(); return; }
+  preencher(sel, lista, escolhida, 'Nova subcategoria…', 'Escolha a subcategoria…');
+  sel.disabled = semPasta;
+  form = { ...form, subcategoria: sel.value, temSubcategorias: true };
+  ultimaSubcategoria = sel.value;
+}
+
 export async function mostrarAnuncios(): Promise<void> {
   try {
     const r = await api.anunciosPastas();
@@ -278,8 +301,9 @@ export async function mostrarAnuncios(): Promise<void> {
     const sel = $<HTMLSelectElement>('an-plataforma');
     preencher(sel, r.plataformas, form.plataforma);
     form = { ...form, plataforma: sel.value };
-    for (const id of ['an-plataforma', 'an-categoria', 'an-arte', 'an-titulo', 'an-arquivos']) $<HTMLInputElement>(id).disabled = semPasta;
+    for (const id of ['an-plataforma', 'an-categoria', 'an-subcategoria', 'an-arte', 'an-titulo', 'an-arquivos']) $<HTMLInputElement>(id).disabled = semPasta;
     await carregarCategorias(form.categoria);
+    await carregarSubcategorias(form.subcategoria ?? '');
     $<HTMLInputElement>('an-arte').value = form.arte;
     $<HTMLInputElement>('an-titulo').value = form.titulo;
   } catch (e) {
@@ -396,7 +420,7 @@ function novoAnuncio(): void {
   if (rodando || lendo) return;
   pastaCriada = undefined;
   $('an-montar-agora').hidden = true;
-  form = { ...formVazio(), plataforma: form.plataforma, categoria: form.categoria };
+  form = { ...formVazio(), plataforma: form.plataforma, categoria: form.categoria, subcategoria: form.subcategoria, temSubcategorias: form.temSubcategorias };
   $<HTMLInputElement>('an-arte').value = '';
   $<HTMLInputElement>('an-titulo').value = '';
   $('an-resultado').hidden = true;
@@ -429,8 +453,8 @@ export function iniciarAnuncios(): void {
     if (lista.length) void receberArquivos(lista);
   });
   $('an-plataforma').addEventListener('change', () => {
-    form = { ...form, plataforma: $<HTMLSelectElement>('an-plataforma').value, categoria: '' };
-    void carregarCategorias().then(atualizar);
+    form = { ...form, plataforma: $<HTMLSelectElement>('an-plataforma').value, categoria: '', subcategoria: '', temSubcategorias: false };
+    void carregarCategorias().then(() => carregarSubcategorias()).then(atualizar);
   });
   $('an-categoria').addEventListener('change', () => {
     const sel = $<HTMLSelectElement>('an-categoria');
@@ -440,8 +464,21 @@ export function iniciarAnuncios(): void {
       $<HTMLInputElement>('an-nova-cat-nome').focus();
       return;
     }
-    form = { ...form, categoria: sel.value };
+    form = { ...form, categoria: sel.value, subcategoria: '', temSubcategorias: false };
     ultimaCategoria = sel.value;
+    atualizar();
+    void carregarSubcategorias().then(atualizar);
+  });
+  $('an-subcategoria').addEventListener('change', () => {
+    const sel = $<HTMLSelectElement>('an-subcategoria');
+    if (sel.value === NOVA) {
+      sel.value = ultimaSubcategoria;
+      $('an-nova-sub').hidden = false;
+      $<HTMLInputElement>('an-nova-sub-nome').focus();
+      return;
+    }
+    form = { ...form, subcategoria: sel.value };
+    ultimaSubcategoria = sel.value;
     atualizar();
   });
   const fecharNova = () => { $('an-nova-cat').hidden = true; $<HTMLInputElement>('an-nova-cat-nome').value = ''; texto($('an-nova-cat-erro'), ''); };
@@ -453,6 +490,7 @@ export function iniciarAnuncios(): void {
       if (!r.ok) { texto($('an-nova-cat-erro'), r.motivo); return; }
       fecharNova();
       await carregarCategorias(r.nome);
+      await carregarSubcategorias();
       atualizar();
     } catch (e) {
       texto($('an-nova-cat-erro'), erroDe(e));
@@ -460,6 +498,22 @@ export function iniciarAnuncios(): void {
   };
   $('an-nova-cat-ok').addEventListener('click', () => void okNova());
   $('an-nova-cat-nome').addEventListener('keydown', (e) => { if ((e as KeyboardEvent).key === 'Enter') void okNova(); });
+  const fecharNovaSub = () => { $('an-nova-sub').hidden = true; $<HTMLInputElement>('an-nova-sub-nome').value = ''; texto($('an-nova-sub-erro'), ''); };
+  $('an-nova-sub-cancelar').addEventListener('click', fecharNovaSub);
+  const okNovaSub = async () => {
+    const nome = $<HTMLInputElement>('an-nova-sub-nome').value;
+    try {
+      const r = await api.anunciosCriarSubcategoria(form.plataforma, form.categoria, nome);
+      if (!r.ok) { texto($('an-nova-sub-erro'), r.motivo); return; }
+      fecharNovaSub();
+      await carregarSubcategorias(r.nome);
+      atualizar();
+    } catch (e) {
+      texto($('an-nova-sub-erro'), erroDe(e));
+    }
+  };
+  $('an-nova-sub-ok').addEventListener('click', () => void okNovaSub());
+  $('an-nova-sub-nome').addEventListener('keydown', (e) => { if ((e as KeyboardEvent).key === 'Enter') void okNovaSub(); });
   $('an-arte').addEventListener('input', () => { form = { ...form, arte: $<HTMLInputElement>('an-arte').value }; atualizar(); });
   $('an-titulo').addEventListener('input', () => { form = { ...form, titulo: $<HTMLInputElement>('an-titulo').value }; atualizar(); });
   $('an-mais').addEventListener('click', adicionarMais);

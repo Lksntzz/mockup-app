@@ -28,6 +28,8 @@ contextBridge.exposeInMainWorld('mockupApi', {
   anunciosPastas: () => ipcRenderer.invoke('anuncios-pastas'),
   anunciosCategorias: (plataforma: string) => ipcRenderer.invoke('anuncios-categorias', plataforma),
   anunciosCriarCategoria: (plataforma: string, nome: string) => ipcRenderer.invoke('anuncios-criar-categoria', plataforma, nome),
+  anunciosSubcategorias: (plataforma: string, categoria: string) => ipcRenderer.invoke('anuncios-subcategorias', plataforma, categoria),
+  anunciosCriarSubcategoria: (plataforma: string, categoria: string, nome: string) => ipcRenderer.invoke('anuncios-criar-subcategoria', plataforma, categoria, nome),
   anunciosAbrirPasta: (caminho: string) => ipcRenderer.invoke('anuncios-abrir-pasta', caminho),
   anunciosCriar: (entrada: unknown, montarNoCorel: boolean) => ipcRenderer.invoke('anuncios-criar', entrada, montarNoCorel),
   aoProgredirAnuncio: (cb: (p: { etapa: string; estado: string }) => void) => {
