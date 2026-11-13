@@ -65,6 +65,7 @@ import {
 } from "./anuncios";
 import { acharPastaAnuncios, criarCategoria, criarSubcategoria, listarCategorias, listarPlataformas, listarSubcategorias, mesclarPastasAchadas } from "./anuncios-pastas";
 import { mesmoNome } from "../anuncios/nomes";
+import { concluirPendente, listarPendentes as listarAnunciosPendentes } from "./anuncios-pendentes";
 import { criarPortaoDePin } from "./pin";
 import { acharPastasDoFluxo } from "./achar-pastas";
 import { arquivoAbrivel } from "./abrir-arquivo";
@@ -539,6 +540,30 @@ ipcMain.handle("anuncios-montar-no-corel", (e0, pasta: unknown) =>
     return montarPastaExistente(r.pasta, pasta, undefined, progressoPara(e0.sender));
   }),
 );
+ipcMain.handle("anuncios-pendentes", async () => {
+  const r = await raizDosAnuncios();
+  if (!r.pasta) return { ok: false as const, motivo: "Não achei a pasta de anúncios. Escolha na mão." };
+  try {
+    return { ok: true as const, lista: await listarAnunciosPendentes(r.pasta) };
+  } catch (e) {
+    return { ok: false as const, motivo: e instanceof Error ? e.message : String(e) };
+  }
+});
+ipcMain.handle("anuncios-concluir-pendente", async (_e, pasta: unknown, eans: unknown) => {
+  const r = await raizDosAnuncios();
+  const recusa = (motivo: string) => ({ ok: false as const, motivo });
+  if (!r.pasta) return recusa("Não achei a pasta de anúncios. Escolha na mão.");
+  if (typeof pasta !== "string" || !pasta) return recusa("Pasta do anúncio inválida.");
+  if (eans === null || typeof eans !== "object" || Array.isArray(eans) || Object.getPrototypeOf(eans) !== Object.prototype) {
+    return recusa("Lista de EANs inválida.");
+  }
+  const lista: Record<number, string> = {};
+  for (const [k, v] of Object.entries(eans as Record<string, unknown>)) {
+    if (!/^\d+$/.test(k) || typeof v !== "string") return recusa("Lista de EANs inválida.");
+    lista[Number(k)] = v;
+  }
+  return concluirPendente(r.pasta, pasta, lista);
+});
 ipcMain.handle("anuncios-abrir-pasta", async (_e, caminho: unknown) => {
   const r = await raizDosAnuncios();
   if (!r.pasta || typeof caminho !== "string" || !caminho) return { ok: false as const, motivo: "Não achei a pasta de anúncios." };

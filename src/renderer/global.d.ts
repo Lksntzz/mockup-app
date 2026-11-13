@@ -5,6 +5,7 @@ import type { Cliente } from '../main/clientes';
 import type { ResultadoDoMolde } from '../main/corel';
 import type { ResultadoAnuncio } from '../main/anuncios';
 import type { EntradaDoAnuncio } from '../anuncios/tipos';
+import type { CardPendente, ResultadoConcluir } from '../main/anuncios-pendentes';
 import type { ResultadoCategoria } from '../main/anuncios-pastas';
 import type { ResultadoMover } from '../main/pasta-fluxo';
 export interface CamadaBruta {
@@ -49,6 +50,8 @@ export interface MockupApi {
   anunciosCriarCategoria(plataforma: string, nome: string): Promise<ResultadoCategoria>;
   anunciosSubcategorias(plataforma: string, categoria: string): Promise<{ ok: boolean; lista: string[] }>;
   anunciosCriarSubcategoria(plataforma: string, categoria: string, nome: string): Promise<ResultadoCategoria>;
+  anunciosPendentes(): Promise<{ ok: true; lista: CardPendente[] } | { ok: false; motivo: string }>;
+  anunciosConcluirPendente(pasta: string, eans: Record<number, string>): Promise<ResultadoConcluir>;
   anunciosAbrirPasta(caminho: string): Promise<{ ok: true } | { ok: false; motivo: string }>;
   anunciosCriar(entrada: EntradaDoAnuncio, montarNoCorel: boolean): Promise<ResultadoAnuncio>;
   aoProgredirAnuncio(cb: (p: { etapa: string; estado: string }) => void): () => void;
