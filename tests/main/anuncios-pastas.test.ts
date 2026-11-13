@@ -61,6 +61,31 @@ describe('mesclarPastasAchadas', () => {
     await writeFile(join(cat, 'arquivo.txt'), 'x');
     expect(await listarSubcategorias(cat)).toEqual(['Manicure', 'Óculos']);
   });
+  test('listarSubcategorias esconde pastas que já são uma arte', async () => {
+    const cat = join(raiz, 'Shopee', 'Agenda');
+    await mkdir(join(cat, 'ArtA'));
+    await writeFile(join(cat, 'ArtA', 'arta.TXT'), 'x');
+    await mkdir(join(cat, 'ArtB', 'corel'), { recursive: true });
+    await mkdir(join(cat, 'ArtC', '_Corel'), { recursive: true });
+    await mkdir(join(cat, 'ArtD', 'ARTE'), { recursive: true });
+    await mkdir(join(cat, 'Vazia'));
+    await mkdir(join(cat, 'Manicure', 'Cap1', 'Corel'), { recursive: true });
+    await writeFile(join(cat, 'Manicure', 'Cap1', 'Cap1.txt'), 'x');
+    await mkdir(join(cat, 'Outra'));
+    await writeFile(join(cat, 'Outra', 'notas.txt'), 'x');
+    expect(await listarSubcategorias(cat)).toEqual(['Manicure', 'Outra', 'Vazia']);
+  });
+  test('listarSubcategorias lança se não conseguir ler', async () => {
+    await expect(listarSubcategorias(join(raiz, 'nao-existe'))).rejects.toThrow();
+  });
+  test('criarSubcategoria recusa nome que começa com _, . ou $', async () => {
+    const cat = join(raiz, 'Shopee', 'Agenda');
+    for (const n of ['_x', '.x', '$x']) {
+      const r = await criarSubcategoria(cat, n);
+      expect(r).toEqual({ ok: false, motivo: 'O nome da subcategoria não pode começar com "_", "." ou "$".' });
+    }
+    expect(await listarSubcategorias(cat)).toEqual([]);
+  });
   test('criarSubcategoria cria, recusa vazio, repetido, pai inexistente e sanitiza', async () => {
     const cat = join(raiz, 'Shopee', 'Agenda');
     const r = await criarSubcategoria(cat, 'Manicure');

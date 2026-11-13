@@ -74,11 +74,26 @@ export const listarCategorias = (pastaPlataforma: string): Promise<string[]> => 
 
 export type ResultadoCategoria = { ok: true; pasta: string; nome: string } | { ok: false; motivo: string };
 
-export const listarSubcategorias = (pastaCategoria: string): Promise<string[]> => subpastas(pastaCategoria);
+const NOMES_DE_ARTE = new Set(['corel', '_corel', 'arte']);
+
+/** Uma pasta que já é uma ART: tem o "<nome>.txt" dentro, ou as subpastas Corel/_corel/Arte. */
+async function ehPastaDeArte(pasta: string, nome: string): Promise<boolean> {
+  const itens = await nomesEm(pasta).catch(() => [] as Awaited<ReturnType<typeof nomesEm>>);
+  const txt = `${nome}.txt`.toLowerCase();
+  return itens.some((i) => (i.pasta ? NOMES_DE_ARTE.has(i.nome.toLowerCase()) : i.nome.toLowerCase() === txt));
+}
+
+/** Subcategorias da categoria: pastas visíveis que NÃO são uma arte já criada. Lança se não conseguir ler. */
+export async function listarSubcategorias(pastaCategoria: string): Promise<string[]> {
+  const nomes = await subpastas(pastaCategoria);
+  const marcas = await Promise.all(nomes.map((n) => ehPastaDeArte(join(pastaCategoria, n), n)));
+  return nomes.filter((_, i) => !marcas[i]);
+}
 
 async function criarPastaFilha(pastaPai: string, nome: string, rotulo: 'categoria' | 'subcategoria', onde: string): Promise<ResultadoCategoria> {
   const { nome: seguro } = nomeDePastaSeguro(nome);
   if (!seguro) return { ok: false, motivo: `Digite um nome para a ${rotulo}.` };
+  if (/^[._$]/.test(seguro)) return { ok: false, motivo: `O nome da ${rotulo} não pode começar com "_", "." ou "$".` };
   if (!(await ehPasta(pastaPai))) return { ok: false, motivo: `Não encontrei a pasta da ${rotulo === 'categoria' ? 'plataforma' : 'categoria'}. Escolha de novo.` };
   const existentes = await subpastas(pastaPai).catch(() => [] as string[]);
   if (existentes.some((e) => mesmoNome(e, seguro))) return { ok: false, motivo: `Já existe a ${rotulo} "${seguro}" ${onde}.` };

@@ -56,26 +56,27 @@ O Corel guarda os macros num lugar chamado **GlobalMacros**. Lá já existe um m
 
 Na aba Anúncios, depois da **Categoria** existe a lista **Subcategoria**: ela mostra as pastas que já existem dentro da categoria escolhida. Neste teste você só cria pastas e o `.txt`; o Corel não é usado (pode estar fechado).
 
-1. Abra a aba **Anúncios**, escolha uma plataforma e clique em **Nova categoria…**. Crie a categoria **TESTE**.
+1. Abra a aba **Anúncios**, escolha uma plataforma, abra a lista **Categoria** e escolha **Nova categoria…**. Crie a categoria **TESTE**.
    - **Resultado esperado:** a categoria TESTE fica escolhida. Por alguns instantes a lista Subcategoria mostra **"Carregando…"** e os botões de criar ficam apagados; depois ela libera.
 2. Olhe a lista **Subcategoria**. Como a pasta TESTE ainda está vazia (sem pastas dentro), ela fica liberada mostrando **"Sem subcategoria"** (a arte iria direto dentro da categoria).
 3. Clique na lista.
    - **Resultado esperado:** as opções são **"Sem subcategoria"** e, por último, **"Nova subcategoria…"**.
 4. Escolha **Nova subcategoria…**, digite **SUB** e clique em **OK**.
    - **Resultado esperado:** a lista recarrega e **SUB** já fica escolhida. Se digitar um nome repetido ou com caracteres proibidos, aparece uma mensagem de erro amigável; **Cancelar** fecha o bloco sem criar nada.
-5. Solte o **PDF de 2 páginas**, dê o nome de arte **Teste S1**, preencha o título e a capa. Deixe o EAN vazio.
+5. Solte o **PDF de 2 páginas**, dê o nome de arte **Teste S1**, preencha o título e a capa. Deixe o EAN vazio. Repare que o botão **Criar pasta e arquivos** continua apagado sem EAN, mas o **Só criar a pasta e o .txt** funciona.
 6. Olhe o quadro **"Será criado"**.
    - **Resultado esperado:** o caminho termina em `…\TESTE\SUB\Teste S1`.
 7. Clique em **Só criar a pasta e o .txt**.
    - **Resultado esperado:** cria a pasta `TESTE\SUB\Teste S1`. Abra o `Teste S1.txt` no Bloco de Notas: logo **depois da linha `Categoria:`** vem a linha **`Subcategoria: SUB`**.
 8. Clique em **Fazer outro anúncio**.
    - **Resultado esperado:** plataforma, categoria **TESTE** e subcategoria **SUB** continuam escolhidas.
-9. Agora a categoria TESTE tem uma pasta dentro (a SUB). Troque a categoria para outra e volte para TESTE.
+9. Agora a categoria TESTE tem uma pasta dentro (a SUB). Troque a categoria para qualquer outra categoria que já exista e volte para TESTE.
    - **Resultado esperado:** a lista Subcategoria agora começa com **"Escolha a subcategoria…"** e enquanto você não escolher uma, os botões de criar ficam **apagados**. Ao escolher **SUB**, os botões liberam.
-10. Teste a categoria sem subpastas: crie uma categoria nova chamada **TESTE SEM**, solte o PDF de 2 páginas, nome **Teste S2**, e clique em **Só criar a pasta e o .txt** (deixando a lista em **"Sem subcategoria"**).
+10. Teste a categoria sem subpastas: crie uma categoria nova chamada **TESTE SEM**. Ela fica escolhida sozinha depois de criada. Solte o PDF de 2 páginas, nome **Teste S2**, e clique em **Só criar a pasta e o .txt** (deixando a lista em **"Sem subcategoria"**).
     - **Resultado esperado:** o "Será criado" mostra `…\TESTE SEM\Teste S2` (sem subcategoria) e a arte nasce direto em `TESTE SEM\Teste S2`. O `Teste S2.txt` **não** tem a linha `Subcategoria:`.
-11. Atenção a este comportamento: agora a categoria **TESTE SEM** tem a pasta `Teste S2` dentro. Escolha **TESTE SEM** de novo.
-    - **Resultado esperado:** a lista Subcategoria mostra **Teste S2** como se fosse uma subcategoria. Isso é normal: **uma pasta de arte solta dentro da categoria (por exemplo uma arte de teste antiga) aparece na lista como se fosse subcategoria.** Se escolher, a nova arte ficará dentro dela. Para evitar, mova a arte antiga para uma subcategoria pelo Explorador de Arquivos.
+11. Troque para outra categoria e volte para **TESTE SEM**.
+    - **Resultado esperado:** a lista Subcategoria **não** mostra **Teste S2** (o app reconhece que é uma arte, não uma subcategoria) e continua em **"Sem subcategoria"**, com os botões liberados (depois de preencher o resto).
+    - Observação: uma pasta de arte **antiga**, feita fora do app e **sem** o arquivo `.txt` com o nome dela nem as subpastas `Corel` ou `Arte` dentro, ainda apareceria na lista como se fosse subcategoria. Se isso acontecer com alguma, é só não escolher essa.
 
 ---
 

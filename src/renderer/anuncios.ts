@@ -16,6 +16,8 @@ let lendo = false;
 let seqCategorias = 0;
 let seqSubcategorias = 0;
 let carregandoSubcategorias = false;
+let leituraSubFalhou = false;
+let criandoSub = false;
 let ultimaSubcategoria = '';
 let existente: string | undefined;
 let ultimaCategoria = '';
@@ -104,6 +106,8 @@ function atualizar(): void {
     texto(linha.querySelector<HTMLElement>('.an-pendente')!, e ? '' : v.pendentes[i] ?? '');
     linha.querySelector('.an-ean')!.classList.toggle('invalido', Boolean(e));
   });
+  const faltaSub = form.temSubcategorias && !form.subcategoria && !carregandoSubcategorias && !leituraSubFalhou;
+  texto($('an-sub-dica'), leituraSubFalhou ? 'Não consegui ler as subcategorias. Escolha a categoria de novo.' : faltaSub ? 'Escolha a subcategoria para continuar.' : '');
   texto($('an-caminho'), caminhoPrevisto(form, pastaAnuncios));
   const lista = $('an-avisos-form');
   lista.replaceChildren();
@@ -271,10 +275,21 @@ async function carregarCategorias(escolhida = ''): Promise<void> {
   ultimaCategoria = sel.value;
 }
 
+/** Fecha os dois painéis "Nova…" e apaga o texto de erro deles (a escolha mudou). */
+function fecharPaineisNovos(): void {
+  for (const id of ['an-nova-cat', 'an-nova-sub']) {
+    $(id).hidden = true;
+    $<HTMLInputElement>(`${id}-nome`).value = '';
+    texto($(`${id}-erro`), '');
+  }
+}
+
 /** Esvazia já (síncrono) a lista de subcategorias e trava até a nova chegar; invalida respostas antigas. */
 function limparSubcategorias(): void {
   seqSubcategorias++;
   carregandoSubcategorias = true;
+  leituraSubFalhou = false;
+  fecharPaineisNovos();
   const sel = $<HTMLSelectElement>('an-subcategoria');
   preencher(sel, [], '', undefined, 'Carregando…');
   sel.disabled = true;
@@ -291,15 +306,27 @@ async function carregarSubcategorias(escolhida = ''): Promise<void> {
     form = { ...form, subcategoria: '', temSubcategorias: false };
     ultimaSubcategoria = '';
     carregandoSubcategorias = false;
+    leituraSubFalhou = false;
+    fecharPaineisNovos();
     return;
   }
   limparSubcategorias();
   const pedidaPlat = form.plataforma;
   const pedidaCat = form.categoria;
   const meu = seqSubcategorias;
-  const lista = await api.anunciosSubcategorias(pedidaPlat, pedidaCat).catch(() => [] as string[]);
+  const resp = await api.anunciosSubcategorias(pedidaPlat, pedidaCat).catch(() => ({ ok: false, lista: [] as string[] }));
   if (meu !== seqSubcategorias || form.plataforma !== pedidaPlat || form.categoria !== pedidaCat) return;
   carregandoSubcategorias = false;
+  const lista = resp.lista;
+  if (!resp.ok) {
+    // erro de leitura NÃO é "sem subcategorias": trava a criação e não oferece "Sem subcategoria"
+    leituraSubFalhou = true;
+    preencher(sel, [], '', undefined, 'Não consegui ler');
+    form = { ...form, subcategoria: '', temSubcategorias: true };
+    sel.disabled = true;
+    ultimaSubcategoria = '';
+    return;
+  }
   if (lista.length === 0) {
     preencher(sel, [], '', 'Nova subcategoria…', 'Sem subcategoria');
     form = { ...form, subcategoria: '', temSubcategorias: false };
@@ -526,6 +553,10 @@ export function iniciarAnuncios(): void {
   const fecharNovaSub = () => { $('an-nova-sub').hidden = true; $<HTMLInputElement>('an-nova-sub-nome').value = ''; texto($('an-nova-sub-erro'), ''); };
   $('an-nova-sub-cancelar').addEventListener('click', fecharNovaSub);
   const okNovaSub = async () => {
+    if (criandoSub) return;
+    criandoSub = true;
+    const botao = $<HTMLButtonElement>('an-nova-sub-ok');
+    botao.disabled = true;
     const nome = $<HTMLInputElement>('an-nova-sub-nome').value;
     try {
       const r = await api.anunciosCriarSubcategoria(form.plataforma, form.categoria, nome);
@@ -535,6 +566,9 @@ export function iniciarAnuncios(): void {
       atualizar();
     } catch (e) {
       texto($('an-nova-sub-erro'), erroDe(e));
+    } finally {
+      criandoSub = false;
+      botao.disabled = false;
     }
   };
   $('an-nova-sub-ok').addEventListener('click', () => void okNovaSub());

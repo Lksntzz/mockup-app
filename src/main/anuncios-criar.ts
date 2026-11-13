@@ -62,17 +62,19 @@ export async function criarAnuncio(e: EntradaDoAnuncio, aoProgredir?: AoProgredi
   let subcategoria = '';
   let pastaPai = pastaCategoria;
   const pedida = (e.subcategoria ?? '').trim();
+  let subs: string[];
+  try { subs = await listarSubcategorias(pastaCategoria); } catch { return falha('Não consegui ler as subcategorias da pasta da categoria. Escolha a categoria de novo.'); }
   if (pedida) {
-    let subs: string[];
-    try { subs = await listarSubcategorias(pastaCategoria); } catch { return falha('Não consegui ler a pasta da categoria.'); }
     const achada = subs.find((c) => c === pedida) ?? subs.find((c) => mesmoNome(c, pedida));
     if (!achada) return falha(`A subcategoria "${pedida}" não existe em ${categoria}.`);
     subcategoria = achada;
     pastaPai = join(pastaCategoria, achada);
+  } else if (subs.length > 0) {
+    return falha('Escolha a subcategoria desta categoria.');
   }
 
   let irmaos: string[];
-  try { irmaos = await readdir(pastaPai); } catch { return falha('Não consegui ler a pasta da categoria.'); }
+  try { irmaos = await readdir(pastaPai); } catch { return falha(`Não consegui ler a pasta ${subcategoria ? 'da subcategoria' : 'da categoria'}.`); }
   const igual = irmaos.find((n) => mesmoNome(n, arte));
   if (igual) return falha(`Já existe uma pasta "${igual}" nesta ${subcategoria ? 'subcategoria' : 'categoria'}.`, join(pastaPai, igual));
 

@@ -486,12 +486,18 @@ async function resolverCategoria(pastaPlataforma: string, categoria: unknown): P
   return real === undefined ? undefined : join(pastaPlataforma, real);
 }
 ipcMain.handle("anuncios-subcategorias", async (_e, plataforma: unknown, categoria: unknown) => {
+  const vazio = { ok: true as const, lista: [] as string[] };
   const r = await raizDosAnuncios();
-  if (!r.pasta) return [] as string[];
+  if (!r.pasta) return vazio;
   const pasta = await resolverPlataforma(r.pasta, plataforma);
-  if (!pasta) return [] as string[];
+  if (!pasta) return vazio;
   const pastaCat = await resolverCategoria(pasta, categoria);
-  return pastaCat ? listarSubcategorias(pastaCat).catch(() => [] as string[]) : [];
+  if (!pastaCat) return vazio;
+  try {
+    return { ok: true as const, lista: await listarSubcategorias(pastaCat) };
+  } catch {
+    return { ok: false as const, lista: [] as string[] };
+  }
 });
 ipcMain.handle("anuncios-criar-subcategoria", async (_e, plataforma: unknown, categoria: unknown, nome: unknown) => {
   const r = await raizDosAnuncios();

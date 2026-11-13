@@ -115,7 +115,7 @@ describe('criarAnuncio', () => {
     expect(de_novo).toMatchObject({ ok: false, existente: join(raiz, 'Shopee', 'Agenda', 'Arte 1') });
   });
   test('variante de caixa/acento conta como existente', async () => {
-    await mkdir(join(raiz, 'Shopee', 'Agenda', 'ARTÉ 1'));
+    await mkdir(join(raiz, 'Shopee', 'Agenda', 'ARTÉ 1', 'Corel'), { recursive: true });
     const r = await criarAnuncio(entrada());
     expect(r).toMatchObject({ ok: false, existente: join(raiz, 'Shopee', 'Agenda', 'ARTÉ 1') });
     expect(await readdir(join(raiz, 'Shopee', 'Agenda'))).toEqual(['ARTÉ 1']);
@@ -225,6 +225,32 @@ describe('criarAnuncio', () => {
         expect(r.ok && r.pasta).toBe(join(cat(), 'Arte 1'));
         await rm(join(cat(), 'Arte 1'), { recursive: true });
       }
+    });
+    test('subcategoria ".." ou com barra é recusada e não cria nada', async () => {
+      await mkdir(join(cat(), 'MANICURE'));
+      for (const sub of ['..', 'MANICURE\\x', 'a/b']) {
+        const r = await criarAnuncio(entrada({ subcategoria: sub }));
+        expect(r.ok).toBe(false);
+      }
+      expect(await readdir(cat())).toEqual(['MANICURE']);
+      expect(await readdir(raiz)).toEqual(['Shopee']);
+    });
+    test('categoria com subcategorias e subcategoria vazia recusa', async () => {
+      await mkdir(join(cat(), 'MANICURE'));
+      const r = await criarAnuncio(entrada());
+      expect(r).toEqual({ ok: false, motivo: 'Escolha a subcategoria desta categoria.' });
+      expect(await readdir(cat())).toEqual(['MANICURE']);
+    });
+    test('pasta que já é uma arte não conta como subcategoria', async () => {
+      await mkdir(join(cat(), 'Velha', 'Corel'), { recursive: true });
+      const r = await criarAnuncio(entrada());
+      expect(r.ok && r.pasta).toBe(join(cat(), 'Arte 1'));
+    });
+    test('falha ao ler as subcategorias recusa com mensagem clara', async () => {
+      await rm(cat(), { recursive: true });
+      await writeFile(cat(), 'x');
+      const r = await criarAnuncio(entrada());
+      expect(r.ok).toBe(false);
     });
   });
 });
