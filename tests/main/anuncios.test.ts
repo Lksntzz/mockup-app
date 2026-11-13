@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { EntradaDoAnuncio } from '../../src/anuncios/tipos';
-import { criarEMontar, dentroDaRaiz, montarPastaExistente, resolverPlataforma, resolverRaizDosAnuncios, validarFontes } from '../../src/main/anuncios';
+import { criarEMontar, dentroDaRaiz, montarPastaExistente, resolverPlataforma, resolverRaizDosAnuncios, validarFontes, validarFormaDaEntrada } from '../../src/main/anuncios';
 import type { CapaMontada } from '../../src/main/corel';
 
 let base = '';
@@ -330,5 +330,14 @@ describe('montarPastaExistente', () => {
     const r = await montarPastaExistente(raiz, pasta, { rodarMacro });
     expect(r).toMatchObject({ ok: false, motivo: 'A lista do Corel aponta para outra pasta.' });
     expect(rodarMacro).not.toHaveBeenCalled();
+  });
+});
+
+describe('validarFormaDaEntrada: subcategoria', () => {
+  const base = { plataforma: 'a', categoria: 'b', arte: 'c', titulo: 'd', variacoes: [], fontes: [] };
+  test('aceita ausente e string, recusa outro tipo', () => {
+    expect(validarFormaDaEntrada(base)).toBeUndefined();
+    expect(validarFormaDaEntrada({ ...base, subcategoria: 'X' })).toBeUndefined();
+    expect(validarFormaDaEntrada({ ...base, subcategoria: 5 })).toBe('Dados do anúncio inválidos.');
   });
 });

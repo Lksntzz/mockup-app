@@ -189,4 +189,42 @@ describe('criarAnuncio', () => {
     expect(r.manifestoTexto.split('\r\n').slice(2)).toHaveLength(2);
     expect(r.avisos).toHaveLength(2);
   });
+  describe('com subcategoria', () => {
+    const cat = () => join(raiz, 'Shopee', 'Agenda');
+    test('cria a arte dentro da subcategoria', async () => {
+      await mkdir(join(cat(), 'MANICURE'));
+      const r = await criarAnuncio(entrada({ subcategoria: 'MANICURE' }));
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      const pasta = join(cat(), 'MANICURE', 'Arte 1');
+      expect(r.pasta).toBe(pasta);
+      expect(r.cdr).toBe(join(pasta, 'Corel', 'Arte 1.cdr'));
+      expect((await readFile(join(pasta, 'Arte 1.txt'))).toString('utf8')).toContain('Subcategoria: MANICURE');
+    });
+    test('subcategoria inexistente recusa e não cria nada', async () => {
+      const r = await criarAnuncio(entrada({ subcategoria: 'NADA' }));
+      expect(r).toEqual({ ok: false, motivo: 'A subcategoria "NADA" não existe em Agenda.' });
+      expect(await readdir(cat())).toEqual([]);
+    });
+    test('arte já existente na subcategoria recusa apontando para ela', async () => {
+      await mkdir(join(cat(), 'MANICURE', 'Arte 1'), { recursive: true });
+      const r = await criarAnuncio(entrada({ subcategoria: 'MANICURE' }));
+      expect(r.ok).toBe(false);
+      if (r.ok) return;
+      expect(r.existente).toBe(join(cat(), 'MANICURE', 'Arte 1'));
+    });
+    test('arte com o mesmo nome fora da subcategoria não bloqueia', async () => {
+      await mkdir(join(cat(), 'MANICURE'));
+      await mkdir(join(cat(), 'Arte 1'));
+      expect((await criarAnuncio(entrada({ subcategoria: 'manicure' }))).ok).toBe(true);
+      expect(await readdir(join(cat(), 'MANICURE'))).toEqual(['Arte 1']);
+    });
+    test('sem subcategoria (ausente ou vazia) mantém o comportamento', async () => {
+      for (const sub of [undefined, '']) {
+        const r = await criarAnuncio(entrada(sub === undefined ? {} : { subcategoria: sub }));
+        expect(r.ok && r.pasta).toBe(join(cat(), 'Arte 1'));
+        await rm(join(cat(), 'Arte 1'), { recursive: true });
+      }
+    });
+  });
 });

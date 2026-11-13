@@ -57,6 +57,7 @@ export function validarFormaDaEntrada(e: unknown): string | undefined {
   for (const k of ['plataforma', 'categoria', 'arte', 'titulo']) {
     if (typeof o[k] !== 'string') return 'Dados do anúncio inválidos.';
   }
+  if (o.subcategoria !== undefined && typeof o.subcategoria !== 'string') return 'Dados do anúncio inválidos.';
   if (!Array.isArray(o.variacoes) || !Array.isArray(o.fontes)) return 'Dados do anúncio inválidos.';
   for (const v of o.variacoes as unknown[]) {
     const x = v as Record<string, unknown> | null;

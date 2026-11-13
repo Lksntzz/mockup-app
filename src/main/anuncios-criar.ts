@@ -6,7 +6,7 @@ import { montarManifesto, type CapaDoManifesto } from '../anuncios/manifesto';
 import { mesmoNome, nomeDePastaSeguro } from '../anuncios/nomes';
 import type { EntradaDoAnuncio } from '../anuncios/tipos';
 import { montarTxt } from '../anuncios/txt';
-import { listarCategorias, listarPlataformas } from './anuncios-pastas';
+import { listarCategorias, listarPlataformas, listarSubcategorias } from './anuncios-pastas';
 
 export type EtapaProgresso = 'pasta' | 'arte' | 'barras' | 'corel';
 export type EstadoProgresso = 'andamento' | 'feito' | 'pulado' | 'erro';
@@ -58,12 +58,25 @@ export async function criarAnuncio(e: EntradaDoAnuncio, aoProgredir?: AoProgredi
   if (!categoria) return falha(`A categoria "${e.categoria}" não existe em ${plataforma}.`);
   const pastaCategoria = join(pastaPlataforma, categoria);
 
-  let irmaos: string[];
-  try { irmaos = await readdir(pastaCategoria); } catch { return falha('Não consegui ler a pasta da categoria.'); }
-  const igual = irmaos.find((n) => mesmoNome(n, arte));
-  if (igual) return falha(`Já existe uma pasta "${igual}" nesta categoria.`, join(pastaCategoria, igual));
+  // subcategoria (opcional): precisa existir; nunca é criada aqui
+  let subcategoria = '';
+  let pastaPai = pastaCategoria;
+  const pedida = (e.subcategoria ?? '').trim();
+  if (pedida) {
+    let subs: string[];
+    try { subs = await listarSubcategorias(pastaCategoria); } catch { return falha('Não consegui ler a pasta da categoria.'); }
+    const achada = subs.find((c) => c === pedida) ?? subs.find((c) => mesmoNome(c, pedida));
+    if (!achada) return falha(`A subcategoria "${pedida}" não existe em ${categoria}.`);
+    subcategoria = achada;
+    pastaPai = join(pastaCategoria, achada);
+  }
 
-  const pasta = join(pastaCategoria, arte);
+  let irmaos: string[];
+  try { irmaos = await readdir(pastaPai); } catch { return falha('Não consegui ler a pasta da categoria.'); }
+  const igual = irmaos.find((n) => mesmoNome(n, arte));
+  if (igual) return falha(`Já existe uma pasta "${igual}" nesta ${subcategoria ? 'subcategoria' : 'categoria'}.`, join(pastaPai, igual));
+
+  const pasta = join(pastaPai, arte);
   const cdr = join(pasta, 'Corel', `${arte}.cdr`);
 
   // planeja as cópias da arte
@@ -107,7 +120,7 @@ export async function criarAnuncio(e: EntradaDoAnuncio, aoProgredir?: AoProgredi
   }
   let txt: string;
   try {
-    txt = montarTxt({ plataforma, categoria, arte, titulo, variacoes: e.variacoes.map((v, i) => ({ ...v, ean: eans[i]! })) });
+    txt = montarTxt({ plataforma, categoria, ...(subcategoria ? { subcategoria } : {}), arte, titulo, variacoes: e.variacoes.map((v, i) => ({ ...v, ean: eans[i]! })) });
   } catch (err) {
     return falha(err instanceof Error ? err.message : 'Não consegui montar o arquivo de texto do anúncio.');
   }

@@ -1,9 +1,9 @@
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import type { ConfigDesigner } from '../../src/main/config-designer';
-import { acharPastaAnuncios, criarCategoria, mesclarPastasAchadas, listarCategorias, listarPlataformas } from '../../src/main/anuncios-pastas';
+import { acharPastaAnuncios, criarCategoria, criarSubcategoria, listarSubcategorias, mesclarPastasAchadas, listarCategorias, listarPlataformas } from '../../src/main/anuncios-pastas';
 import { ehPasta } from '../../src/main/pasta-fluxo';
 
 let base = '';
@@ -54,5 +54,22 @@ describe('mesclarPastasAchadas', () => {
     expect(mesclarPastasAchadas(cfg(), {}, true)).toEqual({});
     expect(mesclarPastasAchadas(cfg(), { pastaAnuncios: '' }, true)).toEqual({});
     expect(mesclarPastasAchadas(cfg(), { pastaAnuncios: undefined }, true)).toEqual({});
+  });
+  test('listarSubcategorias lista só pastas visíveis, em ordem pt-BR', async () => {
+    const cat = join(raiz, 'Shopee', 'Agenda');
+    for (const p of ['Óculos', 'Manicure', '.x', '_x', '$x']) await mkdir(join(cat, p));
+    await writeFile(join(cat, 'arquivo.txt'), 'x');
+    expect(await listarSubcategorias(cat)).toEqual(['Manicure', 'Óculos']);
+  });
+  test('criarSubcategoria cria, recusa vazio, repetido, pai inexistente e sanitiza', async () => {
+    const cat = join(raiz, 'Shopee', 'Agenda');
+    const r = await criarSubcategoria(cat, 'Manicure');
+    expect(r.ok && (await ehPasta(r.pasta))).toBe(true);
+    expect(await criarSubcategoria(cat, '  ')).toEqual({ ok: false, motivo: 'Digite um nome para a subcategoria.' });
+    expect(await criarSubcategoria(cat, 'MANICURE')).toEqual({ ok: false, motivo: 'Já existe a subcategoria "MANICURE" nesta categoria.' });
+    expect(await criarSubcategoria(join(cat, 'nao-existe'), 'X')).toEqual({ ok: false, motivo: 'Não encontrei a pasta da categoria. Escolha de novo.' });
+    const s = await criarSubcategoria(cat, 'A/B');
+    expect(s.ok).toBe(true);
+    expect(s.ok && (await ehPasta(join(cat, s.nome)))).toBe(true);
   });
 });

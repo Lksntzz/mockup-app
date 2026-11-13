@@ -74,21 +74,29 @@ export const listarCategorias = (pastaPlataforma: string): Promise<string[]> => 
 
 export type ResultadoCategoria = { ok: true; pasta: string; nome: string } | { ok: false; motivo: string };
 
-export async function criarCategoria(pastaPlataforma: string, nome: string): Promise<ResultadoCategoria> {
+export const listarSubcategorias = (pastaCategoria: string): Promise<string[]> => subpastas(pastaCategoria);
+
+async function criarPastaFilha(pastaPai: string, nome: string, rotulo: 'categoria' | 'subcategoria', onde: string): Promise<ResultadoCategoria> {
   const { nome: seguro } = nomeDePastaSeguro(nome);
-  if (!seguro) return { ok: false, motivo: 'Digite um nome para a categoria.' };
-  if (!(await ehPasta(pastaPlataforma))) return { ok: false, motivo: 'Não encontrei a pasta da plataforma. Escolha de novo.' };
-  const existentes = await listarCategorias(pastaPlataforma).catch(() => [] as string[]);
-  if (existentes.some((e) => mesmoNome(e, seguro))) return { ok: false, motivo: `Já existe a categoria "${seguro}" nesta plataforma.` };
-  const pasta = join(pastaPlataforma, seguro);
+  if (!seguro) return { ok: false, motivo: `Digite um nome para a ${rotulo}.` };
+  if (!(await ehPasta(pastaPai))) return { ok: false, motivo: `Não encontrei a pasta da ${rotulo === 'categoria' ? 'plataforma' : 'categoria'}. Escolha de novo.` };
+  const existentes = await subpastas(pastaPai).catch(() => [] as string[]);
+  if (existentes.some((e) => mesmoNome(e, seguro))) return { ok: false, motivo: `Já existe a ${rotulo} "${seguro}" ${onde}.` };
+  const pasta = join(pastaPai, seguro);
   try {
     await mkdir(pasta);
   } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === 'EEXIST') return { ok: false, motivo: `Já existe uma pasta "${seguro}" nesta plataforma.` };
+    if ((e as NodeJS.ErrnoException).code === 'EEXIST') return { ok: false, motivo: `Já existe uma pasta "${seguro}" ${onde}.` };
     return { ok: false, motivo: `Não consegui criar a pasta: ${e instanceof Error ? e.message : String(e)}` };
   }
   return { ok: true, pasta, nome: seguro };
 }
+
+export const criarCategoria = (pastaPlataforma: string, nome: string): Promise<ResultadoCategoria> =>
+  criarPastaFilha(pastaPlataforma, nome, 'categoria', 'nesta plataforma');
+
+export const criarSubcategoria = (pastaCategoria: string, nome: string): Promise<ResultadoCategoria> =>
+  criarPastaFilha(pastaCategoria, nome, 'subcategoria', 'nesta categoria');
 
 /** Decide o que gravar depois da busca automática: só devolve os campos a escrever. */
 export function mesclarPastasAchadas(config: ConfigDesigner, achadas: Partial<ConfigDesigner>, substituir: boolean): Partial<ConfigDesigner> {
