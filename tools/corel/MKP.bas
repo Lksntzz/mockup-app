@@ -28,6 +28,8 @@ Const EAN_ALTURA_GUARDA As Double = 104
 Const EAN_Y_DIGITOS As Double = 158
 Const EAN_TAMANHO_DIGITOS As Double = 24
 Const EAN_X_PRIMEIRO_DIGITO As Double = 43
+' Raio dos cantos do fundo branco, em unidades do desenho.
+Const EAN_RAIO_FUNDO As Double = 10
 ' Largura do modulo, em mm, no EAN-13 a 100%.
 Const EAN_MODULO_MM_100 As Double = 0.33
 ' Altura de um algarismo da Arial, em fracao do tamanho da fonte (para pousar os digitos na linha de base y=158).
@@ -899,6 +901,11 @@ Private Sub PintarDePreto(s As Shape)
     s.Outline.SetNoOutline
 End Sub
 
+Private Sub PintarDeBranco(s As Shape)
+    s.Fill.ApplyUniformFill CreateCMYKColor(0, 0, 0, 0)
+    s.Outline.SetNoOutline
+End Sub
+
 ' Camada onde o codigo de barras e desenhado: a do retangulo (se der para editar e nao for da pagina mestre), senao a ativa da pagina.
 Private Function CamadaParaDesenhar(pagina As Page, retangulo As Shape) As Layer
     Dim camada As Layer
@@ -933,7 +940,7 @@ End Function
 ' Devolve a ampliacao (1 = 100%): larguraMm / 543 * 4,35 / 0,33.
 Private Function DesenharEan(pagina As Page, retangulo As Shape, modulos As String, ean As String) As Double
     Dim k As Double, x0 As Double, y0 As Double, xm As Double, larguraMm As Double
-    Dim camada As Layer, formas As New ShapeRange, s As Shape, grupo As Shape
+    Dim camada As Layer, formas As New ShapeRange, s As Shape, grupo As Shape, fundo As Shape
     Dim i As Long, inicio As Long, j As Long, h As Double, cx As Double
 
     ' escala uniforme: o desenho inteiro cabe no retangulo
@@ -948,6 +955,12 @@ Private Function DesenharEan(pagina As Page, retangulo As Shape, modulos As Stri
     xm = (EAN_LARGURA - 95 * EAN_MODULO) / 2
 
     Set camada = CamadaParaDesenhar(pagina, retangulo)
+
+    ' fundo branco de cantos arredondados do tamanho do desenho (com as margens claras do codigo), criado primeiro para ficar atras das barras
+    ' TESTAR NO COREL: CreateRectangle2 com o raio dos 4 cantos (em mm)
+    Set fundo = camada.CreateRectangle2(x0, y0, larguraMm, EAN_ALTURA * k, EAN_RAIO_FUNDO * k, EAN_RAIO_FUNDO * k, EAN_RAIO_FUNDO * k, EAN_RAIO_FUNDO * k)
+    PintarDeBranco fundo
+    formas.Add fundo
 
     ' barras: cada sequencia de "1" vira um retangulo so
     i = 1

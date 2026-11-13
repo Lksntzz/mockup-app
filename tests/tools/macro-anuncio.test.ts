@@ -43,6 +43,19 @@ describe('tools/corel/MKP.bas', () => {
     expect(bas).toContain('Private Function ProcurarEmCamadas(pagina As Page, especiais As Boolean) As Shape');
   });
 
+  test('DesenharEan cria primeiro um fundo branco de cantos arredondados do tamanho do desenho (atrás das barras) e o põe no mesmo grupo', () => {
+    const ini = bas.indexOf('Private Function DesenharEan');
+    const corpo = bas.slice(ini, bas.indexOf('End Function', ini));
+    const fundo = corpo.indexOf('PintarDeBranco');
+    const barras = corpo.indexOf('PintarDePreto');
+    expect(fundo).toBeGreaterThan(-1);
+    expect(fundo).toBeLessThan(barras);
+    expect(corpo).toMatch(/CreateRectangle2\(x0, y0, larguraMm, EAN_ALTURA \* k, EAN_RAIO_FUNDO \* k, EAN_RAIO_FUNDO \* k, EAN_RAIO_FUNDO \* k, EAN_RAIO_FUNDO \* k\)/);
+    expect(bas).toMatch(/Const EAN_RAIO_FUNDO As Double = \d/);
+    expect(bas).toMatch(/Private Sub PintarDeBranco\(s As Shape\)[\s\S]*CreateCMYKColor\(0, 0, 0, 0\)/);
+    expect(corpo).toContain('formas.Add fundo');
+  });
+
   test('as declarações do módulo vêm antes da primeira rotina (exigência do VBA)', () => {
     const linhas = bas.split('\r\n');
     const primeiraRotina = linhas.findIndex((l) => /^(Private |Public )?(Sub|Function) /.test(l));
