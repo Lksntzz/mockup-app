@@ -4,7 +4,8 @@ import { isValidGtin13, normalizarEan } from '../anuncios/gtin';
 import { nomeDePastaSeguro } from '../anuncios/nomes';
 
 export interface FormAnuncio {
-  plataforma: string; categoria: string; arte: string; titulo: string;
+  plataforma: string; categoria: string; subcategoria: string; temSubcategorias: boolean;
+  arte: string; titulo: string;
   origem: 'nenhuma' | 'pdf' | 'imagens';
   fontes: FonteDaCapa[]; variacoes: Variacao[];
 }
@@ -22,7 +23,7 @@ export interface Validacao {
 export const DICA_EAN_PENDENTE = "EAN pendente — só vale para 'Só criar a pasta'";
 
 export const formVazio = (): FormAnuncio => ({
-  plataforma: '', categoria: '', arte: '', titulo: '', origem: 'nenhuma', fontes: [], variacoes: [],
+  plataforma: '', categoria: '', subcategoria: '', temSubcategorias: false, arte: '', titulo: '', origem: 'nenhuma', fontes: [], variacoes: [],
 });
 
 const variacaoVazia = (): Variacao => ({ capa: '', sku: '', ean: '' });
@@ -74,7 +75,7 @@ export function definirVariacao(f: FormAnuncio, i: number, campo: keyof Variacao
 export function validar(f: FormAnuncio): Validacao {
   const erros: Validacao['erros'] = { ean: {} };
   const avisos: string[] = [];
-  let ok = Boolean(f.plataforma) && Boolean(f.categoria);
+  let ok = Boolean(f.plataforma) && Boolean(f.categoria) && !(f.temSubcategorias && !f.subcategoria);
 
   const arte = f.arte.trim();
   const seguro = nomeDePastaSeguro(arte);

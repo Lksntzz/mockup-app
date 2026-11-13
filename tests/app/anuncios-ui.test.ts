@@ -52,4 +52,13 @@ describe('anuncios-ui', () => {
     expect(removerPar(f, 9)).toBe(f);
     expect(f.fontes).toHaveLength(2);
   });
+  it('subcategoria no caminho, na entrada e preservada por limparArte', () => {
+    const f = { ...formVazio(), plataforma: 'ML', categoria: 'AGENDAMENTO', subcategoria: 'MANICURE', temSubcategorias: true, arte: 'TOQUE ROSE' };
+    expect(caminhoPrevisto(f, 'I:\\ANUNCIOS')).toBe('I:\\ANUNCIOS\\ML\\AGENDAMENTO\\MANICURE\\TOQUE ROSE');
+    expect(caminhoPrevisto({ ...f, subcategoria: '' }, 'I:\\ANUNCIOS')).toBe('I:\\ANUNCIOS\\ML\\AGENDAMENTO\\TOQUE ROSE');
+    expect(montarEntrada(f).subcategoria).toBe('MANICURE');
+    const l = limparArte(f);
+    expect(l.subcategoria).toBe('MANICURE');
+    expect(l.temSubcategorias).toBe(true);
+  });
 });

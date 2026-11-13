@@ -5,6 +5,6 @@ export type FonteDaCapa =
   | { tipo: 'imagem'; capa: string; contra?: string };
 
 export interface EntradaDoAnuncio {
-  raiz: string; plataforma: string; categoria: string; arte: string; titulo: string;
+  raiz: string; plataforma: string; categoria: string; subcategoria?: string; arte: string; titulo: string;
   variacoes: Variacao[]; fontes: FonteDaCapa[]; // mesmo tamanho; índice i = capa i
 }

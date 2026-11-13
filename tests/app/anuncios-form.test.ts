@@ -122,4 +122,18 @@ describe('anuncios-form', () => {
     expect(validar({ ...comLinhas({}), categoria: '' }).podeCriar).toBe(false);
     expect(validar(formVazio()).podeCriar).toBe(false);
   });
+  test('subcategoria: formVazio e regras de validar', () => {
+    expect(formVazio().subcategoria).toBe('');
+    expect(formVazio().temSubcategorias).toBe(false);
+    const ok = comLinhas({});
+    expect(validar(ok).podeCriar).toBe(true);
+    const falta = { ...ok, temSubcategorias: true, subcategoria: '' };
+    expect(validar(falta).podeCriar).toBe(false);
+    expect(validar(falta).podeCriarSoPasta).toBe(false);
+    expect(validar(falta).erros.geral).toBeUndefined();
+    const com = { ...falta, subcategoria: 'MANICURE' };
+    expect(validar(com).podeCriar).toBe(true);
+    expect(validar(com).podeCriarSoPasta).toBe(true);
+    expect(validar({ ...ok, temSubcategorias: false, subcategoria: '' }).podeCriar).toBe(true);
+  });
 });

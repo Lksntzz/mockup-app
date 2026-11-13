@@ -21,6 +21,7 @@ export function montarEntrada(f: FormAnuncio): EntradaDoAnuncio {
     raiz: '',
     plataforma: f.plataforma,
     categoria: f.categoria,
+    subcategoria: f.subcategoria,
     arte: f.arte.trim(),
     titulo: f.titulo.trim(),
     variacoes: f.variacoes.map((v) => ({ capa: v.capa.trim(), sku: v.sku.trim(), ean: v.ean })),
@@ -31,7 +32,7 @@ export function montarEntrada(f: FormAnuncio): EntradaDoAnuncio {
 /** Caminho do quadro "Será criado": completo, a partir da pasta Anúncio 2027 (quando ela é conhecida). */
 export function caminhoPrevisto(f: FormAnuncio, pastaAnuncios?: string): string {
   const arte = nomeDePastaSeguro(f.arte.trim()).nome;
-  const partes = [f.plataforma, f.categoria, arte].filter(Boolean);
+  const partes = [f.plataforma, f.categoria, f.subcategoria, arte].filter(Boolean);
   if (!partes.length) return '';
   if (!pastaAnuncios) return partes.join(' / ');
   const barra = pastaAnuncios.includes('\\') ? '\\' : '/';
