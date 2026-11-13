@@ -1,7 +1,9 @@
 import { aplicarPar, aplicarPdf, definirVariacao, formVazio, validar, type FormAnuncio } from '../app/anuncios-form';
 import { caminhoPrevisto, ehArteAceita, limparArte, removerPar, ehPdf, montarEntrada, textoDaEtapaCorel } from '../app/anuncios-ui';
 import { aplicarProgresso, fecharPassosPendentes, passosIniciais, rotuloDoPasso, svgParaDataUri, tituloFinal, type Passo } from '../app/anuncios-passos';
+import { capasSemEan, linhasDoCard, TEXTO_ORIENTACAO_COREL, textoFaltam, validarEansConcluir } from '../app/anuncios-pendentes-ui';
 import { openPdf } from '../pdf/reader';
+import type { CardPendente } from '../main/anuncios-pendentes';
 import type { MockupApi } from './global';
 
 const api: MockupApi = (window as unknown as { mockupApi: MockupApi }).mockupApi;
@@ -339,6 +341,203 @@ async function carregarSubcategorias(escolhida = ''): Promise<void> {
   ultimaSubcategoria = sel.value;
 }
 
+let seqPendentes = 0;
+let concluindo = false;
+/** Resultado do último "Salvar EAN" por pasta (mostrado dentro do card enquanto ele existir). */
+const resultadosConcluir = new Map<string, { linhas: string[] }>();
+let ultimaLista: CardPendente[] = [];
+let pastaAberta: string | undefined;
+
+function desenharPendentes(): void {
+  const alvo = $('an-pend-lista');
+  alvo.replaceChildren();
+  for (const c of ultimaLista) {
+    const l = linhasDoCard(c);
+    const card = document.createElement('div');
+    card.className = 'an-pend-card';
+    const topo = document.createElement('div');
+    topo.className = 'an-pend-titulo';
+    const nome = document.createElement('span');
+    nome.textContent = l.titulo;
+    const selo = document.createElement('span');
+    selo.className = 'an-pend-selo';
+    selo.textContent = 'Pendente';
+    topo.append(nome, selo);
+    card.append(topo);
+    const cam = document.createElement('div');
+    cam.className = 'an-pend-caminho';
+    cam.textContent = l.caminho;
+    card.append(cam);
+    if (l.erro) {
+      const er = document.createElement('div');
+      er.className = 'an-erro';
+      er.textContent = l.erro;
+      er.setAttribute('role', 'alert');
+      card.append(er);
+    } else {
+      for (const f of l.falta) {
+        const d = document.createElement('div');
+        d.className = 'an-pend-falta';
+        d.textContent = f;
+        card.append(d);
+      }
+      const res = resultadosConcluir.get(c.pasta);
+      if (res) {
+        const ul = document.createElement('ul');
+        ul.className = 'an-lista an-pend-ok';
+        for (const t of res.linhas) item(ul, t);
+        card.append(ul);
+      }
+      if (pastaAberta === c.pasta) card.append(formularioConcluir(c));
+      else {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'secundario';
+        b.textContent = 'Concluir';
+        b.addEventListener('click', () => {
+          if (concluindo) return;
+          pastaAberta = c.pasta;
+          resultadosConcluir.delete(c.pasta);
+          desenharPendentes();
+        });
+        const caixa = document.createElement('div');
+        caixa.className = 'an-botoes';
+        caixa.append(b);
+        card.append(caixa);
+      }
+    }
+    alvo.append(card);
+  }
+}
+
+function formularioConcluir(c: CardPendente): HTMLElement {
+  const form = document.createElement('div');
+  form.className = 'an-pend-form';
+  const valores: Record<number, string> = {};
+  const inputs = new Map<number, { inp: HTMLInputElement; erro: HTMLElement }>();
+  const capas = capasSemEan(c);
+  for (const capa of capas) {
+    valores[capa.n] = '';
+    const lab = document.createElement('label');
+    lab.append(`${capa.capa.trim() || `Capa ${capa.n}`} — EAN (13 dígitos)`);
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.inputMode = 'numeric';
+    inp.maxLength = 20;
+    const erro = document.createElement('span');
+    erro.className = 'an-erro';
+    erro.hidden = true;
+    lab.append(inp, erro);
+    form.append(lab);
+    inputs.set(capa.n, { inp, erro });
+  }
+  const msg = document.createElement('div');
+  msg.className = 'an-erro';
+  msg.hidden = true;
+  msg.setAttribute('role', 'alert');
+  const salvar = document.createElement('button');
+  salvar.type = 'button';
+  salvar.className = 'primario';
+  salvar.textContent = 'Salvar EAN';
+  salvar.disabled = true;
+  const cancelar = document.createElement('button');
+  cancelar.type = 'button';
+  cancelar.className = 'discreto';
+  cancelar.textContent = 'Cancelar';
+  const botoes = document.createElement('div');
+  botoes.className = 'an-botoes';
+  botoes.append(salvar, cancelar);
+  form.append(msg, botoes);
+
+  const revalidar = () => {
+    const v = validarEansConcluir(valores);
+    for (const [n, { inp, erro }] of inputs) {
+      texto(erro, v.erros[n] ?? '');
+      inp.classList.toggle('invalido', Boolean(v.erros[n]));
+    }
+    salvar.disabled = concluindo || !v.podeSalvar;
+    return v;
+  };
+  for (const [n, { inp }] of inputs) inp.addEventListener('input', () => { valores[n] = inp.value; texto(msg, ''); revalidar(); });
+  cancelar.addEventListener('click', () => {
+    if (concluindo) return;
+    pastaAberta = undefined;
+    desenharPendentes();
+  });
+  salvar.addEventListener('click', () => {
+    const v = revalidar();
+    if (concluindo || !v.podeSalvar) return;
+    concluindo = true;
+    salvar.disabled = true;
+    cancelar.disabled = true;
+    texto(msg, '');
+    void (async () => {
+      let ok = false;
+      try {
+        const r = await api.anunciosConcluirPendente(c.pasta, v.eans);
+        if (!r.ok) { texto(msg, r.motivo); return; }
+        ok = true;
+        const linhas = ['Código de barras gerado.'];
+        linhas.push(r.faltam > 0 ? `${textoFaltam(r.faltam)} (o card continua aqui).` : 'Nada mais falta: esta arte não está mais pendente.');
+        linhas.push(TEXTO_ORIENTACAO_COREL);
+        for (const a of r.avisos) linhas.push(`Aviso: ${a}`);
+        resultadosConcluir.set(c.pasta, { linhas });
+        pastaAberta = undefined;
+      } catch (e) {
+        texto(msg, `Não consegui salvar: ${erroDe(e)}`);
+      } finally {
+        concluindo = false;
+        if (ok) await carregarPendentes(c.pasta);
+        else { salvar.disabled = false; cancelar.disabled = false; revalidar(); }
+      }
+    })();
+  });
+  return form;
+}
+
+/** Procura as artes pendentes. `manterResultado`: pasta cujo resultado deve aparecer mesmo se o card sumiu. */
+async function carregarPendentes(manterResultado?: string): Promise<void> {
+  const meu = ++seqPendentes;
+  const estado = $('an-pend-estado');
+  const botao = $<HTMLButtonElement>('an-pend-atualizar');
+  botao.disabled = true;
+  texto(estado, 'Procurando artes pendentes…');
+  estado.classList.remove('an-erro');
+  let r: Awaited<ReturnType<MockupApi['anunciosPendentes']>>;
+  try {
+    r = await api.anunciosPendentes();
+  } catch (e) {
+    r = { ok: false, motivo: erroDe(e) };
+  }
+  if (meu !== seqPendentes) return;
+  botao.disabled = false;
+  if (!r.ok) {
+    ultimaLista = [];
+    desenharPendentes();
+    estado.classList.add('an-erro');
+    texto(estado, r.motivo || 'Não consegui procurar as artes pendentes.');
+    return;
+  }
+  ultimaLista = r.lista;
+  const pastas = new Set(r.lista.map((x) => x.pasta));
+  for (const k of [...resultadosConcluir.keys()]) if (!pastas.has(k) && k !== manterResultado) resultadosConcluir.delete(k);
+  if (pastaAberta && !pastas.has(pastaAberta)) pastaAberta = undefined;
+  desenharPendentes();
+  const sumiu = manterResultado ? resultadosConcluir.get(manterResultado) : undefined;
+  if (sumiu && manterResultado && !pastas.has(manterResultado)) {
+    // card concluído por inteiro: some, mas a orientação do Corel continua visível aqui
+    const linhas = sumiu.linhas;
+    texto(estado, '');
+    const ul = document.createElement('ul');
+    ul.className = 'an-lista an-pend-ok';
+    for (const t of linhas) item(ul, t);
+    $('an-pend-lista').prepend(ul);
+    resultadosConcluir.delete(manterResultado);
+    return;
+  }
+  texto(estado, r.lista.length === 0 ? 'Nenhuma arte pendente.' : '');
+}
+
 export async function mostrarAnuncios(): Promise<void> {
   try {
     const r = await api.anunciosPastas();
@@ -359,6 +558,7 @@ export async function mostrarAnuncios(): Promise<void> {
     texto($('an-aviso'), erroDe(e));
   }
   atualizar();
+  void carregarPendentes();
 }
 
 async function criar(montar: boolean): Promise<void> {
@@ -372,6 +572,7 @@ async function criar(montar: boolean): Promise<void> {
     parar = comecarPassos(false);
     const res = await api.anunciosCriar(montarEntrada(form), montar);
     mostrarResultado(res, 'criar');
+    void carregarPendentes();
   } catch (e) {
     passos = fecharPassosPendentes(passos);
     desenharPassos();
@@ -597,6 +798,7 @@ export function iniciarAnuncios(): void {
     $<HTMLInputElement>('an-arte').select();
   });
   $('an-novo').addEventListener('click', novoAnuncio);
+  $('an-pend-atualizar').addEventListener('click', () => void carregarPendentes());
   $('an-montar-agora').addEventListener('click', () => void montarAgora());
   atualizar();
 }

@@ -15,7 +15,7 @@ Objetivo: confirmar, no CorelDRAW 2025 de verdade, que o macro do anúncio monta
    - um PDF com **6 páginas**;
    - um PDF com **3 páginas**;
    - **4 imagens** (PNG ou JPG).
-4. Estes EANs **de teste** (são válidos, mas inventados; use só para testar):
+4. Para o **Teste P**, o mesmo PDF de 6 páginas serve. Estes EANs **de teste** (são válidos, mas inventados; use só para testar):
    `7891234567895`, `7891234567901`, `7891234567918`, `7891234567925`, `7891234567932`, `7891234567949`.
 5. Na aba Anúncios, use sempre a categoria **TESTE** e a subcategoria **SUB** (você cria as duas no **Teste S**, logo abaixo, antes do Teste 1), para não misturar com as artes de verdade. Por isso as pastas de teste ficam em `TESTE\SUB\Teste 1` etc. No fim, apague a pasta `TESTE` inteira e a pasta `TESTE SEM` (do Teste S).
 6. Um celular com um app que lê código de barras (por exemplo o **Google Lens**, ou qualquer app "leitor de código de barras" da loja do celular).
@@ -191,6 +191,42 @@ Na aba Anúncios, depois da **Categoria** existe a lista **Subcategoria**: ela m
 
 ---
 
+## Teste P — Anúncio pendente (sem EAN, concluído depois)
+
+Aqui você cria uma arte **sem** o código de barras, ela fica na lista **Pendentes**, e depois você completa os EANs aos poucos. Use o **PDF de 6 páginas** (3 capas) e o nome **Teste P**.
+
+1. **Criar como pendente.** Na aba Anúncios, solte o **PDF de 6 páginas**, nome **Teste P**, escolha **TESTE** e **SUB**, digite um título qualquer. **Deixe os 3 campos de EAN vazios.**
+   - **Resultado esperado:** o botão grande troca o nome para **"Criar como pendente"**. Clique nele.
+2. **Conferir a pasta.** Abra a pasta `TESTE\SUB\Teste P` no Explorer.
+   - **Resultado esperado:** existe o arquivo **`pendente.json`**; existe o `Teste P.cdr` (se o Corel estava aberto) **sem** código de barras nas contra capas.
+3. **Ver o card.** Na mesma aba, role até a seção **Pendentes** (embaixo). Se não aparecer, clique em **Atualizar**.
+   - **Resultado esperado:** um card **Teste P** com a etiqueta **Pendente**, o caminho **"Shopee › TESTE › SUB"** (ou a plataforma que você escolheu) e a frase **"Falta: EAN da capa 1 (Capa 1), EAN da capa 2 (Capa 2), EAN da capa 3 (Capa 3)…"**.
+4. **EAN errado.** No card, clique em **Concluir**. Aparecem 3 campos. No da Capa 1 digite `123`.
+   - **Resultado esperado:** o campo fica vermelho com **"EAN inválido: confira os 13 dígitos"** e o botão **Salvar EAN** fica apagado. Digite agora o `7891234567895` na Capa 1 e repita o mesmo número na Capa 2: aparece **"EAN repetido"** e o botão continua apagado. Apague o da Capa 2.
+5. **Concluir só uma capa (parcial).** Com `7891234567895` só na Capa 1, clique em **Salvar EAN**.
+   - **Resultado esperado:** dentro do card aparecem **"Código de barras gerado."**, **"Ainda faltam 2 capas"** e a orientação do Corel. O card **continua** na lista e agora diz que faltam só a **Capa 2** e a **Capa 3**.
+6. **Concluir o resto.** Clique em **Concluir** de novo.
+   - **Resultado esperado:** só aparecem os campos da **Capa 2** e da **Capa 3** (a Capa 1 não aparece mais). Digite `7891234567901` e `7891234567918` e clique em **Salvar EAN**.
+   - **Resultado esperado:** aparece **"Código de barras gerado."** e a orientação do Corel; o card **some** da lista (ou a lista mostra **"Nenhuma arte pendente."**).
+7. **Conferir os arquivos.** Na pasta `TESTE\SUB\Teste P`:
+   - **Resultado esperado:** a pasta `Codigo de barras` tem **Capa 1 - EAN.svg**, **Capa 2 - EAN.svg** e **Capa 3 - EAN.svg**; o `Teste P.txt` (Bloco de Notas) tem os 3 EANs nas linhas das variações (nenhuma com "(pendente)"); o `pendente.json` não existe mais (ou não lista mais nenhuma capa).
+8. **Colocar o código no .cdr.** Abra o `Teste P.cdr` no CorelDRAW. Use **Ferramentas → Scripts → Executar script…**, em "Macros em" escolha **GlobalMacros**, escolha **MKP.AdicionarEanNoCdr** e clique **Executar** (ou use o botão da barra do MKP).
+   - **Resultado esperado:** em cada página **par** (2, 4 e 6) o código de barras aparece **dentro do retângulo do EAN**, com um **fundo branco de cantos arredondados**. Uma janelinha do Corel conta quantos foram desenhados.
+9. **Rodar de novo.** Rode **MKP.AdicionarEanNoCdr** mais uma vez no mesmo arquivo.
+   - **Resultado esperado:** a janelinha diz que os códigos **"ja existiam"** e **nada fica duplicado** (continua 1 código por página par; confira clicando no código: ele não tem outro igual embaixo).
+10. **Outro computador ou outra visão da pasta.** Crie outra arte pendente (repita só os passos 1 a 3, com nome **Teste P2**). Depois abra o app em **outro PC** que usa a mesma pasta Anúncio 2027 (ou feche e abra o app de novo neste PC) e entre na aba Anúncios.
+    - **Resultado esperado:** o card **Teste P2** aparece também lá, igualzinho, porque o pendente fica **dentro da pasta** da arte (no `pendente.json`), e não só no seu computador.
+
+## Teste W — Wire-o rose gold no mockup de Especificação
+
+1. No app, abra a aba do mockup e escolha o modelo **Especificação VT** (o mesmo de sempre).
+2. Escolha **Wire-o: Rose Gold** e, um de cada vez, estes tassels: **Branco**, **Verde**, **Rosa**, **Azul**, **Nenhum** e **Laranja**.
+   - **Resultado esperado em todos os 6 casos:** os **5 anéis de cima da espiral da esquerda** aparecem **cor de cobre** (não brancos nem sumidos).
+3. Agora escolha **Wire-o: Preto** com tassel **Laranja**, e depois **Wire-o: Branco** com tassel **Laranja**.
+   - **Resultado esperado:** **nenhum anel de cobre** no alto da espiral; os anéis ficam pretos (ou brancos), sem cobre.
+
+---
+
 ## Se der errado
 
 - **O app mostrou "Aviso: Capa 1: sem retangulo"** (ou outro número de capa): o macro não achou o retângulo do código de barras. Conserto rápido no molde:
@@ -207,7 +243,7 @@ Na aba Anúncios, depois da **Categoria** existe a lista **Subcategoria**: ela m
 
 ## O que me enviar no fim
 
-- ✅ / ❌ para o Passo 0 e para cada teste de 1 a 9 (incluindo o 7b).
+- ✅ / ❌ para o Passo 0 e para cada teste de 1 a 9 (incluindo o 7b), mais o **Teste P** e o **Teste W**.
 - A porcentagem que o app mostrou na linha "Capa 1: montada, código de barras em …% do tamanho padrão" (basta uma; os números devem ser iguais em todas as capas do mesmo molde).
 - Se apareceu a janela "Importar PDF" (Teste 1, item 7) e quantas vezes.
 - Os prints e arquivos de "Se der errado" para cada ❌.
