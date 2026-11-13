@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aplicarProgresso, fecharPassosPendentes, passosIniciais, svgParaDataUri, tituloFinal } from '../../src/app/anuncios-passos';
+import { aplicarProgresso, fecharPassosPendentes, passosIniciais, rotuloDoPasso, svgParaDataUri, tituloFinal } from '../../src/app/anuncios-passos';
 
 describe('anuncios-passos', () => {
   it('passosIniciais: 4 passos em ordem, todos em espera', () => {
@@ -30,10 +30,17 @@ describe('anuncios-passos', () => {
     const p = passosIniciais();
     expect(tituloFinal(p, { ok: true, avisos: [] })).toBe('Concluído');
     expect(tituloFinal(p, { ok: true, avisos: ['a'] })).toBe('Concluído com avisos');
+    expect(tituloFinal(p, { ok: true, avisos: [], detalhes: ['Capa 1: montada'], etapaCorel: 'feito' })).toBe('Concluído');
     expect(tituloFinal(p, { ok: false, avisos: [] })).toBe('Não concluído');
     expect(tituloFinal(p, { ok: true, avisos: [], etapaCorel: 'aguardando-clique' })).toBe('Concluído com avisos');
     expect(tituloFinal(p, { ok: true, avisos: [], etapaCorel: 'erro' })).toBe('Concluído com avisos');
     expect(tituloFinal(aplicarProgresso(p, 'barras', 'erro'), { ok: true, avisos: [] })).toBe('Concluído com avisos');
+  });
+  it('rotuloDoPasso: Corel fechado explica o segundo clique; pulado comum continua (pulado)', () => {
+    const corel = { etapa: 'corel' as const, rotulo: 'Abrindo o Corel e montando o arquivo', estado: 'pulado' as const };
+    expect(rotuloDoPasso(corel, 'aguardando-clique')).toBe('Abrindo o Corel e montando o arquivo (falta clicar em Montar no Corel agora)');
+    expect(rotuloDoPasso(corel, 'pulado')).toBe('Abrindo o Corel e montando o arquivo (pulado)');
+    expect(rotuloDoPasso({ ...corel, estado: 'feito' }, 'feito')).toBe('Abrindo o Corel e montando o arquivo');
   });
   it('svgParaDataUri não deixa < nem "', () => {
     const u = svgParaDataUri('<svg a="1"/>');

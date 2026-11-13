@@ -97,7 +97,8 @@ describe('criarEMontar', () => {
     const r = await criarEMontar(entrada(), true, { rodarMacro, lerResultado: resultado([{ n: 1, estado: 'ok', ampliacao: 1 }, { n: 2, estado: 'ok', ampliacao: 1 }]) });
     expect(viu).toBe(true);
     expect(r).toMatchObject({ ok: true, etapaCorel: 'feito' });
-    expect(r.avisos).toEqual([
+    expect(r.avisos).toEqual([]);
+    expect(r.detalhes).toEqual([
       'Capa 1: montada, código de barras em 100% do tamanho padrão.',
       'Capa 2: montada, código de barras em 100% do tamanho padrão.',
     ]);
@@ -108,8 +109,9 @@ describe('criarEMontar', () => {
       rodarMacro: macroQueCria(),
       lerResultado: resultado([{ n: 1, estado: 'ok', ampliacao: 0.97 }, { n: 2, estado: 'ok' }]),
     });
-    expect(r.avisos).toContain('Capa 1: montada, código de barras em 97% do tamanho padrão.');
-    expect(r.avisos).toContain('Capa 2: montada, sem código de barras (EAN pendente).');
+    expect(r.detalhes).toContain('Capa 1: montada, código de barras em 97% do tamanho padrão.');
+    expect(r.detalhes).toContain('Capa 2: montada, sem código de barras (EAN pendente).');
+    expect(r.avisos).toEqual([]);
   });
 
   test('ampliação fora de 0,8–2,0 e erro numa capa viram avisos', async () => {
@@ -121,6 +123,7 @@ describe('criarEMontar', () => {
     expect(r.avisos.some((a) => /^Capa 1: /.test(a) && /80%/.test(a))).toBe(true);
     expect(r.avisos.some((a) => /Variação/.test(a))).toBe(false);
     expect(r.avisos).toContain('Capa 2: pdf quebrado');
+    expect(r.detalhes.join(' ')).toContain('Capa 1: montada');
   });
 
   test('sem arquivo de resultado: etapaCorel erro com aviso', async () => {

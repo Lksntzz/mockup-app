@@ -61,7 +61,7 @@ O Corel guarda os macros num lugar chamado **GlobalMacros**. Lá já existe um m
    - **Resultado esperado:** aparece **1 linha** de variação.
 3. Escolha uma plataforma, a categoria **TESTE**, dê o nome de arte **Teste 1**, preencha o título, a capa e o EAN `7891234567895`.
 4. Clique em **Criar pasta e arquivos**.
-   - **Resultado esperado no app:** o título **"Anúncio criado"**, a linha **"Arquivo .cdr montado no Corel"** e a linha **"Aviso: Capa 1: montada, código de barras em 97% do tamanho padrão."** (o número pode ser outro; o normal é ficar entre 80% e 200%). Se ficar fora disso, aparece mais uma linha **"Aviso: Capa 1: Código de barras abaixo de 80%…"** (ou "acima de 200%"). Isso não é erro do teste: só anote o número.
+   - **Resultado esperado no app:** o título **"Concluído"**, a linha **"Arquivo .cdr montado no Corel"** e a linha **"Capa 1: montada, código de barras em 97% do tamanho padrão."** (o número pode ser outro; o normal é ficar entre 80% e 200%). Se ficar fora disso, o título passa a ser **"Concluído com avisos"** e aparece mais uma linha **"Aviso: Capa 1: Código de barras abaixo de 80%…"** (ou "acima de 200%"). Isso não é erro do teste: só anote o número.
 5. Olhe o Corel.
    - **Resultado esperado:** abriu um documento chamado **Teste 1.cdr** com **2 páginas**:
      - **Página 1:** o molde com a arte da página 1 do PDF, encaixada sem esticar.
@@ -69,7 +69,7 @@ O Corel guarda os macros num lugar chamado **GlobalMacros**. Lá já existe um m
      - Nada esticado ou achatado; as barras não saem do retângulo.
 6. Abra a pasta `TESTE\Teste 1` no Explorador de Arquivos.
    - **Resultado esperado:** o `Teste 1.txt` solto na pasta e três subpastas: **`Arte`** (o PDF e as imagens SVG da arte), **`Codigo de barras`** (o código de barras em SVG) e **`Corel`** (o `Teste 1.cdr`). O `montar.txt` fica em `Corel` só enquanto o Corel trabalha: **quando o Corel termina bem, o app apaga o `montar.txt`**. Então, no fim de um teste que deu certo, a pasta `Corel` tem só o `.cdr`.
-   - **Na tela do app:** antes de criar, a **prévia** mostra a arte e o código de barras. Depois de clicar em criar, aparece a **tela de passos**, que vai marcando cada etapa (pasta, arquivos, Corel); no fim ela mostra **"Concluído"**.
+   - **Na tela do app:** ao clicar em criar, aparece a **lista de passos**, que vai marcando cada etapa (pasta, arte, códigos de barras, Corel); no fim o título é **"Concluído"**. As **imagens dos códigos de barras** aparecem no resultado **depois de criar** (não há prévia antes), e os arquivos SVG ficam na pasta `Codigo de barras`.
 7. **Durante o teste, anote:** apareceu alguma janela do Corel perguntando algo (por exemplo "Importar PDF" ou "texto como texto/curvas")? Se apareceu, clique **OK** e anote quantas vezes apareceu.
 
 ## Teste 2 — PDF de 6 páginas (3 capas)
@@ -78,7 +78,7 @@ O Corel guarda os macros num lugar chamado **GlobalMacros**. Lá já existe um m
    - **Resultado esperado:** **3 linhas** de variação.
 2. Use os EANs `7891234567901`, `7891234567918` e `7891234567925` (um em cada linha, nessa ordem).
 3. Clique em **Criar pasta e arquivos**.
-   - **Resultado esperado no app:** três linhas **"Aviso: Capa 1: montada, código de barras em …%"**, **"Capa 2: …"** e **"Capa 3: …"**, cada uma com a porcentagem.
+   - **Resultado esperado no app:** título **"Concluído"** (se alguma porcentagem sair do normal, **"Concluído com avisos"**) e três linhas **"Capa 1: montada, código de barras em …%"**, **"Capa 2: …"** e **"Capa 3: …"**, cada uma com a porcentagem.
 4. No Corel, o **Teste 2.cdr** deve ter **6 páginas**:
    - páginas 1, 3 e 5 = capas (páginas 1, 3 e 5 do PDF, nessa ordem);
    - páginas 2, 4 e 6 = contra capas (páginas 2, 4 e 6 do PDF), cada uma com o molde completo (igual à página 2 do molde);
@@ -107,9 +107,9 @@ O Corel guarda os macros num lugar chamado **GlobalMacros**. Lá já existe um m
 
 1. **Feche o CorelDRAW** por completo.
 2. Monte um anúncio novo (PDF de 2 páginas, nome **Teste 5**, EAN `7891234567895`) e clique em **Criar pasta e arquivos**.
-   - **Resultado esperado:** o app cria a pasta e o `.txt` (confira no Explorador), avisa que **abriu o CorelDRAW com o molde** e mostra o botão **"Montar no Corel agora"** embaixo do resultado. A mensagem **não** deve falar do botão "Abrir no molde (Corel)" (esse botão é da aba MKP, não desta).
+   - **Resultado esperado:** o app cria a pasta e o `.txt` (confira no Explorador), mostra o título **"Concluído com avisos"**, avisa que **abriu o CorelDRAW com o molde** e mostra o botão **"Montar no Corel agora"** embaixo do resultado. A mensagem **não** deve falar do botão "Abrir no molde (Corel)" (esse botão é da aba MKP, não desta).
 3. Espere o Corel abrir **por inteiro** (uns 30 segundos, sem mexer). Clique em **Montar no Corel agora**.
-   - **Resultado esperado:** o título muda para **"Montagem no Corel"**, aparece **"Arquivo .cdr montado no Corel"** e o **Teste 5.cdr** é montado como no Teste 1.
+   - **Resultado esperado:** o título muda para **"Concluído"**, aparece **"Arquivo .cdr montado no Corel"** e o **Teste 5.cdr** é montado como no Teste 1.
    - Depois de montar, o botão **Montar no Corel agora** some (não precisa mais dele).
    - Se o Corel ainda não tinha terminado de abrir, o app pode pedir de novo para esperar: espere mais um pouco e clique outra vez no mesmo botão.
 
@@ -142,7 +142,7 @@ O Corel guarda os macros num lugar chamado **GlobalMacros**. Lá já existe um m
 2. Digite um EAN errado (por exemplo `123`).
    - **Resultado esperado:** agora o campo fica **vermelho** e **os dois botões** ficam apagados. Apague o `123` de novo (campo vazio).
 3. Clique em **Só criar a pasta e o .txt**.
-   - **Resultado esperado no app:** "Anúncio criado", a frase "Você escolheu só criar a pasta e o .txt…" e o aviso **"A variação 1 está sem EAN: as páginas dela serão montadas SEM código de barras."**
+   - **Resultado esperado no app:** o título **"Concluído com avisos"**, a frase "Você escolheu só criar a pasta e o .txt…" e o aviso **"A variação 1 está sem EAN: as páginas dela serão montadas SEM código de barras."**
 4. Abra o `Teste 7b.txt` da pasta no Bloco de Notas.
    - **Resultado esperado:** a linha da variação 1 termina com **`EAN: (pendente)`**.
 5. Com o Corel aberto, rode o macro **AnuncioDaPasta** (igual ao Teste 7) e escolha o `montar.txt` da pasta `TESTE\Teste 7b\Corel` (o Corel precisa ter falhado ou estar fechado na hora de criar, para o `montar.txt` continuar lá, como no Teste 7).

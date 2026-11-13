@@ -24,9 +24,17 @@ export function fecharPassosPendentes(passos: Passo[]): Passo[] {
   return passos.map((p) => (p.estado === 'andamento' ? { ...p, estado: 'erro' as const } : p));
 }
 
+/** Texto de um passo na lista; o do Corel explica quando o Corel estava fechado e falta o segundo clique. */
+export function rotuloDoPasso(p: Passo, etapaCorel?: string): string {
+  if (p.etapa === 'corel' && p.estado === 'pulado' && etapaCorel === 'aguardando-clique') {
+    return `${p.rotulo} (falta clicar em Montar no Corel agora)`;
+  }
+  return p.estado === 'pulado' ? `${p.rotulo} (pulado)` : p.rotulo;
+}
+
 export function tituloFinal(
   passos: Passo[],
-  r: { ok: boolean; existente?: string; avisos: string[]; etapaCorel?: string },
+  r: { ok: boolean; existente?: string; avisos: string[]; detalhes?: string[]; etapaCorel?: string },
 ): 'Concluído' | 'Concluído com avisos' | 'Não concluído' {
   if (!r.ok) return 'Não concluído';
   if (r.avisos.length > 0 || passos.some((p) => p.estado === 'erro') || r.etapaCorel === 'aguardando-clique' || r.etapaCorel === 'erro') {

@@ -10,7 +10,7 @@ import { ehPasta } from './pasta-fluxo';
 
 export type EtapaCorel = 'feito' | 'aguardando-clique' | 'pulado' | 'erro';
 export interface ResultadoAnuncio {
-  ok: boolean; pasta?: string; etapaCorel?: EtapaCorel; avisos: string[]; motivo?: string; existente?: string;
+  ok: boolean; pasta?: string; etapaCorel?: EtapaCorel; avisos: string[]; detalhes: string[]; motivo?: string; existente?: string;
   imagensEan?: ImagemEan[];
 }
 export interface DepsAnuncio {
@@ -86,7 +86,7 @@ export async function resolverPlataforma(raiz: string, nome: unknown): Promise<s
 }
 
 const falha = (motivo: string, existente?: string): ResultadoAnuncio =>
-  existente === undefined ? { ok: false, motivo, avisos: [] } : { ok: false, motivo, existente, avisos: [] };
+  existente === undefined ? { ok: false, motivo, avisos: [], detalhes: [] } : { ok: false, motivo, existente, avisos: [], detalhes: [] };
 
 /** O caminho fica dentro da raiz (e não é a própria raiz)? Barra "..", outra unidade e pastas vizinhas. */
 export function dentroDaRaiz(raiz: string, caminho: string): boolean {
@@ -105,7 +105,7 @@ const PECA_CLICAR =
   'Abri o CorelDRAW com o molde. Espere ele carregar por inteiro (uns 30 segundos, sem mexer) e clique em "Montar no Corel agora".';
 
 /** Etapa do Corel: manda a lista ao macro AnuncioNoMolde e traduz o resultado em avisos. Nunca apaga nada. */
-export async function montarNoCorel(manifestoTexto: string, cdr: string, avisos: string[], deps: DepsAnuncio = {}): Promise<EtapaCorel> {
+export async function montarNoCorel(manifestoTexto: string, cdr: string, avisos: string[], detalhes: string[], deps: DepsAnuncio = {}): Promise<EtapaCorel> {
   const rodarMacro = deps.rodarMacro ?? rodarMacroDoCorel;
   const lerResultado = deps.lerResultado ?? lerResultadoDoAnuncio;
   let caminhos: string[];
@@ -145,22 +145,22 @@ export async function montarNoCorel(manifestoTexto: string, cdr: string, avisos:
     if (capa.estado === 'erro') {
       avisos.push(`Capa ${capa.n}: ${capa.detalhe ?? 'o Corel não conseguiu montar.'}`);
     } else if (capa.ampliacao !== undefined) {
-      avisos.push(`Capa ${capa.n}: montada, código de barras em ${Math.round(capa.ampliacao * 100)}% do tamanho padrão.`);
+      detalhes.push(`Capa ${capa.n}: montada, código de barras em ${Math.round(capa.ampliacao * 100)}% do tamanho padrão.`);
       const a = avisoDeAmpliacao(capa.ampliacao);
       if (a) avisos.push(`Capa ${capa.n}: ${a}`);
     } else {
-      avisos.push(`Capa ${capa.n}: montada, sem código de barras (EAN pendente).`);
+      detalhes.push(`Capa ${capa.n}: montada, sem código de barras (EAN pendente).`);
     }
   }
   return 'feito';
 }
 
 /** Etapa do Corel com progresso; apaga SÓ o montar.txt de onde a lista foi lida, e só se deu 'feito'. */
-async function montarEApagarLista(texto: string, cdr: string, lista: string, avisos: string[], deps: DepsAnuncio, aoProgredir?: AoProgredir): Promise<EtapaCorel> {
+async function montarEApagarLista(texto: string, cdr: string, lista: string, avisos: string[], detalhes: string[], deps: DepsAnuncio, aoProgredir?: AoProgredir): Promise<EtapaCorel> {
   aoProgredir?.('corel', 'andamento');
   let etapa: EtapaCorel;
   try {
-    etapa = await montarNoCorel(texto, cdr, avisos, deps);
+    etapa = await montarNoCorel(texto, cdr, avisos, detalhes, deps);
   } catch (err) {
     aoProgredir?.('corel', 'erro');
     throw err;
@@ -178,12 +178,13 @@ export async function criarEMontar(e: EntradaDoAnuncio, usarCorel: boolean, deps
   const c = await criarAnuncio(e, aoProgredir);
   if (!c.ok) return falha(c.motivo, c.existente);
   const avisos = [...c.avisos];
+  const detalhes: string[] = [];
   if (!usarCorel) {
     aoProgredir?.('corel', 'pulado');
-    return { ok: true, pasta: c.pasta, etapaCorel: 'pulado', avisos, imagensEan: c.imagensEan };
+    return { ok: true, pasta: c.pasta, etapaCorel: 'pulado', avisos, detalhes, imagensEan: c.imagensEan };
   }
-  const etapaCorel = await montarEApagarLista(c.manifestoTexto, c.cdr, join(dirname(c.cdr), 'montar.txt'), avisos, deps, aoProgredir);
-  return { ok: true, pasta: c.pasta, etapaCorel, avisos, imagensEan: c.imagensEan };
+  const etapaCorel = await montarEApagarLista(c.manifestoTexto, c.cdr, join(dirname(c.cdr), 'montar.txt'), avisos, detalhes, deps, aoProgredir);
+  return { ok: true, pasta: c.pasta, etapaCorel, avisos, detalhes, imagensEan: c.imagensEan };
 }
 
 /**
@@ -220,6 +221,7 @@ export async function montarPastaExistente(raiz: string, pasta: unknown, deps: D
     return falha('O arquivo .cdr já existe nesta pasta. Abra a pasta, ou apague o .cdr para montar de novo.');
   }
   const avisos: string[] = [];
-  const etapaCorel = await montarEApagarLista(texto, destino, lista, avisos, deps, aoProgredir);
-  return { ok: true, pasta, etapaCorel, avisos };
+  const detalhes: string[] = [];
+  const etapaCorel = await montarEApagarLista(texto, destino, lista, avisos, detalhes, deps, aoProgredir);
+  return { ok: true, pasta, etapaCorel, avisos, detalhes };
 }

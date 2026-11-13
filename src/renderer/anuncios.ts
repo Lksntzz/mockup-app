@@ -1,6 +1,6 @@
 import { aplicarPar, aplicarPdf, definirVariacao, formVazio, validar, type FormAnuncio } from '../app/anuncios-form';
 import { caminhoPrevisto, ehArteAceita, limparArte, removerPar, ehPdf, montarEntrada, textoDaEtapaCorel } from '../app/anuncios-ui';
-import { aplicarProgresso, fecharPassosPendentes, passosIniciais, svgParaDataUri, tituloFinal, type Passo } from '../app/anuncios-passos';
+import { aplicarProgresso, fecharPassosPendentes, passosIniciais, rotuloDoPasso, svgParaDataUri, tituloFinal, type Passo } from '../app/anuncios-passos';
 import { openPdf } from '../pdf/reader';
 import type { MockupApi } from './global';
 
@@ -20,6 +20,7 @@ let pastaAnuncios: string | undefined;
 /** Pasta do anúncio que acabou de ser criada (para o botão "Montar no Corel agora"). */
 let pastaCriada: string | undefined;
 let passos: Passo[] = [];
+let etapaCorelFinal: string | undefined;
 
 const ICONES: Record<Passo['estado'], string> = { espera: '', andamento: '', feito: '✓', pulado: '', erro: '✗' };
 
@@ -33,7 +34,7 @@ function desenharPassos(): void {
     ic.className = 'an-passo-icone';
     ic.textContent = ICONES[p.estado];
     const tx = document.createElement('span');
-    tx.textContent = p.estado === 'pulado' ? `${p.rotulo} (pulado)` : p.rotulo;
+    tx.textContent = rotuloDoPasso(p, etapaCorelFinal);
     li.append(ic, tx);
     ul.append(li);
   }
@@ -41,6 +42,7 @@ function desenharPassos(): void {
 
 /** Mostra a lista de passos e ouve o progresso só durante a chamada; devolve quem desliga o ouvinte. */
 function comecarPassos(apenasCorel: boolean): () => void {
+  etapaCorelFinal = undefined;
   passos = apenasCorel ? passosIniciais().filter((p) => p.etapa === 'corel') : passosIniciais();
   $('an-resultado').hidden = true;
   $('an-passos').hidden = false;
@@ -293,8 +295,9 @@ async function criar(montar: boolean): Promise<void> {
   rodando = true;
   atualizar();
   mensagem('');
-  const parar = comecarPassos(false);
+  let parar = () => {};
   try {
+    parar = comecarPassos(false);
     const res = await api.anunciosCriar(montarEntrada(form), montar);
     mostrarResultado(res, 'criar');
   } catch (e) {
@@ -315,8 +318,9 @@ async function montarAgora(): Promise<void> {
   $<HTMLButtonElement>('an-montar-agora').disabled = true;
   atualizar();
   mensagem('');
-  const parar = comecarPassos(true);
+  let parar = () => {};
   try {
+    parar = comecarPassos(true);
     const res = await api.anunciosMontarNoCorel(pastaCriada);
     mostrarResultado(res, 'montar');
   } catch (e) {
@@ -346,6 +350,10 @@ function mostrarResultado(r: Awaited<ReturnType<MockupApi['anunciosCriar']>>, or
   if (!r.ok) {
     passos = fecharPassosPendentes(passos);
     desenharPassos();
+    if (passos.every((p) => p.estado === 'espera')) $('an-passos').hidden = true;
+  } else {
+    etapaCorelFinal = r.etapaCorel;
+    desenharPassos();
   }
   $('an-res-titulo').textContent = tituloFinal(passos, { ok: r.ok, existente: r.existente, avisos: r.avisos ?? [], etapaCorel: r.etapaCorel });
   if (r.ok) {
@@ -361,10 +369,13 @@ function mostrarResultado(r: Awaited<ReturnType<MockupApi['anunciosCriar']>>, or
     item(lista, r.motivo ?? 'Algo deu errado.');
     if (r.existente) item(lista, `Pasta existente: ${r.existente}`);
   }
+  for (const d of r.detalhes ?? []) item(lista, d);
   for (const a of r.avisos ?? []) item(lista, `Aviso: ${a}`);
   const barras = $('an-res-barras');
-  barras.replaceChildren();
-  for (const im of r.imagensEan ?? []) {
+  const imagens = r.imagensEan ?? [];
+  // o segundo clique não gera códigos: mantém as prévias já mostradas
+  if (!(origem === 'montar' && imagens.length === 0)) barras.replaceChildren();
+  for (const im of imagens) {
     const fig = document.createElement('figure');
     const img = document.createElement('img');
     img.src = svgParaDataUri(im.svg);
@@ -467,6 +478,7 @@ export function iniciarAnuncios(): void {
   });
   $('an-outro-nome').addEventListener('click', () => {
     $('an-resultado').hidden = true;
+    $('an-passos').hidden = true;
     $<HTMLInputElement>('an-arte').focus();
     $<HTMLInputElement>('an-arte').select();
   });
