@@ -3,13 +3,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-const falhar = vi.hoisted(() => ({ ligado: false }));
+const falhar = vi.hoisted(() => ({ ligado: false, txt: false }));
 vi.mock('node:fs/promises', async (orig) => {
   const m = await orig<typeof import('node:fs/promises')>();
   return {
     ...m,
     writeFile: (async (...a: Parameters<typeof m.writeFile>) => {
-      if (falhar.ligado && String(a[0]).endsWith('ean.txt')) throw new Error('disco cheio');
+      if (falhar.ligado && /ean\.txt(\.tmp)?$/.test(String(a[0]))) throw new Error('disco cheio');
+      if (falhar.txt && /A1\.txt(\.tmp)?$/.test(String(a[0]))) throw new Error('disco cheio');
       return m.writeFile(...a);
     }) as typeof m.writeFile,
   };
@@ -46,7 +47,7 @@ beforeEach(async () => {
   raiz = join(base, 'Anúncio 2027');
   await mkdir(join(raiz, 'Shopee', 'Agenda'), { recursive: true });
 });
-afterEach(() => { falhar.ligado = false; return rm(base, { recursive: true, force: true }); });
+afterEach(() => { falhar.ligado = false; falhar.txt = false; return rm(base, { recursive: true, force: true }); });
 
 describe('listarPendentes', () => {
   test('acha em 2 e 3 níveis e ignora pastas sem pendente.json', async () => {
@@ -226,10 +227,46 @@ describe('concluirPendente', () => {
     expect(await existe(join(p, 'Corel'))).toBe(false);
   });
 
-  test('pasta que é link simbólico é recusada', async () => {
+  test('pasta que é link simbólico é recusada', async (ctx) => {
     const real = await arte(base, 'Real');
     const link = join(cat(), 'Link');
-    try { await symlink(real, link, 'dir'); } catch { return; }
+    try { await symlink(real, link, 'dir'); } catch {
+      try { await symlink(real, link, 'junction'); } catch { ctx.skip(); return; }
+    }
     expect((await concluirPendente(raiz, link, { 1: E1 })).ok).toBe(false);
+  });
+
+  test('outro EAN na mesma capa (SVG sobrou de falha) é recusado; o mesmo EAN retoma', async () => {
+    const p = await arte(cat(), 'A1');
+    falhar.txt = true;
+    expect((await concluirPendente(raiz, p, { 1: E1 })).ok).toBe(false);
+    falhar.txt = false;
+    const r = await concluirPendente(raiz, p, { 1: E3 });
+    expect(r.ok).toBe(false);
+    expect(await existe(join(p, 'Codigo de barras', `Capa 1 - ${E3}.svg`))).toBe(false);
+    expect(await existe(join(p, 'Corel', 'ean.txt'))).toBe(false);
+    expect((await concluirPendente(raiz, p, { 1: E1 })).ok).toBe(true);
+  });
+
+  test('outro EAN na mesma capa já no Corel\\ean.txt é recusado', async () => {
+    const p = await arte(cat(), 'A1');
+    await writeFile(join(p, 'Corel', 'ean.txt'), Buffer.from(`1|${E2}|x\r\n`, 'latin1'));
+    expect((await concluirPendente(raiz, p, { 1: E1 })).ok).toBe(false);
+    expect(await existe(join(p, 'Codigo de barras'))).toBe(false);
+  });
+
+  test('sem linha n no .txt e SVG de outro EAN sobrando: recusa', async () => {
+    const p = await arte(cat(), 'A1', [1, 2], TXT('(pendente)', '(pendente)').replace('2 | Capa', '9 | Capa'));
+    await mkdir(join(p, 'Codigo de barras'));
+    await writeFile(join(p, 'Codigo de barras', `Capa 2 - ${E3}.svg`), '<svg/>');
+    expect((await concluirPendente(raiz, p, { 2: E2 })).ok).toBe(false);
+    expect(await existe(join(p, 'Codigo de barras', `Capa 2 - ${E2}.svg`))).toBe(false);
+  });
+
+  test('falha no rename não deixa .tmp', async () => {
+    const p = await arte(cat(), 'A1');
+    await mkdir(join(p, 'Corel', 'ean.txt'));
+    expect((await concluirPendente(raiz, p, { 1: E1 })).ok).toBe(false);
+    expect(await existe(join(p, 'Corel', 'ean.txt.tmp'))).toBe(false);
   });
 });

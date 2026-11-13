@@ -1,5 +1,5 @@
 import { lstat, mkdir, readFile, readdir, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
-import { basename, join } from 'node:path';
+import { basename, join, resolve, sep } from 'node:path';
 import { encodeEan13 } from '../anuncios/ean';
 import { gerarSvgEan13 } from '../anuncios/ean-svg';
 import { isValidGtin13, normalizarEan } from '../anuncios/gtin';
@@ -89,15 +89,25 @@ function erroDeArte(arte: string): string | undefined {
 
 async function gravarAtomico(arquivo: string, conteudo: string | Buffer, enc?: 'utf8'): Promise<void> {
   const tmp = `${arquivo}.tmp`;
-  await (enc ? writeFile(tmp, conteudo, enc) : writeFile(tmp, conteudo));
-  await rename(tmp, arquivo);
+  try {
+    await (enc ? writeFile(tmp, conteudo, enc) : writeFile(tmp, conteudo));
+    await rename(tmp, arquivo);
+  } catch (e) {
+    await rm(tmp, { force: true }).catch(() => undefined);
+    throw e;
+  }
 }
 
 const filas = new Map<string, Promise<unknown>>();
 
 /** Uma conclusão por vez em cada pasta (a validação também roda dentro da fila). */
 export function concluirPendente(raiz: string, pasta: unknown, eans: Record<number, string>): Promise<ResultadoConcluir> {
-  const chave = typeof pasta === 'string' ? pasta : '';
+  let chave = '';
+  if (typeof pasta === 'string' && pasta) {
+    chave = resolve(pasta);
+    while (chave.length > 1 && chave.endsWith(sep)) chave = chave.slice(0, -1);
+    if (process.platform === 'win32') chave = chave.toLowerCase();
+  }
   const anterior = filas.get(chave) ?? Promise.resolve();
   const atual = anterior.then(() => concluir(raiz, pasta, eans), () => concluir(raiz, pasta, eans));
   filas.set(chave, atual);
@@ -168,10 +178,22 @@ async function concluir(raiz: string, pasta: unknown, eans: Record<number, strin
     const m = /^Capa (\d+) - (\d+)\.svg$/i.exec(nome);
     if (m) gravados.push({ n: Number(m[1]), ean: m[2]! });
   }
+  const temCorel = await ehPasta(join(pasta, 'Corel'));
+  const pastaCorel = join(pasta, !temCorel && (await ehPasta(join(pasta, '_corel'))) ? '_corel' : 'Corel');
+  const arqEan = join(pastaCorel, 'ean.txt');
+  let antes = '';
+  try { antes = (await readFile(arqEan)).toString('latin1'); } catch { antes = ''; }
+  const linhasAntes = antes.split(/\r?\n/).filter((l) => l !== '');
+  for (const l of linhasAntes) {
+    const m = /^(\d+)\|(\d+)\|/.exec(l);
+    if (m) gravados.push({ n: Number(m[1]), ean: m[2]! });
+  }
   for (const [n, ean] of novos) {
-    if (gravados.some((g) => g.ean === ean && g.n !== n)) return recusa(`O EAN ${ean} (capa ${n}) já está em uso em outra capa desta arte.`);
     const l = doTxt.get(n);
     if (l !== undefined && l !== ean) return recusa(`A linha ${n} do .txt já tem outro EAN; confira à mão.`);
+    const outro = gravados.find((g) => g.n === n && g.ean !== ean);
+    if (outro) return recusa(`A capa ${n} já tem outro EAN (${outro.ean}) gravado; confira à mão.`);
+    if (gravados.some((g) => g.ean === ean && g.n !== n)) return recusa(`O EAN ${ean} (capa ${n}) já está em uso em outra capa desta arte.`);
   }
 
   // planeja o .txt antes de gravar qualquer coisa
@@ -190,15 +212,9 @@ async function concluir(raiz: string, pasta: unknown, eans: Record<number, strin
     await mkdir(pastaBarras, { recursive: true });
     for (const s of svgs) await writeFile(join(pastaBarras, s.nome), s.svg, 'utf8');
     if (txt !== undefined && novoTxt !== txt) await gravarAtomico(arquivoTxt, novoTxt!, 'utf8');
-    const temCorel = await ehPasta(join(pasta, 'Corel'));
-    const pastaCorel = join(pasta, !temCorel && (await ehPasta(join(pasta, '_corel'))) ? '_corel' : 'Corel');
     await mkdir(pastaCorel, { recursive: true });
-    const arqEan = join(pastaCorel, 'ean.txt');
-    let antes = '';
-    try { antes = (await readFile(arqEan)).toString('latin1'); } catch { antes = ''; }
-    const linhasAntes = antes.split(/\r?\n/).filter((l) => l !== '');
     const todas = [...linhasAntes, ...linhasCorel.filter((l) => !linhasAntes.includes(l))];
-    await writeFile(arqEan, Buffer.from(`${todas.join('\r\n')}\r\n`, 'latin1'));
+    await gravarAtomico(arqEan, Buffer.from(`${todas.join('\r\n')}\r\n`, 'latin1'));
     const resto = aposConcluir(pend, [...novos.keys()]);
     if (resto) await gravarAtomico(join(pasta, ARQ), serializarPendencia(resto), 'utf8');
     else await rm(join(pasta, ARQ), { force: true });
