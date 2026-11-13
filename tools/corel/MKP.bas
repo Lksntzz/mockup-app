@@ -6,6 +6,7 @@ Option Explicit
 '  - ExportarPDFparaMKP:   salva o PDF (predefinicao "MKP") ao lado do .cdr aberto.
 ' O app chama os dois por um botao; rodando a mao tambem funciona.
 '  - AnuncioNoMolde / AnuncioDaPasta: monta o .cdr do anuncio (varias capas + codigo de barras EAN). Ver o bloco ANUNCIO 2027 no fim.
+'  - AdicionarEanNoCdr:    desenha o codigo de barras (Corel\ean.txt, deixado pelo app) nas contra capas do .cdr aberto, sem montar de novo.
 
 Const MOLDE As String = "C:\MOLDE\MOLDE.cdr"
 ' A arte do cliente entra no quadrado MENOR do molde (150 x 210 mm). A area maior (195 x 255, com a dobra) o designer completa a mao.
@@ -521,7 +522,7 @@ Private Sub MontarAnuncio(manifesto As String, Optional pastaDoAnuncio As String
 
     ' 2) cada capa sozinha: erro numa nao para as outras
     For i = 1 To n
-        resultado = resultado & "capa" & i & "=" & MontarCapa(doc, capas(i), frentes(i), versos(i), falhaPagina(i), pastaDoAnuncio, pdfs) & vbCrLf
+        resultado = resultado & "capa" & i & "=" & MontarCapa(doc, i, capas(i), frentes(i), versos(i), falhaPagina(i), pastaDoAnuncio, pdfs) & vbCrLf
     Next
 
     FecharPdfs pdfs
@@ -618,7 +619,7 @@ Private Function CamadaDaPagina(pagina As Page, nome As String) As Layer
 End Function
 
 ' Uma capa: arte da frente na pagina impar, arte do verso e codigo de barras na pagina par. Devolve "OK 97%", "OK" ou "ERRO motivo".
-Private Function MontarCapa(doc As Document, linha As String, pagFrente As Page, pagVerso As Page, falhaDaPagina As String, _
+Private Function MontarCapa(doc As Document, numero As Long, linha As String, pagFrente As Page, pagVerso As Page, falhaDaPagina As String, _
                             pastaDoAnuncio As String, pdfs As Collection) As String
     Dim frente As String, verso As String, ean As String, modulos As String
     Dim pf As Long, pv As Long, i As Long
@@ -683,7 +684,7 @@ Private Function MontarCapa(doc As Document, linha As String, pagFrente As Page,
     End If
 
     etapa = "desenhando o codigo de barras"
-    ampliacao = DesenharEan(pagVerso, retangulo, modulos, ean)
+    ampliacao = DesenharEan(pagVerso, retangulo, modulos, ean, "MKP-EAN-" & CStr(numero))
     MontarCapa = "OK " & CStr(CLng(ampliacao * 100)) & "%"
     Exit Function
 
@@ -938,7 +939,7 @@ End Function
 ' Desenha o EAN-13 (barras pretas a partir dos 95 modulos e os digitos) dentro do retangulo, sem distorcer, centralizado e agrupado.
 ' Desenho de 543 x 189 (o mesmo do app): barras em y=18, altura 92 (guardas 104), modulo 4,35, digitos em y=158 tamanho 24.
 ' Devolve a ampliacao (1 = 100%): larguraMm / 543 * 4,35 / 0,33.
-Private Function DesenharEan(pagina As Page, retangulo As Shape, modulos As String, ean As String) As Double
+Private Function DesenharEan(pagina As Page, retangulo As Shape, modulos As String, ean As String, Optional nomeDoGrupo As String = "") As Double
     Dim k As Double, x0 As Double, y0 As Double, xm As Double, larguraMm As Double
     Dim camada As Layer, formas As New ShapeRange, s As Shape, grupo As Shape, fundo As Shape
     Dim i As Long, inicio As Long, j As Long, h As Double, cx As Double
@@ -992,7 +993,174 @@ Private Function DesenharEan(pagina As Page, retangulo As Shape, modulos As Stri
 
     Set grupo = formas.Group
     ' criado depois do retangulo, o grupo ja fica na frente dele quando estao na mesma camada
-    grupo.Name = "Codigo de barras " & ean
+    If nomeDoGrupo <> "" Then grupo.Name = nomeDoGrupo Else grupo.Name = "Codigo de barras " & ean
 
     DesenharEan = larguraMm / EAN_LARGURA * EAN_MODULO / EAN_MODULO_MM_100
+End Function
+
+' ============================================================================================
+' ADICIONAR EAN NO .CDR EXISTENTE (anuncio pendente concluido no app)
+' O app grava "<pasta da arte>\Corel\ean.txt": uma linha por capa, "n|ean|mod" (n = numero da capa, a partir de 1).
+' A capa n tem a frente na pagina 2n-1 e a contra capa na pagina 2n; o EAN e desenhado na contra capa, com o mesmo DesenharEan do
+' fluxo normal, e o grupo se chama "MKP-EAN-n". Se esse grupo ja existe na pagina, a capa e pulada (pode rodar duas vezes).
+' ean.txt so e apagado se nenhuma capa falhou.
+' ============================================================================================
+
+Sub AdicionarEanNoCdr()
+    Dim doc As Document, arquivo As String, texto As String, linhas() As String
+    Dim i As Long, feitos As Long, existiam As Long, falharam As Long
+    Dim r As String, falhas As String, msg As String, titulo As String
+
+    titulo = "Adicionar EAN no .cdr"
+    If Documents.Count = 0 Then
+        MsgBox "Abra o arquivo .cdr da arte antes.", vbExclamation, titulo
+        Exit Sub
+    End If
+    Set doc = ActiveDocument
+
+    On Error GoTo erroGeral
+    arquivo = AcharEanTxt(doc)
+    If arquivo = "" Then
+        MsgBox "Nao achei o ean.txt para este .cdr (ele fica em <pasta da arte>\Corel\ean.txt)." & vbCrLf & _
+            "Conclua o anuncio pendente no app e rode o macro de novo.", vbExclamation, titulo
+        Exit Sub
+    End If
+
+    texto = Replace(Replace(LerArquivoInteiro(arquivo), vbCrLf, vbLf), vbCr, vbLf)
+    linhas = Split(texto, vbLf)
+    doc.Unit = cdrMillimeter
+    For i = LBound(linhas) To UBound(linhas)
+        If Trim(linhas(i)) <> "" Then
+            r = DesenharEanDaLinha(doc, Trim(linhas(i)))
+            If Left(r, 2) = "OK" Then
+                feitos = feitos + 1
+            ElseIf Left(r, 2) = "JA" Then
+                existiam = existiam + 1
+            Else
+                falharam = falharam + 1
+                falhas = falhas & vbCrLf & "- " & r
+            End If
+        End If
+    Next
+
+    msg = "Desenhados: " & feitos & vbCrLf & "Ja existiam: " & existiam & vbCrLf & "Falharam: " & falharam
+    If falharam > 0 Then
+        msg = msg & falhas & vbCrLf & vbCrLf & "O ean.txt foi mantido. Corrija e rode o macro de novo (o que ja foi desenhado e pulado)."
+    Else
+        On Error Resume Next
+        Kill arquivo
+        On Error GoTo 0
+    End If
+    If feitos > 0 Then msg = msg & vbCrLf & vbCrLf & "Salve o arquivo (Ctrl+S) para guardar o codigo de barras."
+    If falharam > 0 Then
+        MsgBox msg, vbExclamation, titulo
+    Else
+        MsgBox msg, vbInformation, titulo
+    End If
+    Exit Sub
+
+erroGeral:
+    MsgBox "Nao consegui adicionar o EAN: " & SoAscii(Err.Description), vbCritical, titulo
+End Sub
+
+' Acha o ean.txt do .cdr aberto (na pasta do .cdr, em Corel\ ou _corel\ dentro dela); se nao achar, pergunta a pasta da arte. "" se nao achou.
+Private Function AcharEanTxt(doc As Document) As String
+    Dim pasta As String, escolha As String
+
+    If Len(doc.FilePath) > 0 And Len(doc.FileName) > 0 Then
+        pasta = SemBarraFinal(doc.FilePath)
+        AcharEanTxt = EanTxtEm(pasta)
+        If AcharEanTxt <> "" Then Exit Function
+    End If
+
+    escolha = EscolherPastaDoAnuncio()
+    If escolha = "" Then Exit Function
+    Do While Right(escolha, 1) = "\"
+        escolha = Left(escolha, Len(escolha) - 1)
+    Loop
+    If Not EhPasta(escolha) Then escolha = PastaDe(escolha)
+    If LCase(NomeDoArquivo(escolha)) = "corel" Or LCase(NomeDoArquivo(escolha)) = "_corel" Then escolha = PastaDe(escolha)
+    AcharEanTxt = EanTxtEm(escolha)
+End Function
+
+' ean.txt dentro de uma pasta que e a da arte (Corel\ean.txt, _corel\ean.txt) ou a propria pasta Corel, ou a pasta so com o .cdr.
+Private Function EanTxtEm(pasta As String) As String
+    EanTxtEm = ""
+    If pasta = "" Then Exit Function
+    If Existe(pasta & "\Corel\ean.txt") Then
+        EanTxtEm = pasta & "\Corel\ean.txt"
+    ElseIf Existe(pasta & "\_corel\ean.txt") Then
+        EanTxtEm = pasta & "\_corel\ean.txt"
+    ElseIf Existe(pasta & "\ean.txt") Then
+        EanTxtEm = pasta & "\ean.txt"
+    End If
+End Function
+
+' Uma linha "n|ean|mod": devolve "OK", "JA (ja existia)" ou "ERRO motivo" (com o numero da capa).
+Private Function DesenharEanDaLinha(doc As Document, linha As String) As String
+    Dim partes() As String, n As Long, ean As String, modulos As String, nome As String
+    Dim pagina As Page, retangulo As Shape, camada As Layer, i As Long, etapa As String
+
+    On Error GoTo erro
+    etapa = "lendo a linha"
+    partes = Split(linha, "|")
+    If UBound(partes) < 2 Then
+        DesenharEanDaLinha = "ERRO linha invalida no ean.txt"
+        Exit Function
+    End If
+    n = CLng(Val(Trim(partes(0))))
+    ean = Trim(partes(1))
+    modulos = Trim(partes(2))
+    If n < 1 Then
+        DesenharEanDaLinha = "ERRO linha invalida no ean.txt"
+        Exit Function
+    End If
+    If Len(ean) <> 13 Or Len(modulos) <> 95 Then
+        DesenharEanDaLinha = "ERRO capa " & n & ": codigo de barras invalido no ean.txt"
+        Exit Function
+    End If
+    For i = 1 To 95
+        If Mid$(modulos, i, 1) <> "0" And Mid$(modulos, i, 1) <> "1" Then
+            DesenharEanDaLinha = "ERRO capa " & n & ": codigo de barras invalido no ean.txt"
+            Exit Function
+        End If
+    Next
+    For i = 1 To 13
+        If Mid$(ean, i, 1) < "0" Or Mid$(ean, i, 1) > "9" Then
+            DesenharEanDaLinha = "ERRO capa " & n & ": codigo de barras invalido no ean.txt"
+            Exit Function
+        End If
+    Next
+
+    If 2 * n > doc.Pages.Count Then
+        DesenharEanDaLinha = "ERRO capa " & n & ": o .cdr nao tem a pagina " & (2 * n)
+        Exit Function
+    End If
+    etapa = "abrindo a pagina " & (2 * n)
+    Set pagina = doc.Pages(2 * n)
+    pagina.Activate
+
+    nome = "MKP-EAN-" & n
+    etapa = "procurando o grupo " & nome
+    For Each camada In CamadasParaProcurar(pagina)
+        If Not ProcurarPorNome(camada.Shapes, nome) Is Nothing Then
+            DesenharEanDaLinha = "JA capa " & n
+            Exit Function
+        End If
+    Next
+
+    etapa = "procurando o retangulo do EAN"
+    Set retangulo = AcharRetanguloDoEan(pagina)
+    If retangulo Is Nothing Then
+        DesenharEanDaLinha = "ERRO capa " & n & ": sem retangulo do EAN na pagina " & (2 * n)
+        Exit Function
+    End If
+
+    etapa = "desenhando o codigo de barras"
+    DesenharEan pagina, retangulo, modulos, ean, nome
+    DesenharEanDaLinha = "OK"
+    Exit Function
+
+erro:
+    DesenharEanDaLinha = "ERRO capa " & n & ", " & etapa & ": " & SoAscii(Err.Description)
 End Function

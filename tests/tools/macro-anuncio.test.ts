@@ -62,4 +62,41 @@ describe('tools/corel/MKP.bas', () => {
     const ultimaConst = linhas.reduce((u, l, i) => (/^(Private )?Const /.test(l) || /^Private \w+ As /.test(l) ? i : u), -1);
     expect(primeiraRotina).toBeGreaterThan(ultimaConst);
   });
+
+  test('AdicionarEanNoCdr: lê Corel\\ean.txt, reaproveita DesenharEan/AcharRetanguloDoEan, nomeia MKP-EAN-n e é idempotente', () => {
+    expect(bas).toMatch(/^Sub AdicionarEanNoCdr\(\)/m);
+    expect(bas).toContain('\\Corel\\ean.txt');
+    expect(bas).toContain('\\_corel\\ean.txt');
+    expect(bas).toContain('ActiveDocument');
+    expect(bas).toContain('LerArquivoInteiro(arquivo)');
+    expect(bas).toContain('EscolherPastaDoAnuncio()');
+    expect(bas).toContain("AdicionarEanNoCdr:");
+    const ini = bas.indexOf('Sub AdicionarEanNoCdr()');
+    const corpo = bas.slice(ini);
+    expect(corpo).toContain('AcharRetanguloDoEan(pagina)');
+    expect(corpo).toMatch(/DesenharEan pagina, retangulo, modulos, ean, nome/);
+    expect(corpo).toContain('"MKP-EAN-" & n');
+    expect(corpo).toContain('ProcurarPorNome(camada.Shapes, nome)');
+    expect(corpo).toContain('CamadasParaProcurar(pagina)');
+    expect(corpo).toContain('doc.Pages(2 * n)');
+  });
+
+  test('DesenharEan nomeia o grupo MKP-EAN-n (nos dois fluxos) sem mudar o resto', () => {
+    expect(bas).toMatch(/Private Function DesenharEan\(pagina As Page, retangulo As Shape, modulos As String, ean As String, Optional nomeDoGrupo As String = ""\) As Double/);
+    expect(bas).toContain('grupo.Name = nomeDoGrupo');
+    expect(bas).toContain('DesenharEan(pagVerso, retangulo, modulos, ean, "MKP-EAN-" & CStr(numero))');
+  });
+
+  test('AdicionarEanNoCdr só apaga o ean.txt se nenhuma capa falhou', () => {
+    const ini = bas.indexOf('Sub AdicionarEanNoCdr()');
+    const corpo = bas.slice(ini, bas.indexOf('End Sub', ini));
+    const kills = corpo.match(/Kill /g) ?? [];
+    expect(kills.length).toBe(1);
+    const antes = corpo.slice(0, corpo.indexOf('Kill arquivo'));
+    expect(antes.slice(antes.lastIndexOf('If falharam')).startsWith('If falharam > 0 Then')).toBe(true);
+    expect(antes.slice(antes.lastIndexOf('Else'))).toContain('Else');
+    expect(corpo).toContain('Desenhados: ');
+    expect(corpo).toContain('Ja existiam: ');
+    expect(corpo).toContain('Falharam: ');
+  });
 });
