@@ -1,5 +1,5 @@
-import { mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { lstat, mkdir, readFile, readdir, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { basename, join } from 'node:path';
 import { encodeEan13 } from '../anuncios/ean';
 import { gerarSvgEan13 } from '../anuncios/ean-svg';
 import { isValidGtin13, normalizarEan } from '../anuncios/gtin';
@@ -68,6 +68,8 @@ export async function listarPendentes(raiz: string): Promise<CardPendente[]> {
     };
     try {
       const p = lerPendencia(await readFile(join(c.pasta, ARQ), 'utf8'));
+      const ruim = erroDeArte(p.arte);
+      if (ruim) throw new Error(ruim);
       return { ...base, arte: p.arte, capas: p.capas };
     } catch (e) {
       return { ...base, arte: c.pasta.split(/[\\/]/).pop() ?? '', capas: [], erro: e instanceof Error ? e.message : String(e) };
@@ -78,10 +80,42 @@ export async function listarPendentes(raiz: string): Promise<CardPendente[]> {
 const temPendente = (pasta: string) => stat(join(pasta, ARQ)).then((s) => s.isFile(), () => false);
 
 
-export async function concluirPendente(raiz: string, pasta: unknown, eans: Record<number, string>): Promise<ResultadoConcluir> {
+function erroDeArte(arte: string): string | undefined {
+  if (arte === '' || /[\\/:]/.test(arte) || arte.includes('..') || basename(arte) !== arte || arte === '.') {
+    return 'pendente.json está estragado (nome da arte inválido).';
+  }
+  return undefined;
+}
+
+async function gravarAtomico(arquivo: string, conteudo: string | Buffer, enc?: 'utf8'): Promise<void> {
+  const tmp = `${arquivo}.tmp`;
+  await (enc ? writeFile(tmp, conteudo, enc) : writeFile(tmp, conteudo));
+  await rename(tmp, arquivo);
+}
+
+const filas = new Map<string, Promise<unknown>>();
+
+/** Uma conclusão por vez em cada pasta (a validação também roda dentro da fila). */
+export function concluirPendente(raiz: string, pasta: unknown, eans: Record<number, string>): Promise<ResultadoConcluir> {
+  const chave = typeof pasta === 'string' ? pasta : '';
+  const anterior = filas.get(chave) ?? Promise.resolve();
+  const atual = anterior.then(() => concluir(raiz, pasta, eans), () => concluir(raiz, pasta, eans));
+  filas.set(chave, atual);
+  const limpar = () => { if (filas.get(chave) === atual) filas.delete(chave); };
+  atual.then(limpar, limpar);
+  return atual;
+}
+
+async function concluir(raiz: string, pasta: unknown, eans: Record<number, string>): Promise<ResultadoConcluir> {
   const recusa = (motivo: string): ResultadoConcluir => ({ ok: false, motivo });
   if (typeof pasta !== 'string' || !pasta || !dentroDaRaiz(raiz, pasta) || !(await ehPasta(pasta))) {
     return recusa('Essa pasta não está dentro da pasta dos Anúncios 2027.');
+  }
+  try {
+    if ((await lstat(pasta)).isSymbolicLink()) return recusa('Essa pasta é um atalho (link); abra a pasta real.');
+    if (!dentroDaRaiz(await realpath(raiz), await realpath(pasta))) return recusa('Essa pasta não está dentro da pasta dos Anúncios 2027.');
+  } catch {
+    return recusa('Não consegui conferir a pasta.');
   }
   let pend;
   try {
@@ -90,6 +124,10 @@ export async function concluirPendente(raiz: string, pasta: unknown, eans: Recor
     if ((e as NodeJS.ErrnoException)?.code === 'ENOENT') return recusa('Essa arte não tem pendência (pendente.json não existe).');
     return recusa(e instanceof Error ? e.message : String(e));
   }
+  const ruimArte = erroDeArte(pend.arte);
+  if (ruimArte) return recusa(ruimArte);
+  const arquivoTxt = join(pasta, `${pend.arte}.txt`);
+  if (!dentroDaRaiz(pasta, arquivoTxt)) return recusa('pendente.json está estragado (nome da arte inválido).');
   if (eans === null || typeof eans !== 'object') return recusa('Informe os EANs a gravar.');
   const entradas = Object.entries(eans);
   if (entradas.length === 0) return recusa('Informe pelo menos um EAN.');
@@ -98,6 +136,7 @@ export async function concluirPendente(raiz: string, pasta: unknown, eans: Recor
   for (const [chave, bruto] of entradas) {
     if (!/^\d+$/.test(chave)) return recusa(`Capa "${chave}" desconhecida.`);
     const n = Number(chave);
+    if (novos.has(n)) return recusa(`A capa ${n} aparece mais de uma vez.`);
     const capa = pend.capas.find((c) => c.n === n);
     if (!capa) return recusa(`A capa ${n} não está na lista de pendências.`);
     if (!capa.faltaEan) return recusa(`A capa ${n} já tem EAN.`);
@@ -113,27 +152,33 @@ export async function concluirPendente(raiz: string, pasta: unknown, eans: Recor
     vistos.add(ean);
   }
 
-  // EANs já gravados nesta arte (linhas do .txt e nomes dos SVGs)
-  const arquivoTxt = join(pasta, `${pend.arte}.txt`);
+  // EANs já gravados nesta arte, por capa: o mesmo EAN na mesma capa é retomada; em outra capa é conflito
   let txt: string | undefined;
   try { txt = await readFile(arquivoTxt, 'utf8'); } catch { txt = undefined; }
-  const jaUsados = new Set<string>();
+  const gravados: Array<{ n: number; ean: string }> = [];
+  const doTxt = new Map<number, string>();
   if (txt !== undefined) {
-    for (const m of txt.matchAll(/^\d+ \|.*?EAN: (\d{13})\s*$/gm)) jaUsados.add(m[1]!);
+    for (const m of txt.matchAll(/^(\d+) \|.*?EAN: (\d{13})\s*$/gm)) {
+      gravados.push({ n: Number(m[1]), ean: m[2]! });
+      doTxt.set(Number(m[1]), m[2]!);
+    }
   }
   const pastaBarras = join(pasta, 'Codigo de barras');
   for (const nome of await readdir(pastaBarras).catch(() => [] as string[])) {
-    const m = /^Capa \d+ - (\d+)\.svg$/i.exec(nome);
-    if (m) jaUsados.add(m[1]!);
+    const m = /^Capa (\d+) - (\d+)\.svg$/i.exec(nome);
+    if (m) gravados.push({ n: Number(m[1]), ean: m[2]! });
   }
   for (const [n, ean] of novos) {
-    if (jaUsados.has(ean)) return recusa(`O EAN ${ean} (capa ${n}) já está em uso nesta arte.`);
+    if (gravados.some((g) => g.ean === ean && g.n !== n)) return recusa(`O EAN ${ean} (capa ${n}) já está em uso em outra capa desta arte.`);
+    const l = doTxt.get(n);
+    if (l !== undefined && l !== ean) return recusa(`A linha ${n} do .txt já tem outro EAN; confira à mão.`);
   }
 
   // planeja o .txt antes de gravar qualquer coisa
   const avisos: string[] = [];
   let novoTxt = txt;
   for (const [n, ean] of novos) {
+    if (doTxt.get(n) === ean) continue; // retomada: a linha já foi trocada
     const re = new RegExp(`^(${n} \\|.*?EAN: )\\(pendente\\)`, 'm');
     if (novoTxt !== undefined && re.test(novoTxt)) novoTxt = novoTxt.replace(re, (_, ini: string) => `${ini}${ean}`);
     else avisos.push(`Não achei a linha da variação ${n} no arquivo de texto; ele não foi alterado para essa capa.`);
@@ -144,20 +189,21 @@ export async function concluirPendente(raiz: string, pasta: unknown, eans: Recor
   try {
     await mkdir(pastaBarras, { recursive: true });
     for (const s of svgs) await writeFile(join(pastaBarras, s.nome), s.svg, 'utf8');
-    if (txt !== undefined && novoTxt !== txt) await writeFile(arquivoTxt, novoTxt!, 'utf8');
-    const pastaCorel = join(pasta, 'Corel');
+    if (txt !== undefined && novoTxt !== txt) await gravarAtomico(arquivoTxt, novoTxt!, 'utf8');
+    const temCorel = await ehPasta(join(pasta, 'Corel'));
+    const pastaCorel = join(pasta, !temCorel && (await ehPasta(join(pasta, '_corel'))) ? '_corel' : 'Corel');
     await mkdir(pastaCorel, { recursive: true });
     const arqEan = join(pastaCorel, 'ean.txt');
     let antes = '';
     try { antes = (await readFile(arqEan)).toString('latin1'); } catch { antes = ''; }
     const linhasAntes = antes.split(/\r?\n/).filter((l) => l !== '');
-    await writeFile(arqEan, Buffer.from(`${[...linhasAntes, ...linhasCorel].join('\r\n')}\r\n`, 'latin1'));
+    const todas = [...linhasAntes, ...linhasCorel.filter((l) => !linhasAntes.includes(l))];
+    await writeFile(arqEan, Buffer.from(`${todas.join('\r\n')}\r\n`, 'latin1'));
     const resto = aposConcluir(pend, [...novos.keys()]);
-    if (resto) await writeFile(join(pasta, ARQ), serializarPendencia(resto), 'utf8');
+    if (resto) await gravarAtomico(join(pasta, ARQ), serializarPendencia(resto), 'utf8');
     else await rm(join(pasta, ARQ), { force: true });
     return { ok: true, faltam: resto ? resto.capas.filter((c) => c.faltaEan).length : 0, avisos };
   } catch (e) {
     return recusa(`Não consegui gravar os EANs: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
-
