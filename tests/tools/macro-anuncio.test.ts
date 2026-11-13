@@ -33,6 +33,16 @@ describe('tools/corel/MKP.bas', () => {
     expect(bytes.some((b) => b > 127)).toBe(false);
   });
 
+  test('AcharRetanguloDoEan também procura nas camadas especiais (o retângulo do molde fica em Linhas-guia, bloqueado), depois das comuns', () => {
+    const corpo = bas.slice(bas.indexOf('Private Function AcharRetanguloDoEan'), bas.indexOf('Private Function ProcurarPorNome'));
+    expect(corpo).not.toContain('If Not CamadaEspecial(camada)');
+    const comuns = corpo.indexOf('ProcurarEmCamadas(pagina, False)');
+    const especiais = corpo.indexOf('ProcurarEmCamadas(pagina, True)');
+    expect(comuns).toBeGreaterThan(-1);
+    expect(especiais).toBeGreaterThan(comuns);
+    expect(bas).toContain('Private Function ProcurarEmCamadas(pagina As Page, especiais As Boolean) As Shape');
+  });
+
   test('as declarações do módulo vêm antes da primeira rotina (exigência do VBA)', () => {
     const linhas = bas.split('\r\n');
     const primeiraRotina = linhas.findIndex((l) => /^(Private |Public )?(Sub|Function) /.test(l));

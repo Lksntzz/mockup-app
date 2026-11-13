@@ -793,15 +793,25 @@ End Sub
 '  1) a forma com o nome EAN (de qualquer tipo), se existir;
 '  2) senao, o retangulo mais largo que alto, na metade de baixo e no centro da pagina (o quadrado do logo e ignorado).
 ' Devolve Nothing se nao achar.
+' Acha o retangulo do EAN na pagina. Primeiro nas camadas comuns; se nao achar, nas camadas especiais (o molde guarda o retangulo em
+' "Linhas-guia (todas as paginas)", bloqueado, e o Corel conta essa camada como especial).
 Private Function AcharRetanguloDoEan(pagina As Page) As Shape
+    Dim r As Shape
+    Set r = ProcurarEmCamadas(pagina, False)
+    If r Is Nothing Then Set r = ProcurarEmCamadas(pagina, True)
+    Set AcharRetanguloDoEan = r
+End Function
+
+' Procura o retangulo do EAN so nas camadas comuns (especiais = False) ou so nas especiais (especiais = True): primeiro um objeto chamado EAN, depois pelo formato.
+Private Function ProcurarEmCamadas(pagina As Page, especiais As Boolean) As Shape
     Dim camada As Layer, s As Shape, melhor As Shape
     Dim esquerda As Double, direita As Double, baixo As Double, alto As Double
 
     For Each camada In CamadasParaProcurar(pagina)
-        If Not CamadaEspecial(camada) Then
+        If CamadaEspecial(camada) = especiais Then
             Set s = ProcurarPorNome(camada.Shapes, "EAN")
             If Not s Is Nothing Then
-                Set AcharRetanguloDoEan = s
+                Set ProcurarEmCamadas = s
                 Exit Function
             End If
         End If
@@ -809,9 +819,9 @@ Private Function AcharRetanguloDoEan(pagina As Page) As Shape
 
     LimitesDaPagina pagina, esquerda, direita, baixo, alto
     For Each camada In CamadasParaProcurar(pagina)
-        If Not CamadaEspecial(camada) Then ProcurarRetangulo camada.Shapes, esquerda, direita, baixo, alto, melhor
+        If CamadaEspecial(camada) = especiais Then ProcurarRetangulo camada.Shapes, esquerda, direita, baixo, alto, melhor
     Next
-    Set AcharRetanguloDoEan = melhor
+    Set ProcurarEmCamadas = melhor
 End Function
 
 Private Function ProcurarPorNome(formas As Shapes, nome As String) As Shape
