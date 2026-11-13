@@ -1,5 +1,6 @@
 import { aplicarPar, aplicarPdf, definirVariacao, formVazio, validar, type FormAnuncio } from '../app/anuncios-form';
 import { caminhoPrevisto, ehArteAceita, limparArte, removerPar, ehPdf, montarEntrada, textoDaEtapaCorel } from '../app/anuncios-ui';
+import { aplicarProgresso, fecharPassosPendentes, passosIniciais, svgParaDataUri, tituloFinal, type Passo } from '../app/anuncios-passos';
 import { openPdf } from '../pdf/reader';
 import type { MockupApi } from './global';
 
@@ -18,6 +19,37 @@ let ultimaCategoria = '';
 let pastaAnuncios: string | undefined;
 /** Pasta do anúncio que acabou de ser criada (para o botão "Montar no Corel agora"). */
 let pastaCriada: string | undefined;
+let passos: Passo[] = [];
+
+const ICONES: Record<Passo['estado'], string> = { espera: '', andamento: '', feito: '✓', pulado: '', erro: '✗' };
+
+function desenharPassos(): void {
+  const ul = $('an-passos-lista');
+  ul.replaceChildren();
+  for (const p of passos) {
+    const li = document.createElement('li');
+    li.className = p.estado;
+    const ic = document.createElement('span');
+    ic.className = 'an-passo-icone';
+    ic.textContent = ICONES[p.estado];
+    const tx = document.createElement('span');
+    tx.textContent = p.estado === 'pulado' ? `${p.rotulo} (pulado)` : p.rotulo;
+    li.append(ic, tx);
+    ul.append(li);
+  }
+}
+
+/** Mostra a lista de passos e ouve o progresso só durante a chamada; devolve quem desliga o ouvinte. */
+function comecarPassos(apenasCorel: boolean): () => void {
+  passos = apenasCorel ? passosIniciais().filter((p) => p.etapa === 'corel') : passosIniciais();
+  $('an-resultado').hidden = true;
+  $('an-passos').hidden = false;
+  desenharPassos();
+  return api.aoProgredirAnuncio((p) => {
+    passos = aplicarProgresso(passos, p.etapa, p.estado);
+    desenharPassos();
+  });
+}
 
 function texto(el: HTMLElement, t: string): void {
   el.textContent = t;
@@ -261,12 +293,16 @@ async function criar(montar: boolean): Promise<void> {
   rodando = true;
   atualizar();
   mensagem('');
+  const parar = comecarPassos(false);
   try {
     const res = await api.anunciosCriar(montarEntrada(form), montar);
     mostrarResultado(res, 'criar');
   } catch (e) {
+    passos = fecharPassosPendentes(passos);
+    desenharPassos();
     mensagem(`Não consegui criar o anúncio: ${erroDe(e)}`);
   } finally {
+    parar();
     rodando = false;
     atualizar();
   }
@@ -279,12 +315,16 @@ async function montarAgora(): Promise<void> {
   $<HTMLButtonElement>('an-montar-agora').disabled = true;
   atualizar();
   mensagem('');
+  const parar = comecarPassos(true);
   try {
     const res = await api.anunciosMontarNoCorel(pastaCriada);
     mostrarResultado(res, 'montar');
   } catch (e) {
+    passos = fecharPassosPendentes(passos);
+    desenharPassos();
     mensagem(`Não consegui montar no Corel: ${erroDe(e)}`);
   } finally {
+    parar();
     rodando = false;
     atualizar();
   }
@@ -303,10 +343,11 @@ function mostrarResultado(r: Awaited<ReturnType<MockupApi['anunciosCriar']>>, or
   else if (r.pasta) pastaCriada = r.pasta;
   const lista = $('an-res-lista');
   lista.replaceChildren();
-  $('an-res-titulo').textContent =
-    origem === 'montar'
-      ? (r.ok ? 'Montagem no Corel' : 'Não foi possível montar')
-      : r.ok ? 'Anúncio criado' : r.existente ? 'Essa pasta já existe' : 'Não foi possível criar';
+  if (!r.ok) {
+    passos = fecharPassosPendentes(passos);
+    desenharPassos();
+  }
+  $('an-res-titulo').textContent = tituloFinal(passos, { ok: r.ok, existente: r.existente, avisos: r.avisos ?? [], etapaCorel: r.etapaCorel });
   if (r.ok) {
     if (r.pasta) item(lista, `Pasta: ${r.pasta}`);
     if (origem === 'criar') {
@@ -321,6 +362,19 @@ function mostrarResultado(r: Awaited<ReturnType<MockupApi['anunciosCriar']>>, or
     if (r.existente) item(lista, `Pasta existente: ${r.existente}`);
   }
   for (const a of r.avisos ?? []) item(lista, `Aviso: ${a}`);
+  const barras = $('an-res-barras');
+  barras.replaceChildren();
+  for (const im of r.imagensEan ?? []) {
+    const fig = document.createElement('figure');
+    const img = document.createElement('img');
+    img.src = svgParaDataUri(im.svg);
+    img.alt = im.nome;
+    const leg = document.createElement('figcaption');
+    leg.textContent = im.nome;
+    fig.append(img, leg);
+    barras.append(fig);
+  }
+  barras.hidden = !barras.childElementCount;
   $('an-res-acoes').hidden = !r.existente;
   const falta = r.ok && (r.etapaCorel === 'aguardando-clique' || r.etapaCorel === 'erro');
   $('an-montar-agora').hidden = !(pastaCriada && (falta || (origem === 'montar' && !r.ok)));
@@ -335,6 +389,7 @@ function novoAnuncio(): void {
   $<HTMLInputElement>('an-arte').value = '';
   $<HTMLInputElement>('an-titulo').value = '';
   $('an-resultado').hidden = true;
+  $('an-passos').hidden = true;
   texto($('an-fontes'), '');
   mensagem('');
   desenharLinhas();
