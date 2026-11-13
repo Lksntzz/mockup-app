@@ -17,7 +17,7 @@ Objetivo: confirmar, no CorelDRAW 2025 de verdade, que o macro do anúncio monta
    - **4 imagens** (PNG ou JPG).
 4. Estes EANs **de teste** (são válidos, mas inventados; use só para testar):
    `7891234567895`, `7891234567901`, `7891234567918`, `7891234567925`, `7891234567932`, `7891234567949`.
-5. Na aba Anúncios, use sempre uma categoria nova chamada **TESTE** (botão "Nova categoria…"), para não misturar com as artes de verdade. No fim, apague a pasta `TESTE` inteira.
+5. Na aba Anúncios, use sempre a categoria **TESTE** e a subcategoria **SUB** (você cria as duas no **Teste S**, logo abaixo, antes do Teste 1), para não misturar com as artes de verdade. Por isso as pastas de teste ficam em `TESTE\SUB\Teste 1` etc. No fim, apague a pasta `TESTE` inteira e a pasta `TESTE SEM` (do Teste S).
 6. Um celular com um app que lê código de barras (por exemplo o **Google Lens**, ou qualquer app "leitor de código de barras" da loja do celular).
 
 ---
@@ -52,6 +52,33 @@ O Corel guarda os macros num lugar chamado **GlobalMacros**. Lá já existe um m
 
 ---
 
+## Teste S — Subcategoria (sem precisar do Corel)
+
+Na aba Anúncios, depois da **Categoria** existe a lista **Subcategoria**: ela mostra as pastas que já existem dentro da categoria escolhida. Neste teste você só cria pastas e o `.txt`; o Corel não é usado (pode estar fechado).
+
+1. Abra a aba **Anúncios**, escolha uma plataforma e clique em **Nova categoria…**. Crie a categoria **TESTE**.
+   - **Resultado esperado:** a categoria TESTE fica escolhida. Por alguns instantes a lista Subcategoria mostra **"Carregando…"** e os botões de criar ficam apagados; depois ela libera.
+2. Olhe a lista **Subcategoria**. Como a pasta TESTE ainda está vazia (sem pastas dentro), ela fica liberada mostrando **"Sem subcategoria"** (a arte iria direto dentro da categoria).
+3. Clique na lista.
+   - **Resultado esperado:** as opções são **"Sem subcategoria"** e, por último, **"Nova subcategoria…"**.
+4. Escolha **Nova subcategoria…**, digite **SUB** e clique em **OK**.
+   - **Resultado esperado:** a lista recarrega e **SUB** já fica escolhida. Se digitar um nome repetido ou com caracteres proibidos, aparece uma mensagem de erro amigável; **Cancelar** fecha o bloco sem criar nada.
+5. Solte o **PDF de 2 páginas**, dê o nome de arte **Teste S1**, preencha o título e a capa. Deixe o EAN vazio.
+6. Olhe o quadro **"Será criado"**.
+   - **Resultado esperado:** o caminho termina em `…\TESTE\SUB\Teste S1`.
+7. Clique em **Só criar a pasta e o .txt**.
+   - **Resultado esperado:** cria a pasta `TESTE\SUB\Teste S1`. Abra o `Teste S1.txt` no Bloco de Notas: logo **depois da linha `Categoria:`** vem a linha **`Subcategoria: SUB`**.
+8. Clique em **Fazer outro anúncio**.
+   - **Resultado esperado:** plataforma, categoria **TESTE** e subcategoria **SUB** continuam escolhidas.
+9. Agora a categoria TESTE tem uma pasta dentro (a SUB). Troque a categoria para outra e volte para TESTE.
+   - **Resultado esperado:** a lista Subcategoria agora começa com **"Escolha a subcategoria…"** e enquanto você não escolher uma, os botões de criar ficam **apagados**. Ao escolher **SUB**, os botões liberam.
+10. Teste a categoria sem subpastas: crie uma categoria nova chamada **TESTE SEM**, solte o PDF de 2 páginas, nome **Teste S2**, e clique em **Só criar a pasta e o .txt** (deixando a lista em **"Sem subcategoria"**).
+    - **Resultado esperado:** o "Será criado" mostra `…\TESTE SEM\Teste S2` (sem subcategoria) e a arte nasce direto em `TESTE SEM\Teste S2`. O `Teste S2.txt` **não** tem a linha `Subcategoria:`.
+11. Atenção a este comportamento: agora a categoria **TESTE SEM** tem a pasta `Teste S2` dentro. Escolha **TESTE SEM** de novo.
+    - **Resultado esperado:** a lista Subcategoria mostra **Teste S2** como se fosse uma subcategoria. Isso é normal: **uma pasta de arte solta dentro da categoria (por exemplo uma arte de teste antiga) aparece na lista como se fosse subcategoria.** Se escolher, a nova arte ficará dentro dela. Para evitar, mova a arte antiga para uma subcategoria pelo Explorador de Arquivos.
+
+---
+
 > **Se repetir um teste:** antes, apague o `.cdr` que tenha sobrado (inteiro ou pela metade) da pasta **`Corel`** daquele teste — ou apague a pasta do teste inteira e crie de novo. O app nunca apaga nem sobrescreve um `.cdr` que já existe.
 
 ## Teste 1 — PDF de 2 páginas (1 capa)
@@ -59,7 +86,7 @@ O Corel guarda os macros num lugar chamado **GlobalMacros**. Lá já existe um m
 1. Com o Corel **aberto** (pode estar vazio), abra o app → Modo designer → aba **Anúncios**.
 2. Solte o **PDF de 2 páginas** na área de soltar arte.
    - **Resultado esperado:** aparece **1 linha** de variação.
-3. Escolha uma plataforma, a categoria **TESTE**, dê o nome de arte **Teste 1**, preencha o título, a capa e o EAN `7891234567895`.
+3. Escolha uma plataforma, a categoria **TESTE** e a subcategoria **SUB** (criadas no Teste S), dê o nome de arte **Teste 1**, preencha o título, a capa e o EAN `7891234567895`.
 4. Clique em **Criar pasta e arquivos**.
    - **Resultado esperado no app:** o título **"Concluído"**, a linha **"Arquivo .cdr montado no Corel"** e a linha **"Capa 1: montada, código de barras em 97% do tamanho padrão."** (o número pode ser outro; o normal é ficar entre 80% e 200%). Se ficar fora disso, o título passa a ser **"Concluído com avisos"** e aparece mais uma linha **"Aviso: Capa 1: Código de barras abaixo de 80%…"** (ou "acima de 200%"). Isso não é erro do teste: só anote o número.
 5. Olhe o Corel.
@@ -67,7 +94,7 @@ O Corel guarda os macros num lugar chamado **GlobalMacros**. Lá já existe um m
      - **Página 1:** o molde com a arte da página 1 do PDF, encaixada sem esticar.
      - **Página 2:** o molde com a arte da página 2 do PDF e, **dentro do retângulo** de baixo, o **código de barras preto** com os números `7 891234 567895` embaixo (o primeiro número sozinho à esquerda, depois dois grupos de 6).
      - Nada esticado ou achatado; as barras não saem do retângulo.
-6. Abra a pasta `TESTE\Teste 1` no Explorador de Arquivos.
+6. Abra a pasta `TESTE\SUB\Teste 1` no Explorador de Arquivos.
    - **Resultado esperado:** o `Teste 1.txt` solto na pasta e três subpastas: **`Arte`** (o PDF e as imagens SVG da arte), **`Codigo de barras`** (o código de barras em SVG) e **`Corel`** (o `Teste 1.cdr`). O `montar.txt` fica em `Corel` só enquanto o Corel trabalha: **quando o Corel termina bem, o app apaga o `montar.txt`**. Então, no fim de um teste que deu certo, a pasta `Corel` tem só o `.cdr`.
    - **Na tela do app:** ao clicar em criar, aparece a **lista de passos**, que vai marcando cada etapa (pasta, arte, códigos de barras, Corel); no fim o título é **"Concluído"**. As **imagens dos códigos de barras** aparecem no resultado **depois de criar** (não há prévia antes), e os arquivos SVG ficam na pasta `Codigo de barras`.
 7. **Durante o teste, anote:** apareceu alguma janela do Corel perguntando algo (por exemplo "Importar PDF" ou "texto como texto/curvas")? Se apareceu, clique **OK** e anote quantas vezes apareceu.
@@ -125,11 +152,11 @@ O Corel guarda os macros num lugar chamado **GlobalMacros**. Lá já existe um m
 
 > **Importante:** quando o Corel termina bem, o app **apaga o `montar.txt`**. Por isso o Teste 7 só funciona com uma pasta em que o `montar.txt` ainda existe: uma em que o Corel **falhou ou foi fechado no meio** (ou uma pasta antiga com `_corel\montar.txt`). Para criar essa situação: no app, monte o anúncio **com o Corel fechado** (ou feche o Corel assim que o app mandar montar). O app avisa que não montou o `.cdr`, e o `montar.txt` fica na pasta `Corel`.
 
-1. **Feche o `Teste 1.cdr` no Corel** (se ele estiver aberto; não precisa salvar). Se a pasta `TESTE\Teste 1\Corel` ainda tiver o `Teste 1.cdr`, apague-o (ou mova para outro lugar). **Confira que o `montar.txt` está na pasta `Corel`**; se não estiver, refaça o teste com um anúncio novo em que o Corel falhou, como explicado acima.
+1. **Feche o `Teste 1.cdr` no Corel** (se ele estiver aberto; não precisa salvar). Se a pasta `TESTE\SUB\Teste 1\Corel` ainda tiver o `Teste 1.cdr`, apague-o (ou mova para outro lugar). **Confira que o `montar.txt` está na pasta `Corel`**; se não estiver, refaça o teste com um anúncio novo em que o Corel falhou, como explicado acima.
 2. Feche o app. Com o Corel aberto, rode o macro **AnuncioDaPasta**:
    - Jeito 1: **Alt + F11** → na esquerda, **GlobalMacros → Modules → MKP** (duplo clique) → clique em qualquer lugar **dentro** da parte `Sub AnuncioDaPasta()` → aperte **F5**.
    - Jeito 2: menu **Ferramentas → Scripts → Executar script…** → em "Macros em", escolha **GlobalMacros** → escolha **MKP.AnuncioDaPasta** → **Executar**.
-3. Abre uma janela para escolher um arquivo. Entre na pasta `TESTE\Teste 1\Corel` e escolha **montar.txt**. (Também funciona escolher a pasta `Teste 1`, ou a pasta `Corel`. Em pastas antigas, o macro procura em `_corel` se não achar em `Corel`.)
+3. Abre uma janela para escolher um arquivo. Entre na pasta `TESTE\SUB\Teste 1\Corel` e escolha **montar.txt**. (Também funciona escolher a pasta `Teste 1`, ou a pasta `Corel`. Em pastas antigas, o macro procura em `_corel` se não achar em `Corel`.)
    - Se em vez da janela aparecer uma caixinha pedindo um caminho: cole o caminho da pasta `Teste 1` (clique na barra de endereço do Explorador, copie e cole) e clique **OK**.
 4. **Resultado esperado:** o Corel monta o **Teste 1.cdr** de novo, igual ao do Teste 1, e mostra a mensagem **"Pronto: …Teste 1.cdr"** com a linha `capa1=OK …%`.
 5. Rode o **AnuncioDaPasta** de novo na mesma pasta.
@@ -145,7 +172,7 @@ O Corel guarda os macros num lugar chamado **GlobalMacros**. Lá já existe um m
    - **Resultado esperado no app:** o título **"Concluído com avisos"**, a frase "Você escolheu só criar a pasta e o .txt…" e o aviso **"A variação 1 está sem EAN: as páginas dela serão montadas SEM código de barras."**
 4. Abra o `Teste 7b.txt` da pasta no Bloco de Notas.
    - **Resultado esperado:** a linha da variação 1 termina com **`EAN: (pendente)`**.
-5. Com o Corel aberto, rode o macro **AnuncioDaPasta** (igual ao Teste 7) e escolha o `montar.txt` da pasta `TESTE\Teste 7b\Corel` (o Corel precisa ter falhado ou estar fechado na hora de criar, para o `montar.txt` continuar lá, como no Teste 7).
+5. Com o Corel aberto, rode o macro **AnuncioDaPasta** (igual ao Teste 7) e escolha o `montar.txt` da pasta `TESTE\SUB\Teste 7b\Corel` (o Corel precisa ter falhado ou estar fechado na hora de criar, para o `montar.txt` continuar lá, como no Teste 7).
    - **Resultado esperado:** o `Teste 7b.cdr` tem 2 páginas com a arte, e a página 2 tem o retângulo do código de barras **vazio** (sem código). A mensagem do Corel mostra `capa1=OK` **sem** porcentagem.
 
 ## Teste 8 — Ler o código de barras com o celular
