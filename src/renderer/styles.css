@@ -477,3 +477,7 @@ button.secundario:hover:not(:disabled) { background: #f3f4f6; border-color: #c3c
 .an-pend-ok { margin-top: 8px; font-size: 13px; color: var(--texto); }
 .an-pend-ok li { overflow-wrap: anywhere; }
 .an-pend-sucesso { margin-top: 8px; padding: 10px 14px; border: 1px solid #2e9e5b; background: #eaf7ef; border-radius: 10px; }
+
+/* grupos do card (1. molde no Corel, 2. fazer o MKP) */
+.cc-grupo { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--borda); border-radius: 10px; background: #fafbff; }
+.cc-grupo-titulo { flex: 1 1 100%; font-size: 12px; font-weight: 700; color: var(--acento-escuro, #3730a3); }

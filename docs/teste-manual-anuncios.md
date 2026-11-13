@@ -254,6 +254,12 @@ Use o **PDF de 6 páginas** (3 capas) e o nome **Teste P2**.
    - **Resultado esperado:** o botão grande já se chama **"Criar como pendente"** e, no fim, a mensagem diz **"Arte criada como pendente: falta o SKU."**. O card mostra só **"Falta: SKU da capa 1 (Capa 1)"**; em **Concluir** só aparece o campo SKU. Ao salvar, o card some.
 10. **Cards antigos.** Um card criado antes desta versão que já listava "SKU da capa …" (como o **FLOR DE ESMALTE**) agora também mostra o campo SKU em **Concluir**.
 
+## Teste C — Card do cliente (Aguarda arte) mais claro
+
+1. Na aba **Pasta 1**, ache um card em **1 · AGUARDA ARTE** com PDF/imagens.
+   - **Resultado esperado:** dois quadros dentro do card: **"1. Ajustar a arte no molde (Corel)"** (com **Frente do molde**, **Verso do molde**, **Abrir no molde (Corel)** e **Gerar PDF (Corel)**) e **"2. Fazer o MKP (mockup)"** (com **Arquivo do MKP** e **Fazer MKP**). Cada lista fica junto do botão a que pertence.
+2. Troque o **Arquivo do MKP** e clique em **Fazer MKP**: o arquivo escolhido abre no gerador. Troque Frente/Verso do molde e clique em **Abrir no molde**: o Corel recebe as páginas escolhidas.
+
 ## Teste W — Wire-o rose gold no mockup de Especificação
 
 1. No app, aba **MKP**, abra um PDF de capa (arraste para a janela). Quando a capa carregar, aparece o painel da direita com **Wire-o**, **Elástico**, **Tassel** e **Imagens a gerar**.

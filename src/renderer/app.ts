@@ -1359,6 +1359,7 @@ function linhaDoCliente(c: Cliente): HTMLElement {
   // 4) ações
   const acoes = document.createElement('div');
   acoes.className = 'cc-acoes';
+  let destino: HTMLElement = acoes;
   const botao = (texto: string, classe: string, titulo: string, aoClicar: (ev: MouseEvent) => void) => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -1366,7 +1367,18 @@ function linhaDoCliente(c: Cliente): HTMLElement {
     b.textContent = texto;
     b.title = titulo;
     b.addEventListener('click', aoClicar);
-    acoes.append(b);
+    destino.append(b);
+  };
+  /** Bloco com título numerado ("1. Ajustar no molde"), para ficar claro qual escolha vale para qual botão. */
+  const grupo = (titulo: string): HTMLElement => {
+    const g = document.createElement('div');
+    g.className = 'cc-grupo';
+    const t = document.createElement('div');
+    t.className = 'cc-grupo-titulo';
+    t.textContent = titulo;
+    g.append(t);
+    acoes.append(g);
+    return g;
   };
   if (c.voltou) {
     botao('Já vi', 'secundario', 'Tira o aviso de que a pasta voltou de etapa', () => {
@@ -1447,7 +1459,13 @@ function linhaDoCliente(c: Cliente): HTMLElement {
     const artes = [...doCliente, ...doCorel];
     if (artes.length > 0) {
       let escolhida = artes[0]!;
+      const grupoCorel = grupo('1. Ajustar a arte no molde (Corel)');
+      const grupoMkp = grupo('2. Fazer o MKP (mockup)');
+      destino = grupoCorel;
       if (artes.length > 1) {
+        const rotuloMkp = document.createElement('label');
+        rotuloMkp.className = 'cc-fonte';
+        rotuloMkp.append('Arquivo do MKP: ');
         const lista = document.createElement('select');
         lista.className = 'cc-select';
         lista.title = 'Qual arquivo usar para o MKP';
@@ -1458,7 +1476,13 @@ function linhaDoCliente(c: Cliente): HTMLElement {
           lista.append(o);
         }
         lista.addEventListener('change', () => (escolhida = lista.value));
-        acoes.append(lista);
+        rotuloMkp.append(lista);
+        grupoMkp.append(rotuloMkp);
+      } else {
+        const unico = document.createElement('div');
+        unico.className = 'cc-fonte';
+        unico.textContent = `Arquivo do MKP: ${nomeDoCaminho(escolhida)}`;
+        grupoMkp.append(unico);
       }
       if (doCliente.length > 0) {
         // frente e verso: o chute inicial vem dos nomes e do PDF (página 1 frente, página 2 verso); dá para trocar
@@ -1483,11 +1507,11 @@ function linhaDoCliente(c: Cliente): HTMLElement {
           const ini = inicial ? fontes.findIndex((f) => f.caminho === inicial.caminho && f.pagina === inicial.pagina) : -1;
           lista.value = ini >= 0 ? String(ini) : '';
           caixa.append(lista);
-          acoes.append(caixa);
+          grupoCorel.append(caixa);
           return () => (lista.value === '' ? undefined : fontes[Number(lista.value)]);
         };
-        const frenteEscolhida = seletor('Frente', padrao.frente, '(sem arte)');
-        const versoEscolhido = seletor('Verso', padrao.verso, '(sem arte: criar depois)');
+        const frenteEscolhida = seletor('Frente do molde', padrao.frente, '(sem arte)');
+        const versoEscolhido = seletor('Verso do molde', padrao.verso, '(sem arte: criar depois)');
         botao('Abrir no molde (Corel)', 'secundario', 'Abre o CorelDRAW com a frente (página 1) e o verso (página 2) já encaixados no molde', (ev) => {
           const frente = frenteEscolhida();
           const verso = versoEscolhido();
@@ -1547,6 +1571,7 @@ function linhaDoCliente(c: Cliente): HTMLElement {
           },
         );
       });
+      destino = grupoMkp;
       botao('Fazer MKP', 'primario', 'Abre o arquivo escolhido no gerador de MKP', () => {
         void (async () => {
           try {
@@ -1566,6 +1591,7 @@ function linhaDoCliente(c: Cliente): HTMLElement {
       });
     }
   }
+  destino = acoes;
   // as cópias de segurança que o Corel cria sozinho não viram botão (continuam na lista de arquivos)
   const abrivel = c.arquivos.filter((n) => /\.(cdr|pdf)$/i.test(n) && !/^c[oó]pia_de_seguran[cç]a/i.test(n));
   const abrirArquivo = (nomeArq: string) => {
