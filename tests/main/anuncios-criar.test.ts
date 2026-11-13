@@ -109,7 +109,8 @@ describe('criarAnuncio', () => {
     expect(r).toMatchObject({ ok: false });
     expect(await readdir(join(raiz, 'Shopee', 'Agenda'))).toEqual([]);
   });
-  test('"|" no caminho vira recusa limpa, sem exceção e sem criar nada', async () => {
+  // No Windows o "|" não pode ser nome de pasta (a pasta do teste nem seria criada), então só roda fora dele.
+  test.skipIf(process.platform === 'win32')('"|" no caminho vira recusa limpa, sem exceção e sem criar nada', async () => {
     const raiz2 = join(base, 'a|b');
     await mkdir(join(raiz2, 'Shopee', 'Agenda'), { recursive: true });
     const r = await criarAnuncio(entrada({ raiz: raiz2 }));
