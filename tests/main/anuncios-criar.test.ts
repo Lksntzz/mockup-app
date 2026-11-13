@@ -4,7 +4,8 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { lerManifesto } from '../../src/anuncios/manifesto';
 import type { EntradaDoAnuncio } from '../../src/anuncios/tipos';
-import { criarAnuncio } from '../../src/main/anuncios-criar';
+import { gerarSvgEan13 } from '../../src/anuncios/ean-svg';
+import { criarAnuncio, type EstadoProgresso, type EtapaProgresso } from '../../src/main/anuncios-criar';
 
 let base = '';
 let raiz = '';
@@ -32,30 +33,80 @@ beforeEach(async () => {
 afterEach(() => rm(base, { recursive: true, force: true }));
 
 describe('criarAnuncio', () => {
-  test('cria pasta, txt com BOM, cópia da arte e _corel/montar.txt', async () => {
+  test('cria pasta, txt com BOM, cópia da arte em Arte/ e Corel/montar.txt', async () => {
     const r = await criarAnuncio(entrada());
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     const pasta = join(raiz, 'Shopee', 'Agenda', 'Arte 1');
     expect(r.pasta).toBe(pasta);
-    expect(r.cdr).toBe(join(pasta, 'Arte 1.cdr'));
+    expect(r.cdr).toBe(join(pasta, 'Corel', 'Arte 1.cdr'));
     const txt = await readFile(join(pasta, 'Arte 1.txt'));
     expect([...txt.subarray(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
     expect(txt.toString('utf8')).toContain('Título: Agenda Linda');
-    expect(await existe(join(pasta, 'Arte 1.pdf'))).toBe(true);
-    const man = (await readFile(join(pasta, '_corel', 'montar.txt'))).toString('latin1');
+    expect(await existe(join(pasta, 'Arte', 'Arte 1.pdf'))).toBe(true);
+    const man = (await readFile(join(pasta, 'Corel', 'montar.txt'))).toString('latin1');
     expect(man).toBe(r.manifestoTexto);
     const l = lerManifesto(man);
     expect(l.capas).toHaveLength(2);
-    expect(l.capas[0]!.frente).toBe(join(pasta, 'Arte 1.pdf'));
+    expect(l.capas[0]!.frente).toBe(join(pasta, 'Arte', 'Arte 1.pdf'));
     expect(l.capas[1]).toMatchObject({ paginaFrente: 3, paginaVerso: 4 });
+  });
+  test('raiz da pasta tem só o txt e as pastas Arte, Codigo de barras e Corel', async () => {
+    const r = await criarAnuncio(entrada());
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect((await readdir(r.pasta)).sort()).toEqual(['Arte', 'Arte 1.txt', 'Codigo de barras', 'Corel']);
+    expect(await readdir(join(r.pasta, 'Corel'))).toEqual(['montar.txt']);
+    expect(r.manifestoTexto).toContain(`destino=${join(r.pasta, 'Corel', 'Arte 1.cdr')}`);
+    expect(r.manifestoTexto).toContain(`frente=${join(r.pasta, 'Arte')}`);
+  });
+  test('grava um SVG por capa com EAN e devolve imagensEan', async () => {
+    const r = await criarAnuncio(entrada());
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const dir = join(r.pasta, 'Codigo de barras');
+    expect((await readdir(dir)).sort()).toEqual([`Capa 1 - ${E1}.svg`, `Capa 2 - ${E2}.svg`]);
+    expect(await readFile(join(dir, `Capa 1 - ${E1}.svg`), 'utf8')).toBe(gerarSvgEan13(E1));
+    expect(await readFile(join(dir, `Capa 2 - ${E2}.svg`), 'utf8')).toBe(gerarSvgEan13(E2));
+    expect(r.imagensEan).toEqual([
+      { n: 1, nome: `Capa 1 - ${E1}.svg`, svg: gerarSvgEan13(E1) },
+      { n: 2, nome: `Capa 2 - ${E2}.svg`, svg: gerarSvgEan13(E2) },
+    ]);
+  });
+  test('variação sem EAN não gera imagem', async () => {
+    const r = await criarAnuncio(entrada({ variacoes: [{ capa: 'A', sku: '', ean: '' }, { capa: 'B', sku: '', ean: E2 }] }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(await readdir(join(r.pasta, 'Codigo de barras'))).toEqual([`Capa 2 - ${E2}.svg`]);
+    expect(r.imagensEan.map((i) => i.n)).toEqual([2]);
+    expect(r.avisos.some((a) => a.includes('SEM código de barras'))).toBe(true);
+  });
+  test('aoProgredir segue a ordem em criação ok', async () => {
+    const ev: string[] = [];
+    const r = await criarAnuncio(entrada(), (e: EtapaProgresso, s: EstadoProgresso) => ev.push(`${e} ${s}`));
+    expect(r.ok).toBe(true);
+    expect(ev).toEqual(['pasta andamento', 'pasta feito', 'arte andamento', 'arte feito', 'barras andamento', 'barras feito']);
+  });
+  test('sem nenhum EAN a etapa barras é pulada', async () => {
+    const ev: string[] = [];
+    const r = await criarAnuncio(entrada({ variacoes: [{ capa: 'A', sku: '', ean: '' }, { capa: 'B', sku: '', ean: '' }] }), (e, s) => ev.push(`${e} ${s}`));
+    expect(r.ok).toBe(true);
+    expect(ev).toContain('barras pulado');
+    expect(ev).not.toContain('barras andamento');
+  });
+  test('falha na cópia marca erro na etapa arte e remove a pasta com subpastas', async () => {
+    const ev: string[] = [];
+    const r = await criarAnuncio(entrada({ fontes: [{ tipo: 'pdf', arquivo: join(base, 'nao-existe.pdf'), paginaCapa: 1 }, { tipo: 'pdf', arquivo: pdf, paginaCapa: 3 }] }), (e, s) => ev.push(`${e} ${s}`));
+    expect(r.ok).toBe(false);
+    expect(ev[ev.length - 1]).toBe('arte erro');
+    expect(await readdir(join(raiz, 'Shopee', 'Agenda'))).toEqual([]);
   });
   test('imagens são copiadas como capa N e contra N', async () => {
     const a = join(base, 'a.png'); const b = join(base, 'b.jpg');
     await writeFile(a, 'x'); await writeFile(b, 'y');
     const r = await criarAnuncio(entrada({ variacoes: [{ capa: 'A', sku: '', ean: E1 }], fontes: [{ tipo: 'imagem', capa: a, contra: b }] }));
     expect(r.ok).toBe(true);
-    const nomes = await readdir(join(raiz, 'Shopee', 'Agenda', 'Arte 1'));
+    const nomes = await readdir(join(raiz, 'Shopee', 'Agenda', 'Arte 1', 'Arte'));
     expect(nomes).toEqual(expect.arrayContaining(['Arte 1 - capa 1.png', 'Arte 1 - contra 1.jpg']));
   });
   test('pasta que já existe: não escreve nada e devolve existente', async () => {

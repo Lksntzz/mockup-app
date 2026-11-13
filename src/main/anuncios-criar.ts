@@ -1,5 +1,6 @@
 import { copyFile, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
+import { gerarSvgEan13 } from '../anuncios/ean-svg';
 import { isValidGtin13, normalizarEan } from '../anuncios/gtin';
 import { montarManifesto, type CapaDoManifesto } from '../anuncios/manifesto';
 import { mesmoNome, nomeDePastaSeguro } from '../anuncios/nomes';
@@ -7,8 +8,13 @@ import type { EntradaDoAnuncio } from '../anuncios/tipos';
 import { montarTxt } from '../anuncios/txt';
 import { listarCategorias, listarPlataformas } from './anuncios-pastas';
 
+export type EtapaProgresso = 'pasta' | 'arte' | 'barras' | 'corel';
+export type EstadoProgresso = 'andamento' | 'feito' | 'pulado' | 'erro';
+export type AoProgredir = (etapa: EtapaProgresso, estado: EstadoProgresso) => void;
+export interface ImagemEan { n: number; nome: string; svg: string }
+
 export type ResultadoCriar =
-  | { ok: true; pasta: string; cdr: string; manifestoTexto: string; avisos: string[] }
+  | { ok: true; pasta: string; cdr: string; manifestoTexto: string; avisos: string[]; imagensEan: ImagemEan[] }
   | { ok: false; motivo: string; existente?: string };
 
 const falha = (motivo: string, existente?: string): ResultadoCriar =>
@@ -17,7 +23,7 @@ const falha = (motivo: string, existente?: string): ResultadoCriar =>
 const BOM = '﻿';
 const cabeEmLatin1 = (t: string) => Buffer.from(t, 'latin1').toString('latin1') === t;
 
-export async function criarAnuncio(e: EntradaDoAnuncio): Promise<ResultadoCriar> {
+export async function criarAnuncio(e: EntradaDoAnuncio, aoProgredir?: AoProgredir): Promise<ResultadoCriar> {
   const titulo = (e.titulo ?? '').trim();
   if (!titulo) return falha('Digite o título do anúncio.');
   const arte = nomeDePastaSeguro(e.arte).nome;
@@ -58,7 +64,7 @@ export async function criarAnuncio(e: EntradaDoAnuncio): Promise<ResultadoCriar>
   if (igual) return falha(`Já existe uma pasta "${igual}" nesta categoria.`, join(pastaCategoria, igual));
 
   const pasta = join(pastaCategoria, arte);
-  const cdr = join(pasta, `${arte}.cdr`);
+  const cdr = join(pasta, 'Corel', `${arte}.cdr`);
 
   // planeja as cópias da arte
   const copias: Array<{ de: string; para: string }> = [];
@@ -70,18 +76,18 @@ export async function criarAnuncio(e: EntradaDoAnuncio): Promise<ResultadoCriar>
     if (f.tipo === 'pdf') {
       let para = destinoPdf.get(f.arquivo);
       if (!para) {
-        para = join(pasta, destinoPdf.size === 0 ? `${arte}.pdf` : `${arte} (${destinoPdf.size + 1}).pdf`);
+        para = join(pasta, 'Arte', destinoPdf.size === 0 ? `${arte}.pdf` : `${arte} (${destinoPdf.size + 1}).pdf`);
         destinoPdf.set(f.arquivo, para);
         copias.push({ de: f.arquivo, para });
       }
       capa = { ean, frente: para, paginaFrente: f.paginaCapa };
       if (f.paginaContra !== undefined) { capa.verso = para; capa.paginaVerso = f.paginaContra; }
     } else {
-      const frente = join(pasta, `${arte} - capa ${i + 1}${extname(f.capa)}`);
+      const frente = join(pasta, 'Arte', `${arte} - capa ${i + 1}${extname(f.capa)}`);
       copias.push({ de: f.capa, para: frente });
       capa = { ean, frente };
       if (f.contra) {
-        const verso = join(pasta, `${arte} - contra ${i + 1}${extname(f.contra)}`);
+        const verso = join(pasta, 'Arte', `${arte} - contra ${i + 1}${extname(f.contra)}`);
         copias.push({ de: f.contra, para: verso });
         capa.verso = verso;
       }
@@ -107,7 +113,10 @@ export async function criarAnuncio(e: EntradaDoAnuncio): Promise<ResultadoCriar>
   }
 
   let criei = false;
+  let etapa: EtapaProgresso = 'pasta';
+  const prog = (et: EtapaProgresso, st: EstadoProgresso) => { etapa = et; aoProgredir?.(et, st); };
   try {
+    prog('pasta', 'andamento');
     try {
       await mkdir(pasta);
     } catch (err) {
@@ -115,12 +124,34 @@ export async function criarAnuncio(e: EntradaDoAnuncio): Promise<ResultadoCriar>
       throw err;
     }
     criei = true;
+    const comEan = eans.some(Boolean);
+    await mkdir(join(pasta, 'Arte'));
+    if (comEan) await mkdir(join(pasta, 'Codigo de barras'));
+    await mkdir(join(pasta, 'Corel'));
     await writeFile(join(pasta, `${arte}.txt`), BOM + txt, 'utf8');
+    prog('pasta', 'feito');
+    prog('arte', 'andamento');
     for (const c of copias) await copyFile(c.de, c.para);
-    await mkdir(join(pasta, '_corel'));
-    await writeFile(join(pasta, '_corel', 'montar.txt'), Buffer.from(manifestoTexto, 'latin1'));
-    return { ok: true, pasta, cdr, manifestoTexto, avisos };
+    prog('arte', 'feito');
+    const imagensEan: ImagemEan[] = [];
+    if (comEan) {
+      prog('barras', 'andamento');
+      for (let i = 0; i < eans.length; i += 1) {
+        const ean = eans[i]!;
+        if (!ean) continue;
+        const nome = `Capa ${i + 1} - ${ean}.svg`;
+        const svg = gerarSvgEan13(ean);
+        await writeFile(join(pasta, 'Codigo de barras', nome), svg, 'utf8');
+        imagensEan.push({ n: i + 1, nome, svg });
+      }
+      prog('barras', 'feito');
+    } else {
+      prog('barras', 'pulado');
+    }
+    await writeFile(join(pasta, 'Corel', 'montar.txt'), Buffer.from(manifestoTexto, 'latin1'));
+    return { ok: true, pasta, cdr, manifestoTexto, avisos, imagensEan };
   } catch (err) {
+    aoProgredir?.(etapa, 'erro');
     if (criei) await rm(pasta, { recursive: true, force: true }).catch(() => undefined);
     return falha(`Não consegui criar o anúncio: ${err instanceof Error ? err.message : String(err)}`);
   }
