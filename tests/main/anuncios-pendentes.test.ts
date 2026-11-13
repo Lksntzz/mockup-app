@@ -70,8 +70,20 @@ describe('listarPendentes', () => {
     expect(c!.erro).toMatch(/estragado/);
     expect(c!.capas).toEqual([]);
   });
-  test('raiz ilegível devolve lista vazia', async () => {
-    expect(await listarPendentes(join(base, 'nao-existe'))).toEqual([]);
+  test('raiz ilegível vira erro (não lista vazia); categoria ilegível é só pulada', async () => {
+    await expect(listarPendentes(join(base, 'nao-existe'))).rejects.toThrow();
+    await arte(join(raiz, 'Shopee', 'Agenda'), 'A1');
+    await writeFile(join(raiz, 'Shopee', 'Arquivo.txt'), 'x');
+    expect((await listarPendentes(raiz)).map((c) => c.arte)).toEqual(['A1']);
+  });
+  test('arte pronta (sem pendente.json) não é varrida por dentro', async () => {
+    const cat = join(raiz, 'Shopee', 'Agenda');
+    const pronta = join(cat, 'Pronta');
+    await mkdir(join(pronta, 'Arte', 'Fundo'), { recursive: true });
+    await mkdir(join(pronta, 'Corel'), { recursive: true });
+    await writeFile(join(pronta, 'Arte', 'Fundo', 'pendente.json'), '{}', 'utf8');
+    await arte(cat, 'A1');
+    expect((await listarPendentes(raiz)).map((c) => c.arte)).toEqual(['A1']);
   });
   test('mais recente primeiro', async () => {
     const cat = join(raiz, 'Shopee', 'Agenda');
@@ -86,10 +98,40 @@ describe('listarPendentes', () => {
 describe('concluirPendente', () => {
   const cat = () => join(raiz, 'Shopee', 'Agenda');
 
+  test('montar.txt ainda na pasta Corel: montarPrimeiro = true', async () => {
+    const p = await arte(cat(), 'A1');
+    await writeFile(join(p, 'Corel', 'montar.txt'), 'x', 'utf8');
+    const r = await concluirPendente(raiz, p, { 1: E1 });
+    expect(r).toMatchObject({ ok: true, montarPrimeiro: true });
+  });
+
+  test('erro de leitura que não é ENOENT no ean.txt recusa tudo e não grava nada', async () => {
+    const p = await arte(cat(), 'A1');
+    await mkdir(join(p, 'Corel', 'ean.txt')); // ler uma pasta como arquivo dá EISDIR
+    const antes = await readFile(join(p, 'pendente.json'), 'utf8');
+    const r = await concluirPendente(raiz, p, { 1: E1 });
+    expect(r).toEqual({ ok: false, motivo: 'Não consegui ler o arquivo ean.txt; tente de novo.' });
+    expect(await readFile(join(p, 'pendente.json'), 'utf8')).toBe(antes);
+    expect(await readFile(join(p, 'A1.txt'), 'utf8')).toBe(TXT('(pendente)', '(pendente)'));
+    expect(await existe(join(p, 'Codigo de barras'))).toBe(false);
+  });
+
+  test('erro de leitura que não é ENOENT no .txt recusa tudo e não grava nada', async () => {
+    const p = await arte(cat(), 'A1');
+    await rm(join(p, 'A1.txt'));
+    await mkdir(join(p, 'A1.txt'));
+    const antes = await readFile(join(p, 'pendente.json'), 'utf8');
+    const r = await concluirPendente(raiz, p, { 1: E1 });
+    expect(r).toEqual({ ok: false, motivo: 'Não consegui ler o arquivo A1.txt; tente de novo.' });
+    expect(await readFile(join(p, 'pendente.json'), 'utf8')).toBe(antes);
+    expect(await existe(join(p, 'Codigo de barras'))).toBe(false);
+    expect(await existe(join(p, 'Corel', 'ean.txt'))).toBe(false);
+  });
+
   test('concluir total apaga pendente.json e troca só a linha do .txt, preservando BOM e CRLF', async () => {
     const p = await arte(cat(), 'A1');
     const r = await concluirPendente(raiz, p, { 1: E1, 2: E2 });
-    expect(r).toEqual({ ok: true, faltam: 0, avisos: [] });
+    expect(r).toEqual({ ok: true, faltam: 0, avisos: [], montarPrimeiro: false });
     expect(await existe(join(p, 'pendente.json'))).toBe(false);
     const txt = await readFile(join(p, 'A1.txt'), 'utf8');
     expect(txt).toBe(TXT(E1, E2));
@@ -104,7 +146,7 @@ describe('concluirPendente', () => {
   test('parcial mantém as outras pendentes e as linhas antigas do ean.txt', async () => {
     const p = await arte(cat(), 'A1');
     await writeFile(join(p, 'Corel', 'ean.txt'), Buffer.from('9|1234|0101\r\n', 'latin1'));
-    expect(await concluirPendente(raiz, p, { 1: E1 })).toEqual({ ok: true, faltam: 1, avisos: [] });
+    expect(await concluirPendente(raiz, p, { 1: E1 })).toEqual({ ok: true, faltam: 1, avisos: [], montarPrimeiro: false });
     const [c] = await listarPendentes(raiz);
     expect(c!.capas.map((x) => x.n)).toEqual([2]);
     expect((await readFile(join(p, 'Corel', 'ean.txt'))).toString('latin1')).toBe(`9|1234|0101\r\n1|${E1}|${encodeEan13(E1)}\r\n`);
@@ -169,7 +211,7 @@ describe('concluirPendente', () => {
     expect((await concluirPendente(raiz, p, { 1: E1 })).ok).toBe(false);
     expect(await existe(join(p, 'pendente.json'))).toBe(true);
     falhar.ligado = false;
-    expect(await concluirPendente(raiz, p, { 1: E1 })).toEqual({ ok: true, faltam: 1, avisos: [] });
+    expect(await concluirPendente(raiz, p, { 1: E1 })).toEqual({ ok: true, faltam: 1, avisos: [], montarPrimeiro: false });
     expect((await readFile(join(p, 'Corel', 'ean.txt'))).toString('latin1')).toBe(`1|${E1}|${encodeEan13(E1)}\r\n`);
     const [c] = await listarPendentes(raiz);
     expect(c!.capas.map((x) => x.n)).toEqual([2]);

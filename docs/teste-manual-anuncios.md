@@ -63,11 +63,12 @@ Na aba Anúncios, depois da **Categoria** existe a lista **Subcategoria**: ela m
    - **Resultado esperado:** as opções são **"Sem subcategoria"** e, por último, **"Nova subcategoria…"**.
 4. Escolha **Nova subcategoria…**, digite **SUB** e clique em **OK**.
    - **Resultado esperado:** a lista recarrega e **SUB** já fica escolhida. Se digitar um nome repetido ou com caracteres proibidos, aparece uma mensagem de erro amigável; **Cancelar** fecha o bloco sem criar nada.
-5. Solte o **PDF de 2 páginas**, dê o nome de arte **Teste S1**, preencha o título e a capa. Deixe o EAN vazio. Repare que o botão **Criar pasta e arquivos** continua apagado sem EAN, mas o **Só criar a pasta e o .txt** funciona.
+5. Solte o **PDF de 2 páginas**, dê o nome de arte **Teste S1**, preencha o título e a capa. Deixe o EAN vazio. Repare que, sem EAN, o botão grande passa a se chamar **Criar como pendente** (e fica liberado), e o **Só criar a pasta e o .txt** também funciona.
 6. Olhe o quadro **"Será criado"**.
    - **Resultado esperado:** o caminho termina em `…\TESTE\SUB\Teste S1`.
 7. Clique em **Só criar a pasta e o .txt**.
    - **Resultado esperado:** cria a pasta `TESTE\SUB\Teste S1`. Abra o `Teste S1.txt` no Bloco de Notas: logo **depois da linha `Categoria:`** vem a linha **`Subcategoria: SUB`**.
+   - **Atenção:** como o EAN ficou vazio, essa arte também nasce **pendente** (tem um `pendente.json` na pasta) e aparece como card na seção **Pendentes**. Para limpar: apague a pasta `Teste S1` (ou conclua o card com um EAN de teste). O mesmo vale para o **Teste S2** e para o **Teste 7b**.
 8. Clique em **Fazer outro anúncio**.
    - **Resultado esperado:** plataforma, categoria **TESTE** e subcategoria **SUB** continuam escolhidas.
 9. Agora a categoria TESTE tem uma pasta dentro (a SUB). Troque a categoria para qualquer outra categoria que já exista e volte para TESTE.
@@ -166,11 +167,12 @@ Na aba Anúncios, depois da **Categoria** existe a lista **Subcategoria**: ela m
 ## Teste 7b — Capa sem EAN ("Só criar a pasta e o .txt")
 
 1. Na aba Anúncios, solte o **PDF de 2 páginas**. Nome **Teste 7b**. **Deixe o EAN vazio.**
-   - **Resultado esperado:** o campo do EAN **não** fica vermelho; embaixo dele aparece, em cinza, **"EAN pendente — só vale para 'Só criar a pasta'"**. O botão **"Criar pasta e arquivos"** fica apagado e o botão **"Só criar a pasta e o .txt"** fica liberado.
+   - **Resultado esperado:** o campo do EAN **não** fica vermelho; embaixo dele aparece, em cinza, **"EAN pendente — a arte será criada como pendente, sem código de barras"**. O botão grande está liberado e se chama **"Criar como pendente"**; o botão **"Só criar a pasta e o .txt"** também fica liberado.
 2. Digite um EAN errado (por exemplo `123`).
    - **Resultado esperado:** agora o campo fica **vermelho** e **os dois botões** ficam apagados. Apague o `123` de novo (campo vazio).
 3. Clique em **Só criar a pasta e o .txt**.
-   - **Resultado esperado no app:** o título **"Concluído com avisos"**, a frase "Você escolheu só criar a pasta e o .txt…" e o aviso **"A variação 1 está sem EAN: as páginas dela serão montadas SEM código de barras."**
+   - **Resultado esperado no app:** o título **"Concluído"** (não "com avisos"), a frase "Você escolheu só criar a pasta e o .txt: o Corel não foi usado." e o detalhe **"Arte criada como pendente: falta o EAN."**
+   - Essa arte agora aparece também como card na seção **Pendentes** (veja o Teste P). Para limpar depois do teste: apague a pasta `Teste 7b` ou conclua o card com um EAN de teste.
 4. Abra o `Teste 7b.txt` da pasta no Bloco de Notas.
    - **Resultado esperado:** a linha da variação 1 termina com **`EAN: (pendente)`**.
 5. Com o Corel aberto, rode o macro **AnuncioDaPasta** (igual ao Teste 7) e escolha o `montar.txt` da pasta `TESTE\SUB\Teste 7b\Corel` (o Corel precisa ter falhado ou estar fechado na hora de criar, para o `montar.txt` continuar lá, como no Teste 7).
@@ -195,19 +197,19 @@ Na aba Anúncios, depois da **Categoria** existe a lista **Subcategoria**: ela m
 
 Aqui você cria uma arte **sem** o código de barras, ela fica na lista **Pendentes**, e depois você completa os EANs aos poucos. Use o **PDF de 6 páginas** (3 capas) e o nome **Teste P**.
 
-1. **Criar como pendente.** Na aba Anúncios, solte o **PDF de 6 páginas**, nome **Teste P**, escolha **TESTE** e **SUB**, digite um título qualquer. **Deixe os 3 campos de EAN vazios.**
+1. **Criar como pendente.** Na aba Anúncios, solte o **PDF de 6 páginas**, nome **Teste P**, escolha **TESTE** e **SUB**, digite um título qualquer e **preencha o SKU das 3 capas** (por exemplo `SKU1`, `SKU2`, `SKU3`); se deixar o SKU vazio, o card também vai listar "SKU da capa 1 (Capa 1)" etc. como faltando. **Deixe os 3 campos de EAN vazios.**
    - **Resultado esperado:** o botão grande troca o nome para **"Criar como pendente"**. Clique nele.
 2. **Conferir a pasta.** Abra a pasta `TESTE\SUB\Teste P` no Explorer.
-   - **Resultado esperado:** existe o arquivo **`pendente.json`**; existe o `Teste P.cdr` (se o Corel estava aberto) **sem** código de barras nas contra capas.
+   - **Resultado esperado:** existe o arquivo **`pendente.json`**; existe o `Teste P.cdr` em `TESTE\SUB\Teste P\Corel\Teste P.cdr` (se o Corel estava aberto) **sem** código de barras nas contra capas.
 3. **Ver o card.** Na mesma aba, role até a seção **Pendentes** (embaixo). Se não aparecer, clique em **Atualizar**.
-   - **Resultado esperado:** um card **Teste P** com a etiqueta **Pendente**, o caminho **"Shopee › TESTE › SUB"** (ou a plataforma que você escolheu) e a frase **"Falta: EAN da capa 1 (Capa 1), EAN da capa 2 (Capa 2), EAN da capa 3 (Capa 3)…"**.
+   - **Resultado esperado:** um card **Teste P** com a etiqueta **Pendente**, o caminho **"Shopee › TESTE › SUB"** (ou a plataforma que você escolheu) e a frase **"Falta: EAN da capa 1 (Capa 1), EAN da capa 2 (Capa 2), EAN da capa 3 (Capa 3)"** (com o SKU preenchido, só os EANs aparecem; se o SKU ficou vazio, entram também "SKU da capa 1 (Capa 1)" etc.).
 4. **EAN errado.** No card, clique em **Concluir**. Aparecem 3 campos. No da Capa 1 digite `123`.
    - **Resultado esperado:** o campo fica vermelho com **"EAN inválido: confira os 13 dígitos"** e o botão **Salvar EAN** fica apagado. Digite agora o `7891234567895` na Capa 1 e repita o mesmo número na Capa 2: aparece **"EAN repetido"** e o botão continua apagado. Apague o da Capa 2.
 5. **Concluir só uma capa (parcial).** Com `7891234567895` só na Capa 1, clique em **Salvar EAN**.
-   - **Resultado esperado:** dentro do card aparecem **"Código de barras gerado."**, **"Ainda faltam 2 capas"** e a orientação do Corel. O card **continua** na lista e agora diz que faltam só a **Capa 2** e a **Capa 3**.
+   - **Resultado esperado:** **no topo da lista** Pendentes (acima do card, não dentro dele) aparece uma caixa com **"Código de barras gerado."**, **"Ainda faltam 2 capas (o card continua aqui)."** e a orientação do Corel. O card **continua** na lista e agora diz que faltam só a **Capa 2** e a **Capa 3**.
 6. **Concluir o resto.** Clique em **Concluir** de novo.
    - **Resultado esperado:** só aparecem os campos da **Capa 2** e da **Capa 3** (a Capa 1 não aparece mais). Digite `7891234567901` e `7891234567918` e clique em **Salvar EAN**.
-   - **Resultado esperado:** o card **Teste P some** da lista e, **no topo da lista**, aparece uma **caixa verde** com **"Código de barras gerado."**, "Nada mais falta…" e a orientação do Corel. A caixa fica até você clicar em **Fechar** (ou trocar de aba).
+   - **Resultado esperado:** o card **Teste P some** da lista e, **no topo da lista**, aparece uma **caixa verde** com **"Código de barras gerado."**, **"Nada mais falta: esta arte não está mais pendente."** e a orientação do Corel (se o `.cdr` ainda não foi montado, ela diz **"Monte o .cdr primeiro (Montar no Corel) e depois rode a macro AdicionarEanNoCdr…"**). A caixa fica até você clicar em **Fechar** (ou trocar de aba).
 7. **Conferir os arquivos.** Na pasta `TESTE\SUB\Teste P`:
    - **Resultado esperado:** a pasta `Codigo de barras` tem **Capa 1 - EAN.svg**, **Capa 2 - EAN.svg** e **Capa 3 - EAN.svg**; o `Teste P.txt` (Bloco de Notas) tem os 3 EANs nas linhas das variações (nenhuma com "(pendente)"); o `pendente.json` não existe mais (ou não lista mais nenhuma capa); na pasta `Corel` existe o **`ean.txt`**.
 8. **Colocar o código no .cdr.** Abra o `Teste P.cdr` no CorelDRAW e rode o macro **AdicionarEanNoCdr**:
@@ -215,13 +217,13 @@ Aqui você cria uma arte **sem** o código de barras, ela fica na lista **Penden
    - Jeito 2: menu **Ferramentas → Scripts → Executar script…** → em "Macros em", escolha **GlobalMacros** → escolha **MKP.AdicionarEanNoCdr** → **Executar**.
    - **Resultado esperado:** em cada página **par** (2, 4 e 6) o código de barras aparece **dentro do retângulo do EAN**, com um **fundo branco de cantos arredondados**. Uma janela mostra **"Desenhados: 3 / Ja existiam: 0 / Falharam: 0"**. Salve o arquivo (Ctrl + S). O `ean.txt` some da pasta `Corel`.
 9. **Rodar de novo.** Com o mesmo `.cdr` aberto, rode **AdicionarEanNoCdr** outra vez (mesmo jeito do passo 8).
-   - **Resultado esperado:** como o `ean.txt` já foi apagado, o macro abre uma janela pedindo para escolher o `montar.txt` da pasta `Corel`. Clique em **Cancelar**. Aparece a mensagem **"Nao achei o ean.txt para este .cdr (ele fica em <pasta da arte>\Corel\ean.txt). Conclua o anuncio pendente no app e rode o macro de novo."** Nada é desenhado, então **nada fica duplicado** (confira que ainda há só 1 código por página par).
+   - **Resultado esperado:** como o `ean.txt` já foi apagado, o macro abre uma janela pedindo para escolher o **ean.txt** (título **"Escolha o ean.txt (dentro da pasta Corel da arte)"**). Clique em **Cancelar**. (Se, em vez disso, você escolher um `ean.txt` de **outra** arte, o macro pergunta **"Vou colocar os codigos de barras da arte … no arquivo …. Continuar?"**: responda **Não** e nada é alterado.) Aparece a mensagem **"Nao achei o ean.txt para este .cdr (ele fica em <pasta da arte>\Corel\ean.txt). Conclua o anuncio pendente no app e rode o macro de novo."** Nada é desenhado, então **nada fica duplicado** (confira que ainda há só 1 código por página par).
    - Observação: a frase **"Ja existiam"** só aparece quando o `ean.txt` ainda está lá (por exemplo, se numa rodada outra capa falhou e o arquivo foi mantido). Nesse caso as capas que já tinham código são puladas.
 10. **(Opcional) Outro computador.** Em outro computador com o mesmo Drive, abra o app, aba **Anúncios** › **Pendentes**: os mesmos cards aparecem (o pendente fica dentro da pasta da arte, no `pendente.json`).
 
 ## Teste W — Wire-o rose gold no mockup de Especificação
 
-1. No app, aba **Novo**, abra um PDF de capa (arraste para a janela). Quando a capa carregar, aparece o painel da direita com **Wire-o**, **Elástico**, **Tassel** e **Imagens a gerar**.
+1. No app, aba **MKP**, abra um PDF de capa (arraste para a janela). Quando a capa carregar, aparece o painel da direita com **Wire-o**, **Elástico**, **Tassel** e **Imagens a gerar**.
 2. Em **Imagens a gerar**, marque **Especificação VT (com envelope)**. A prévia passa para a aba da Especificação VT.
 3. No grupo **Wire-o**, escolha **Rose Gold**. Depois, **um de cada vez**, no grupo **Tassel** escolha: **Branco**, **Verde**, **Rosa**, **Azul**, **Nenhum** e **Laranja**.
    - **Resultado esperado em todos os 6 casos:** os **anéis do topo da espiral da esquerda** (os 5 ao lado do tassel) aparecem **cor de cobre**.

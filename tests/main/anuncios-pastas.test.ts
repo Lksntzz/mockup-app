@@ -75,6 +75,13 @@ describe('mesclarPastasAchadas', () => {
     await writeFile(join(cat, 'Outra', 'notas.txt'), 'x');
     expect(await listarSubcategorias(cat)).toEqual(['Manicure', 'Outra', 'Vazia']);
   });
+  test('listarSubcategorias esconde pasta com pendente.json', async () => {
+    const cat = join(raiz, 'Shopee', 'Agenda');
+    await mkdir(join(cat, 'Pend'));
+    await writeFile(join(cat, 'Pend', 'pendente.json'), '{}');
+    await mkdir(join(cat, 'Sub'));
+    expect(await listarSubcategorias(cat)).toEqual(['Sub']);
+  });
   test('listarSubcategorias lança se não conseguir ler', async () => {
     await expect(listarSubcategorias(join(raiz, 'nao-existe'))).rejects.toThrow();
   });

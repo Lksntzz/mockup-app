@@ -1,7 +1,7 @@
 import { aplicarPar, aplicarPdf, definirVariacao, formVazio, validar, type FormAnuncio } from '../app/anuncios-form';
 import { caminhoPrevisto, ehArteAceita, limparArte, removerPar, ehPdf, montarEntrada, textoDaEtapaCorel } from '../app/anuncios-ui';
 import { aplicarProgresso, fecharPassosPendentes, passosIniciais, rotuloDoPasso, svgParaDataUri, tituloFinal, type Passo } from '../app/anuncios-passos';
-import { capasSemEan, linhasDoCard, TEXTO_ORIENTACAO_COREL, textoFaltam, validarEansConcluir } from '../app/anuncios-pendentes-ui';
+import { capasSemEan, linhasDoCard, textoFaltam, textoOrientacaoCorel, validarEansConcluir } from '../app/anuncios-pendentes-ui';
 import { openPdf } from '../pdf/reader';
 import type { CardPendente } from '../main/anuncios-pendentes';
 import type { MockupApi } from './global';
@@ -498,7 +498,7 @@ function formularioConcluir(c: CardPendente): HTMLElement {
         ok = true;
         const linhas = ['Código de barras gerado.'];
         linhas.push(r.faltam > 0 ? `${textoFaltam(r.faltam)} (o card continua aqui).` : 'Nada mais falta: esta arte não está mais pendente.');
-        linhas.push(TEXTO_ORIENTACAO_COREL);
+        linhas.push(textoOrientacaoCorel(r.montarPrimeiro));
         for (const a of r.avisos) linhas.push(`Aviso: ${a}`);
         sucessoConcluir = linhas;
         abertoConcluir = undefined;

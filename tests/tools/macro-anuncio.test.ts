@@ -99,4 +99,30 @@ describe('tools/corel/MKP.bas', () => {
     expect(corpo).toContain('Ja existiam: ');
     expect(corpo).toContain('Falharam: ');
   });
+
+  test('AdicionarEanNoCdr confirma (Sim/Nao) quando o ean.txt veio da pasta escolhida e usa o seu próprio seletor', () => {
+    const ini = bas.indexOf('Sub AdicionarEanNoCdr()');
+    const corpo = bas.slice(ini, bas.indexOf('End Sub', ini));
+    expect(corpo).toContain('AcharEanTxt(doc, veioDoPrompt, pastaDaArte)');
+    expect(corpo).toContain('Vou colocar os codigos de barras da arte ');
+    expect(corpo).toContain('doc.FileName & ". Continuar?"');
+    expect(corpo).toMatch(/vbYesNo/);
+    expect(corpo.indexOf('Continuar?')).toBeLessThan(corpo.indexOf('LerArquivoInteiro(arquivo)'));
+    const achar = bas.slice(bas.indexOf('Private Function AcharEanTxt'), bas.indexOf('Private Function EanTxtEm'));
+    expect(achar).toContain('EscolherEanTxt()');
+    expect(achar).not.toContain('EscolherPastaDoAnuncio()');
+    expect(achar).toContain('veioDoPrompt = True');
+    const novo = bas.slice(bas.indexOf('Private Function EscolherEanTxt'));
+    expect(novo).toContain('Lista de codigos de barras (ean.txt)|ean.txt|Todos os arquivos|*.*');
+    expect(novo).toContain('Escolha o ean.txt (dentro da pasta Corel da arte)');
+    expect(novo).toContain('InputBox(');
+  });
+
+  test('EscolherPastaDoAnuncio (AnuncioDaPasta) continua com o texto do montar.txt', () => {
+    const velho = bas.slice(bas.indexOf('Private Function EscolherPastaDoAnuncio'), bas.indexOf('Private Function LerArquivoInteiro'));
+    expect(velho).toContain('Lista do anuncio (montar.txt)|montar.txt|Texto|*.txt');
+    expect(velho).toContain('Escolha o montar.txt (dentro da pasta Corel do anuncio)');
+    expect(velho).not.toContain('ean.txt');
+    expect(bytes.some((b) => b > 127)).toBe(false);
+  });
 });

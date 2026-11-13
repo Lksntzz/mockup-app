@@ -1010,6 +1010,7 @@ Sub AdicionarEanNoCdr()
     Dim doc As Document, arquivo As String, texto As String, linhas() As String
     Dim i As Long, feitos As Long, existiam As Long, falharam As Long
     Dim r As String, falhas As String, msg As String, titulo As String
+    Dim veioDoPrompt As Boolean, pastaDaArte As String
 
     titulo = "Adicionar EAN no .cdr"
     If Documents.Count = 0 Then
@@ -1019,11 +1020,17 @@ Sub AdicionarEanNoCdr()
     Set doc = ActiveDocument
 
     On Error GoTo erroGeral
-    arquivo = AcharEanTxt(doc)
+    arquivo = AcharEanTxt(doc, veioDoPrompt, pastaDaArte)
     If arquivo = "" Then
         MsgBox "Nao achei o ean.txt para este .cdr (ele fica em <pasta da arte>\Corel\ean.txt)." & vbCrLf & _
             "Conclua o anuncio pendente no app e rode o macro de novo.", vbExclamation, titulo
         Exit Sub
+    End If
+
+    ' o ean.txt veio de uma pasta escolhida na mao (nao e a do .cdr aberto): confirma antes de desenhar, para nao misturar artes
+    If veioDoPrompt Then
+        If MsgBox("Vou colocar os codigos de barras da arte " & NomeDoArquivo(pastaDaArte) & " no arquivo " & doc.FileName & ". Continuar?", _
+            vbYesNo + vbQuestion, titulo) <> vbYes Then Exit Sub
     End If
 
     texto = Replace(Replace(LerArquivoInteiro(arquivo), vbCrLf, vbLf), vbCr, vbLf)
@@ -1064,16 +1071,23 @@ erroGeral:
 End Sub
 
 ' Acha o ean.txt do .cdr aberto (na pasta do .cdr, em Corel\ ou _corel\ dentro dela); se nao achar, pergunta a pasta da arte. "" se nao achou.
-Private Function AcharEanTxt(doc As Document) As String
+' veioDoPrompt = True quando o ean.txt veio da pasta escolhida na mao; pastaDaArte e a pasta da arte onde ele foi achado.
+Private Function AcharEanTxt(doc As Document, ByRef veioDoPrompt As Boolean, ByRef pastaDaArte As String) As String
     Dim pasta As String, escolha As String
+
+    veioDoPrompt = False
+    pastaDaArte = ""
 
     If Len(doc.FilePath) > 0 And Len(doc.FileName) > 0 Then
         pasta = SemBarraFinal(doc.FilePath)
         AcharEanTxt = EanTxtEm(pasta)
-        If AcharEanTxt <> "" Then Exit Function
+        If AcharEanTxt <> "" Then
+            pastaDaArte = pasta
+            Exit Function
+        End If
     End If
 
-    escolha = EscolherPastaDoAnuncio()
+    escolha = EscolherEanTxt()
     If escolha = "" Then Exit Function
     Do While Right(escolha, 1) = "\"
         escolha = Left(escolha, Len(escolha) - 1)
@@ -1081,6 +1095,23 @@ Private Function AcharEanTxt(doc As Document) As String
     If Not EhPasta(escolha) Then escolha = PastaDe(escolha)
     If LCase(NomeDoArquivo(escolha)) = "corel" Or LCase(NomeDoArquivo(escolha)) = "_corel" Then escolha = PastaDe(escolha)
     AcharEanTxt = EanTxtEm(escolha)
+    If AcharEanTxt <> "" Then
+        veioDoPrompt = True
+        pastaDaArte = escolha
+    End If
+End Function
+
+' Pergunta o ean.txt (ou a pasta da arte) so para o macro AdicionarEanNoCdr; o EscolherPastaDoAnuncio continua sendo do montar.txt.
+Private Function EscolherEanTxt() As String
+    Dim r As String
+    On Error Resume Next
+    r = Application.GetFileBox("Lista de codigos de barras (ean.txt)|ean.txt|Todos os arquivos|*.*", "Escolha o ean.txt (dentro da pasta Corel da arte)", 0)
+    If Err.Number <> 0 Then
+        Err.Clear
+        On Error GoTo 0
+        r = InputBox("Cole o caminho completo da pasta da arte (a que tem a pasta Corel dentro):", "Adicionar EAN no .cdr")
+    End If
+    EscolherEanTxt = Trim(Replace(r, Chr(34), ""))
 End Function
 
 ' ean.txt dentro de uma pasta que e a da arte (Corel\ean.txt, _corel\ean.txt) ou a propria pasta Corel, ou a pasta so com o .cdr.

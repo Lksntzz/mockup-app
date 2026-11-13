@@ -6,8 +6,15 @@ export interface CardPendenteEntrada {
 }
 export interface LinhasDoCard { titulo: string; caminho: string; falta: string[]; erro?: string }
 
-export const TEXTO_ORIENTACAO_COREL =
-  'Agora abra o arquivo .cdr desta arte no CorelDRAW e rode a macro AdicionarEanNoCdr (Alt + F11, ou Ferramentas › Scripts › Executar script… › GlobalMacros › MKP.AdicionarEanNoCdr).';
+const COMO_RODAR_MACRO =
+  'Ferramentas › Scripts › Executar script… › GlobalMacros › MKP › AdicionarEanNoCdr (ou Alt + F11, escolha o módulo MKP e aperte F5 com o cursor dentro de AdicionarEanNoCdr).';
+
+/** Texto de orientação depois de gravar os EANs. montarPrimeiro: o .cdr ainda não foi montado (montar.txt continua na pasta). */
+export function textoOrientacaoCorel(montarPrimeiro: boolean): string {
+  return montarPrimeiro
+    ? `Monte o .cdr primeiro (Montar no Corel) e depois rode a macro AdicionarEanNoCdr: ${COMO_RODAR_MACRO}`
+    : `Agora abra o arquivo .cdr desta arte no CorelDRAW e rode a macro AdicionarEanNoCdr: ${COMO_RODAR_MACRO}`;
+}
 
 function nomeDaCapa(c: CapaPendente): string {
   return c.capa.trim() || `Capa ${c.n}`;

@@ -44,3 +44,17 @@ describe('textos', () => {
     expect(textoFaltam(2)).toBe('Ainda faltam 2 capas');
   });
 });
+
+import { textoOrientacaoCorel } from '../../src/app/anuncios-pendentes-ui';
+describe('textoOrientacaoCorel', () => {
+  it('caminho do menu e alternativa Alt + F11', () => {
+    const t = textoOrientacaoCorel(false);
+    expect(t).toContain('Ferramentas › Scripts › Executar script… › GlobalMacros › MKP › AdicionarEanNoCdr');
+    expect(t).toContain('ou Alt + F11, escolha o módulo MKP e aperte F5 com o cursor dentro de AdicionarEanNoCdr');
+    expect(t).not.toMatch(/MKP\.AdicionarEanNoCdr/);
+  });
+  it('sem .cdr montado manda montar primeiro', () => {
+    expect(textoOrientacaoCorel(true)).toContain('Monte o .cdr primeiro (Montar no Corel) e depois rode a macro AdicionarEanNoCdr');
+    expect(textoOrientacaoCorel(true)).not.toContain('abra o arquivo .cdr');
+  });
+});

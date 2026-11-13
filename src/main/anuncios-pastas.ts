@@ -77,10 +77,10 @@ export type ResultadoCategoria = { ok: true; pasta: string; nome: string } | { o
 const NOMES_DE_ARTE = new Set(['corel', '_corel', 'arte']);
 
 /** Uma pasta que já é uma ART: tem o "<nome>.txt" dentro, ou as subpastas Corel/_corel/Arte. */
-async function ehPastaDeArte(pasta: string, nome: string): Promise<boolean> {
+export async function ehPastaDeArte(pasta: string, nome: string): Promise<boolean> {
   const itens = await nomesEm(pasta).catch(() => [] as Awaited<ReturnType<typeof nomesEm>>);
   const txt = `${nome}.txt`.toLowerCase();
-  return itens.some((i) => (i.pasta ? NOMES_DE_ARTE.has(i.nome.toLowerCase()) : i.nome.toLowerCase() === txt));
+  return itens.some((i) => (i.pasta ? NOMES_DE_ARTE.has(i.nome.toLowerCase()) : i.nome.toLowerCase() === txt || i.nome.toLowerCase() === 'pendente.json'));
 }
 
 /** Subcategorias da categoria: pastas visíveis que NÃO são uma arte já criada. Lança se não conseguir ler. */

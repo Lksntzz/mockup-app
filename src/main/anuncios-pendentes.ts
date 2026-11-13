@@ -5,13 +5,13 @@ import { gerarSvgEan13 } from '../anuncios/ean-svg';
 import { isValidGtin13, normalizarEan } from '../anuncios/gtin';
 import { aposConcluir, lerPendencia, serializarPendencia, type CapaPendente } from '../anuncios/pendencia';
 import { dentroDaRaiz } from './anuncios';
-import { listarCategorias, listarPlataformas } from './anuncios-pastas';
+import { ehPastaDeArte, listarCategorias, listarPlataformas } from './anuncios-pastas';
 import { ehPasta, nomesEm } from './pasta-fluxo';
 
 export interface CardPendente {
   pasta: string; arte: string; plataforma: string; categoria: string; subcategoria?: string; capas: CapaPendente[]; erro?: string;
 }
-export type ResultadoConcluir = { ok: true; faltam: number; avisos: string[] } | { ok: false; motivo: string };
+export type ResultadoConcluir = { ok: true; faltam: number; avisos: string[]; montarPrimeiro: boolean } | { ok: false; motivo: string };
 
 const ARQ = 'pendente.json';
 const LIMITE = 8;
@@ -35,9 +35,10 @@ const subpastas = async (pasta: string) =>
 
 interface Candidata { pasta: string; plataforma: string; categoria: string; subcategoria?: string }
 
-/** Varre Plataforma > Categoria > [Subcategoria] > Arte atrás de pendente.json. Nunca lança. */
+/** Varre Plataforma > Categoria > [Subcategoria] > Arte atrás de pendente.json. Lança se não conseguir ler a pasta dos anúncios;
+ *  uma plataforma ou categoria que não abre é pulada. */
 export async function listarPendentes(raiz: string): Promise<CardPendente[]> {
-  const plataformas = await listarPlataformas(raiz).catch(() => [] as string[]);
+  const plataformas = await listarPlataformas(raiz);
   const pares: Array<{ plataforma: string; categoria: string }> = [];
   for (const plataforma of plataformas) {
     const cats = await listarCategorias(join(raiz, plataforma)).catch(() => [] as string[]);
@@ -52,6 +53,8 @@ export async function listarPendentes(raiz: string): Promise<CardPendente[]> {
           res.push({ pasta: filho.caminho, plataforma, categoria, mtimeMs: filho.mtimeMs });
           continue;
         }
+        // uma arte já criada (sem pendente.json) não é subcategoria: não desce nela
+        if (await ehPastaDeArte(filho.caminho, filho.nome)) continue;
         for (const neto of await subpastas(filho.caminho)) {
           if (await temPendente(neto.caminho)) {
             res.push({ pasta: neto.caminho, plataforma, categoria, subcategoria: filho.nome, mtimeMs: neto.mtimeMs });
@@ -77,6 +80,7 @@ export async function listarPendentes(raiz: string): Promise<CardPendente[]> {
   });
 }
 
+const existeArquivo = (p: string) => stat(p).then((s) => s.isFile(), () => false);
 const temPendente = (pasta: string) => stat(join(pasta, ARQ)).then((s) => s.isFile(), () => false);
 
 
@@ -164,7 +168,12 @@ async function concluir(raiz: string, pasta: unknown, eans: Record<number, strin
 
   // EANs já gravados nesta arte, por capa: o mesmo EAN na mesma capa é retomada; em outra capa é conflito
   let txt: string | undefined;
-  try { txt = await readFile(arquivoTxt, 'utf8'); } catch { txt = undefined; }
+  try {
+    txt = await readFile(arquivoTxt, 'utf8');
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException)?.code !== 'ENOENT') return recusa(`Não consegui ler o arquivo ${basename(arquivoTxt)}; tente de novo.`);
+    txt = undefined;
+  }
   const gravados: Array<{ n: number; ean: string }> = [];
   const doTxt = new Map<number, string>();
   if (txt !== undefined) {
@@ -182,7 +191,12 @@ async function concluir(raiz: string, pasta: unknown, eans: Record<number, strin
   const pastaCorel = join(pasta, !temCorel && (await ehPasta(join(pasta, '_corel'))) ? '_corel' : 'Corel');
   const arqEan = join(pastaCorel, 'ean.txt');
   let antes = '';
-  try { antes = (await readFile(arqEan)).toString('latin1'); } catch { antes = ''; }
+  try {
+    antes = (await readFile(arqEan)).toString('latin1');
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException)?.code !== 'ENOENT') return recusa('Não consegui ler o arquivo ean.txt; tente de novo.');
+    antes = '';
+  }
   const linhasAntes = antes.split(/\r?\n/).filter((l) => l !== '');
   for (const l of linhasAntes) {
     const m = /^(\d+)\|(\d+)\|/.exec(l);
@@ -218,7 +232,8 @@ async function concluir(raiz: string, pasta: unknown, eans: Record<number, strin
     const resto = aposConcluir(pend, [...novos.keys()]);
     if (resto) await gravarAtomico(join(pasta, ARQ), serializarPendencia(resto), 'utf8');
     else await rm(join(pasta, ARQ), { force: true });
-    return { ok: true, faltam: resto ? resto.capas.filter((c) => c.faltaEan).length : 0, avisos };
+    const montarPrimeiro = await existeArquivo(join(pastaCorel, 'montar.txt'));
+    return { ok: true, faltam: resto ? resto.capas.filter((c) => c.faltaEan).length : 0, avisos, montarPrimeiro };
   } catch (e) {
     return recusa(`Não consegui gravar os EANs: ${e instanceof Error ? e.message : String(e)}`);
   }
