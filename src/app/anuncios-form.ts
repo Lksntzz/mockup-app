@@ -14,13 +14,13 @@ export interface Validacao {
   /** Linhas sem EAN: não é erro, só uma dica neutra (valem para "Só criar a pasta e o .txt"). */
   pendentes: Record<number, string>;
   avisos: string[];
-  /** "Criar pasta e arquivos" (monta no Corel): exige todos os EANs. */
+  /** Botão principal: aceita EAN vazio (arte pendente, sem código de barras), mas não inválido nem repetido. */
   podeCriar: boolean;
   /** "Só criar a pasta e o .txt": aceita EAN vazio (fica pendente no .txt), mas não inválido nem repetido. */
   podeCriarSoPasta: boolean;
 }
 
-export const DICA_EAN_PENDENTE = "EAN pendente — só vale para 'Só criar a pasta'";
+export const DICA_EAN_PENDENTE = 'EAN pendente — a arte será criada como pendente, sem código de barras';
 
 export const formVazio = (): FormAnuncio => ({
   plataforma: '', categoria: '', subcategoria: '', temSubcategorias: false, arte: '', titulo: '', origem: 'nenhuma', fontes: [], variacoes: [],
@@ -106,6 +106,5 @@ export function validar(f: FormAnuncio): Validacao {
   const skus = f.variacoes.map((v) => v.sku.trim()).filter(Boolean);
   if (new Set(skus).size !== skus.length) avisos.push('Há SKU repetido entre as variações');
 
-  const temPendente = Object.keys(pendentes).length > 0;
-  return { erros, pendentes, avisos, podeCriar: ok && !temPendente, podeCriarSoPasta: ok };
+  return { erros, pendentes, avisos, podeCriar: ok, podeCriarSoPasta: ok };
 }

@@ -117,6 +117,7 @@ function atualizar(): void {
     lista.append(li);
   }
   const livre = !semPasta && !rodando && !lendo && !carregandoSubcategorias;
+  $<HTMLButtonElement>('an-criar').textContent = Object.keys(v.pendentes).length > 0 ? 'Criar como pendente' : 'Criar pasta e arquivos';
   $<HTMLButtonElement>('an-criar').disabled = !(v.podeCriar && livre);
   $<HTMLButtonElement>('an-so-pasta').disabled = !(v.podeCriarSoPasta && livre);
   $<HTMLButtonElement>('an-montar-agora').disabled = !livre || !pastaCriada;

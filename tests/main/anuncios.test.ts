@@ -49,6 +49,15 @@ describe('criarEMontar', () => {
     expect(await existe(join(raiz, 'Shopee', 'Agenda', 'Arte 1', 'Arte 1.txt'))).toBe(true);
   });
 
+  test('criação pendente (EAN vazio): informação em detalhes, sem aviso', async () => {
+    const e = entrada();
+    e.variacoes[0]!.ean = '';
+    const r = await criarEMontar(e, false, { rodarMacro: vi.fn() });
+    expect(r.ok).toBe(true);
+    expect(r.avisos).toEqual([]);
+    expect(r.detalhes).toContain('Arte criada como pendente: falta o EAN.');
+  });
+
   test('ok:false do criarAnuncio nunca chama o Corel', async () => {
     const rodarMacro = vi.fn();
     const r = await criarEMontar(entrada({ titulo: '' }), true, { rodarMacro });

@@ -3,7 +3,7 @@ import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } 
 import { avisoDeAmpliacao } from '../anuncios/ean';
 import { lerManifesto } from '../anuncios/manifesto';
 import type { EntradaDoAnuncio } from '../anuncios/tipos';
-import { criarAnuncio, type AoProgredir, type ImagemEan } from './anuncios-criar';
+import { criarAnuncio, ehAvisoSemEan, type AoProgredir, type ImagemEan } from './anuncios-criar';
 import { acharPastaAnuncios, listarPlataformas } from './anuncios-pastas';
 import { achouArquivoNovo, caminhoServeParaOCorel, lerResultadoDoAnuncio, rodarMacroDoCorel } from './corel';
 import { ehPasta } from './pasta-fluxo';
@@ -178,8 +178,9 @@ async function montarEApagarLista(texto: string, cdr: string, lista: string, avi
 export async function criarEMontar(e: EntradaDoAnuncio, usarCorel: boolean, deps: DepsAnuncio = {}, aoProgredir?: AoProgredir): Promise<ResultadoAnuncio> {
   const c = await criarAnuncio(e, aoProgredir);
   if (!c.ok) return falha(c.motivo, c.existente);
-  const avisos = [...c.avisos];
-  const detalhes: string[] = [];
+  // capa sem EAN não é falha: a arte fica pendente (informação, não aviso)
+  const avisos = c.avisos.filter((a) => !ehAvisoSemEan(a));
+  const detalhes: string[] = c.avisos.length === avisos.length ? [] : ['Arte criada como pendente: falta o EAN.'];
   if (!usarCorel) {
     aoProgredir?.('corel', 'pulado');
     return { ok: true, pasta: c.pasta, etapaCorel: 'pulado', avisos, detalhes, imagensEan: c.imagensEan };

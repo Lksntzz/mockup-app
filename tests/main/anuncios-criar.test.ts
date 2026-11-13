@@ -1,7 +1,19 @@
 import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+
+const falharPendente = vi.hoisted(() => ({ ligado: false }));
+vi.mock('node:fs/promises', async (orig) => {
+  const m = await orig<typeof import('node:fs/promises')>();
+  return {
+    ...m,
+    writeFile: (async (...a: Parameters<typeof m.writeFile>) => {
+      if (falharPendente.ligado && String(a[0]).endsWith('pendente.json')) throw new Error('disco cheio');
+      return m.writeFile(...a);
+    }) as typeof m.writeFile,
+  };
+});
 import { lerManifesto } from '../../src/anuncios/manifesto';
 import type { EntradaDoAnuncio } from '../../src/anuncios/tipos';
 import { gerarSvgEan13 } from '../../src/anuncios/ean-svg';
@@ -252,5 +264,25 @@ describe('criarAnuncio', () => {
       const r = await criarAnuncio(entrada());
       expect(r.ok).toBe(false);
     });
+  });
+
+  test('pendente.json: gravado com EAN vazio, ausente com todos os EAN', async () => {
+    const r = await criarAnuncio(entrada({ variacoes: [{ capa: 'A', sku: '', ean: E1 }, { capa: 'B', sku: 'S2', ean: '' }] }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const j = JSON.parse(await readFile(join(r.pasta, 'pendente.json'), 'utf8'));
+    expect(j).toEqual({ versao: 1, arte: 'Arte 1', capas: [{ n: 2, capa: 'B', faltaEan: true, faltaSku: false }] });
+    const completo = await criarAnuncio(entrada({ arte: 'Arte 2' }));
+    expect(completo.ok).toBe(true);
+    if (completo.ok) expect(await existe(join(completo.pasta, 'pendente.json'))).toBe(false);
+  });
+  test('falha ao gravar pendente.json (montar.txt já gravado) remove a pasta toda', async () => {
+    falharPendente.ligado = true;
+    try {
+      const e = entrada({ variacoes: [{ capa: 'A', sku: 'S1', ean: '' }, { capa: 'B', sku: 'S2', ean: E2 }] });
+      const r = await criarAnuncio(e);
+      expect(r.ok).toBe(false);
+      expect(await existe(join(raiz, 'Shopee', 'Agenda', 'Arte 1'))).toBe(false);
+    } finally { falharPendente.ligado = false; }
   });
 });

@@ -2,6 +2,7 @@ import { copyFile, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 import { gerarSvgEan13 } from '../anuncios/ean-svg';
 import { isValidGtin13, normalizarEan } from '../anuncios/gtin';
+import { montarPendencia, serializarPendencia } from '../anuncios/pendencia';
 import { montarManifesto, type CapaDoManifesto } from '../anuncios/manifesto';
 import { mesmoNome, nomeDePastaSeguro } from '../anuncios/nomes';
 import type { EntradaDoAnuncio } from '../anuncios/tipos';
@@ -19,6 +20,10 @@ export type ResultadoCriar =
 
 const falha = (motivo: string, existente?: string): ResultadoCriar =>
   existente === undefined ? { ok: false, motivo } : { ok: false, motivo, existente };
+
+/** Aviso de capa sem EAN; criarEMontar o reconhece para mostrá-lo como informação (arte pendente). */
+export const avisoSemEan = (i: number): string => `A variação ${i} está sem EAN: as páginas dela serão montadas SEM código de barras.`;
+export const ehAvisoSemEan = (a: string): boolean => /^A variação \d+ está sem EAN: /.test(a);
 
 const BOM = '﻿';
 const cabeEmLatin1 = (t: string) => Buffer.from(t, 'latin1').toString('latin1') === t;
@@ -107,7 +112,7 @@ export async function criarAnuncio(e: EntradaDoAnuncio, aoProgredir?: AoProgredi
         capa.verso = verso;
       }
     }
-    if (!ean) avisos.push(`A variação ${i + 1} está sem EAN: as páginas dela serão montadas SEM código de barras.`);
+    if (!ean) avisos.push(avisoSemEan(i + 1));
     capas.push(capa);
   });
 
@@ -164,6 +169,8 @@ export async function criarAnuncio(e: EntradaDoAnuncio, aoProgredir?: AoProgredi
       prog('barras', 'pulado');
     }
     await writeFile(join(pasta, 'Corel', 'montar.txt'), Buffer.from(manifestoTexto, 'latin1'));
+    const pendencia = montarPendencia(arte, e.variacoes);
+    if (pendencia) await writeFile(join(pasta, 'pendente.json'), serializarPendencia(pendencia), 'utf8');
     return { ok: true, pasta, cdr, manifestoTexto, avisos, imagensEan };
   } catch (err) {
     aoProgredir?.(etapa, 'erro');

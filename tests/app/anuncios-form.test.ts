@@ -74,16 +74,20 @@ describe('anuncios-form', () => {
     expect(ok.podeCriar).toBe(true);
     expect(ok.podeCriarSoPasta).toBe(true);
   });
-  test('EAN vazio: não é erro vermelho, fica pendente; só libera "Só criar a pasta"', () => {
+  test('EAN vazio: não é erro vermelho, fica pendente; libera os dois botões', () => {
     const vazio = validar(comLinhas({ ean: ['', '7891000100103'] }));
     expect(vazio.erros.ean).toEqual({});
     expect(vazio.pendentes[0]).toMatch(/EAN pendente/);
-    expect(vazio.pendentes[0]).toMatch(/Só criar a pasta/);
-    expect(vazio.podeCriar).toBe(false);
+    expect(vazio.pendentes[0]).toMatch(/criada como pendente/);
+    expect(vazio.podeCriar).toBe(true);
     expect(vazio.podeCriarSoPasta).toBe(true);
     const todosVazios = validar(comLinhas({ ean: ['', ' '] }));
-    expect(todosVazios.podeCriar).toBe(false);
+    expect(todosVazios.podeCriar).toBe(true);
     expect(todosVazios.podeCriarSoPasta).toBe(true);
+  });
+  test('EAN inválido ou repetido continua bloqueando o botão principal', () => {
+    expect(validar(comLinhas({ ean: ['', '123'] })).podeCriar).toBe(false);
+    expect(validar(comLinhas({ ean: ['7898764983584', '7898764983584'] })).podeCriar).toBe(false);
   });
   test('"Só criar a pasta" continua bloqueado por EAN inválido/repetido e por faltas', () => {
     expect(validar(comLinhas({ ean: ['', '123'] })).podeCriarSoPasta).toBe(false);
