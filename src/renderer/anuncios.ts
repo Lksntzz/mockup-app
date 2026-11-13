@@ -15,6 +15,7 @@ let rodando = false;
 let lendo = false;
 let seqCategorias = 0;
 let seqSubcategorias = 0;
+let carregandoSubcategorias = false;
 let ultimaSubcategoria = '';
 let existente: string | undefined;
 let ultimaCategoria = '';
@@ -111,7 +112,7 @@ function atualizar(): void {
     li.textContent = a;
     lista.append(li);
   }
-  const livre = !semPasta && !rodando && !lendo;
+  const livre = !semPasta && !rodando && !lendo && !carregandoSubcategorias;
   $<HTMLButtonElement>('an-criar').disabled = !(v.podeCriar && livre);
   $<HTMLButtonElement>('an-so-pasta').disabled = !(v.podeCriarSoPasta && livre);
   $<HTMLButtonElement>('an-montar-agora').disabled = !livre || !pastaCriada;
@@ -270,24 +271,43 @@ async function carregarCategorias(escolhida = ''): Promise<void> {
   ultimaCategoria = sel.value;
 }
 
+/** Esvazia já (síncrono) a lista de subcategorias e trava até a nova chegar; invalida respostas antigas. */
+function limparSubcategorias(): void {
+  seqSubcategorias++;
+  carregandoSubcategorias = true;
+  const sel = $<HTMLSelectElement>('an-subcategoria');
+  preencher(sel, [], '', undefined, 'Carregando…');
+  sel.disabled = true;
+  form = { ...form, subcategoria: '', temSubcategorias: false };
+  ultimaSubcategoria = '';
+}
+
 async function carregarSubcategorias(escolhida = ''): Promise<void> {
   const sel = $<HTMLSelectElement>('an-subcategoria');
-  const semLista = () => {
-    preencher(sel, [], '', undefined, 'Sem subcategorias');
+  if (!form.plataforma || !form.categoria) {
+    seqSubcategorias++;
+    preencher(sel, [], '', undefined, 'Sem subcategoria');
     sel.disabled = true;
     form = { ...form, subcategoria: '', temSubcategorias: false };
     ultimaSubcategoria = '';
-  };
-  if (!form.plataforma || !form.categoria) { seqSubcategorias++; semLista(); return; }
+    carregandoSubcategorias = false;
+    return;
+  }
+  limparSubcategorias();
   const pedidaPlat = form.plataforma;
   const pedidaCat = form.categoria;
-  const meu = ++seqSubcategorias;
+  const meu = seqSubcategorias;
   const lista = await api.anunciosSubcategorias(pedidaPlat, pedidaCat).catch(() => [] as string[]);
   if (meu !== seqSubcategorias || form.plataforma !== pedidaPlat || form.categoria !== pedidaCat) return;
-  if (lista.length === 0) { semLista(); return; }
-  preencher(sel, lista, escolhida, 'Nova subcategoria…', 'Escolha a subcategoria…');
+  carregandoSubcategorias = false;
+  if (lista.length === 0) {
+    preencher(sel, [], '', 'Nova subcategoria…', 'Sem subcategoria');
+    form = { ...form, subcategoria: '', temSubcategorias: false };
+  } else {
+    preencher(sel, lista, escolhida, 'Nova subcategoria…', 'Escolha a subcategoria…');
+    form = { ...form, subcategoria: sel.value, temSubcategorias: true };
+  }
   sel.disabled = semPasta;
-  form = { ...form, subcategoria: sel.value, temSubcategorias: true };
   ultimaSubcategoria = sel.value;
 }
 
@@ -454,6 +474,8 @@ export function iniciarAnuncios(): void {
   });
   $('an-plataforma').addEventListener('change', () => {
     form = { ...form, plataforma: $<HTMLSelectElement>('an-plataforma').value, categoria: '', subcategoria: '', temSubcategorias: false };
+    limparSubcategorias();
+    atualizar();
     void carregarCategorias().then(() => carregarSubcategorias()).then(atualizar);
   });
   $('an-categoria').addEventListener('change', () => {
@@ -466,6 +488,7 @@ export function iniciarAnuncios(): void {
     }
     form = { ...form, categoria: sel.value, subcategoria: '', temSubcategorias: false };
     ultimaCategoria = sel.value;
+    limparSubcategorias();
     atualizar();
     void carregarSubcategorias().then(atualizar);
   });
@@ -489,6 +512,8 @@ export function iniciarAnuncios(): void {
       const r = await api.anunciosCriarCategoria(form.plataforma, nome);
       if (!r.ok) { texto($('an-nova-cat-erro'), r.motivo); return; }
       fecharNova();
+      limparSubcategorias();
+      atualizar();
       await carregarCategorias(r.nome);
       await carregarSubcategorias();
       atualizar();
