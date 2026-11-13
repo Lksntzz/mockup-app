@@ -477,7 +477,15 @@ ipcMain.handle("anuncios-criar-categoria", async (_e, plataforma: unknown, nome:
   if (!pasta || typeof nome !== "string") return { ok: false as const, motivo: "Escolha uma plataforma da lista." };
   return criarCategoria(pasta, nome);
 });
-ipcMain.handle("anuncios-criar", (_e, entrada: unknown, montarNoCorel: unknown) =>
+// manda o andamento à tela; nunca lança (janela pode fechar no meio)
+const progressoPara = (sender: Electron.WebContents) => (etapa: string, estado: string) => {
+  try {
+    if (!sender.isDestroyed()) sender.send("anuncios-progresso", { etapa, estado });
+  } catch {
+    /* ignora */
+  }
+};
+ipcMain.handle("anuncios-criar", (e0, entrada: unknown, montarNoCorel: unknown) =>
   marcarCorel(async () => {
     const r = await raizDosAnuncios();
     const recusa = (motivo: string) => ({ ok: false as const, motivo, avisos: [] as string[] });
@@ -487,17 +495,17 @@ ipcMain.handle("anuncios-criar", (_e, entrada: unknown, montarNoCorel: unknown) 
     const e = entrada as EntradaDoAnuncio;
     const fontes = await validarFontes(e.fontes);
     if (fontes) return recusa(fontes);
-    return criarEMontar({ ...e, raiz: r.pasta }, montarNoCorel === true);
+    return criarEMontar({ ...e, raiz: r.pasta }, montarNoCorel === true, undefined, progressoPara(e0.sender));
   }),
 );
 // segundo clique: monta no Corel uma pasta de anúncio que já foi criada (nunca apaga nada)
-ipcMain.handle("anuncios-montar-no-corel", (_e, pasta: unknown) =>
+ipcMain.handle("anuncios-montar-no-corel", (e0, pasta: unknown) =>
   marcarCorel(async () => {
     const r = await raizDosAnuncios();
     const recusa = (motivo: string) => ({ ok: false as const, motivo, avisos: [] as string[] });
     if (!r.pasta) return recusa("Não achei a pasta de anúncios. Escolha na mão.");
     if (typeof pasta !== "string" || !pasta) return recusa("Pasta do anúncio inválida.");
-    return montarPastaExistente(r.pasta, pasta);
+    return montarPastaExistente(r.pasta, pasta, undefined, progressoPara(e0.sender));
   }),
 );
 ipcMain.handle("anuncios-abrir-pasta", async (_e, caminho: unknown) => {

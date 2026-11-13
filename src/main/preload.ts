@@ -30,6 +30,11 @@ contextBridge.exposeInMainWorld('mockupApi', {
   anunciosCriarCategoria: (plataforma: string, nome: string) => ipcRenderer.invoke('anuncios-criar-categoria', plataforma, nome),
   anunciosAbrirPasta: (caminho: string) => ipcRenderer.invoke('anuncios-abrir-pasta', caminho),
   anunciosCriar: (entrada: unknown, montarNoCorel: boolean) => ipcRenderer.invoke('anuncios-criar', entrada, montarNoCorel),
+  aoProgredirAnuncio: (cb: (p: { etapa: string; estado: string }) => void) => {
+    const ouvinte = (_ev: unknown, p: { etapa: string; estado: string }) => cb(p);
+    ipcRenderer.on('anuncios-progresso', ouvinte);
+    return () => { ipcRenderer.removeListener('anuncios-progresso', ouvinte); };
+  },
   anunciosMontarNoCorel: (pasta: string) => ipcRenderer.invoke('anuncios-montar-no-corel', pasta),
   iniciarComWindowsEstado: () => ipcRenderer.invoke('iniciar-windows-estado'),
   iniciarComWindows: (ligado: boolean) => ipcRenderer.invoke('iniciar-windows-definir', ligado),
