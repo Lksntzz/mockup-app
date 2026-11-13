@@ -52,7 +52,7 @@ O Corel guarda os macros num lugar chamado **GlobalMacros**. Lá já existe um m
 
 ---
 
-> **Se repetir um teste:** antes, apague o `.cdr` que tenha sobrado (inteiro ou pela metade) daquela pasta — ou apague a pasta do teste inteira e crie de novo. O app nunca apaga nem sobrescreve um `.cdr` que já existe.
+> **Se repetir um teste:** antes, apague o `.cdr` que tenha sobrado (inteiro ou pela metade) da pasta **`Corel`** daquele teste — ou apague a pasta do teste inteira e crie de novo. O app nunca apaga nem sobrescreve um `.cdr` que já existe.
 
 ## Teste 1 — PDF de 2 páginas (1 capa)
 
@@ -68,7 +68,8 @@ O Corel guarda os macros num lugar chamado **GlobalMacros**. Lá já existe um m
      - **Página 2:** o molde com a arte da página 2 do PDF e, **dentro do retângulo** de baixo, o **código de barras preto** com os números `7 891234 567895` embaixo (o primeiro número sozinho à esquerda, depois dois grupos de 6).
      - Nada esticado ou achatado; as barras não saem do retângulo.
 6. Abra a pasta `TESTE\Teste 1` no Explorador de Arquivos.
-   - **Resultado esperado:** `Teste 1.txt`, `Teste 1.pdf`, `Teste 1.cdr` e a pasta `_corel` (dentro dela, `montar.txt`).
+   - **Resultado esperado:** o `Teste 1.txt` solto na pasta e três subpastas: **`Arte`** (o PDF e as imagens SVG da arte), **`Codigo de barras`** (o código de barras em SVG) e **`Corel`** (o `Teste 1.cdr`). O `montar.txt` fica em `Corel` só enquanto o Corel trabalha: **quando o Corel termina bem, o app apaga o `montar.txt`**. Então, no fim de um teste que deu certo, a pasta `Corel` tem só o `.cdr`.
+   - **Na tela do app:** antes de criar, a **prévia** mostra a arte e o código de barras. Depois de clicar em criar, aparece a **tela de passos**, que vai marcando cada etapa (pasta, arquivos, Corel); no fim ela mostra **"Concluído"**.
 7. **Durante o teste, anote:** apareceu alguma janela do Corel perguntando algo (por exemplo "Importar PDF" ou "texto como texto/curvas")? Se apareceu, clique **OK** e anote quantas vezes apareceu.
 
 ## Teste 2 — PDF de 6 páginas (3 capas)
@@ -122,11 +123,13 @@ O Corel guarda os macros num lugar chamado **GlobalMacros**. Lá já existe um m
 
 ## Teste 7 — Plano B: macro AnuncioDaPasta (sem o app)
 
-1. **Feche o `Teste 1.cdr` no Corel** (se ele estiver aberto; não precisa salvar). Depois apague (ou mova para outro lugar) o arquivo `Teste 1.cdr` da pasta `TESTE\Teste 1`. **Deixe** a pasta `_corel` lá.
+> **Importante:** quando o Corel termina bem, o app **apaga o `montar.txt`**. Por isso o Teste 7 só funciona com uma pasta em que o `montar.txt` ainda existe: uma em que o Corel **falhou ou foi fechado no meio** (ou uma pasta antiga com `_corel\montar.txt`). Para criar essa situação: no app, monte o anúncio **com o Corel fechado** (ou feche o Corel assim que o app mandar montar). O app avisa que não montou o `.cdr`, e o `montar.txt` fica na pasta `Corel`.
+
+1. **Feche o `Teste 1.cdr` no Corel** (se ele estiver aberto; não precisa salvar). Se a pasta `TESTE\Teste 1\Corel` ainda tiver o `Teste 1.cdr`, apague-o (ou mova para outro lugar). **Confira que o `montar.txt` está na pasta `Corel`**; se não estiver, refaça o teste com um anúncio novo em que o Corel falhou, como explicado acima.
 2. Feche o app. Com o Corel aberto, rode o macro **AnuncioDaPasta**:
    - Jeito 1: **Alt + F11** → na esquerda, **GlobalMacros → Modules → MKP** (duplo clique) → clique em qualquer lugar **dentro** da parte `Sub AnuncioDaPasta()` → aperte **F5**.
    - Jeito 2: menu **Ferramentas → Scripts → Executar script…** → em "Macros em", escolha **GlobalMacros** → escolha **MKP.AnuncioDaPasta** → **Executar**.
-3. Abre uma janela para escolher um arquivo. Entre na pasta `TESTE\Teste 1\_corel` e escolha **montar.txt**.
+3. Abre uma janela para escolher um arquivo. Entre na pasta `TESTE\Teste 1\Corel` e escolha **montar.txt**. (Também funciona escolher a pasta `Teste 1`, ou a pasta `Corel`. Em pastas antigas, o macro procura em `_corel` se não achar em `Corel`.)
    - Se em vez da janela aparecer uma caixinha pedindo um caminho: cole o caminho da pasta `Teste 1` (clique na barra de endereço do Explorador, copie e cole) e clique **OK**.
 4. **Resultado esperado:** o Corel monta o **Teste 1.cdr** de novo, igual ao do Teste 1, e mostra a mensagem **"Pronto: …Teste 1.cdr"** com a linha `capa1=OK …%`.
 5. Rode o **AnuncioDaPasta** de novo na mesma pasta.
@@ -142,7 +145,7 @@ O Corel guarda os macros num lugar chamado **GlobalMacros**. Lá já existe um m
    - **Resultado esperado no app:** "Anúncio criado", a frase "Você escolheu só criar a pasta e o .txt…" e o aviso **"A variação 1 está sem EAN: as páginas dela serão montadas SEM código de barras."**
 4. Abra o `Teste 7b.txt` da pasta no Bloco de Notas.
    - **Resultado esperado:** a linha da variação 1 termina com **`EAN: (pendente)`**.
-5. Com o Corel aberto, rode o macro **AnuncioDaPasta** (igual ao Teste 7) e escolha o `montar.txt` da pasta `TESTE\Teste 7b\_corel`.
+5. Com o Corel aberto, rode o macro **AnuncioDaPasta** (igual ao Teste 7) e escolha o `montar.txt` da pasta `TESTE\Teste 7b\Corel` (o Corel precisa ter falhado ou estar fechado na hora de criar, para o `montar.txt` continuar lá, como no Teste 7).
    - **Resultado esperado:** o `Teste 7b.cdr` tem 2 páginas com a arte, e a página 2 tem o retângulo do código de barras **vazio** (sem código). A mensagem do Corel mostra `capa1=OK` **sem** porcentagem.
 
 ## Teste 8 — Ler o código de barras com o celular
@@ -170,7 +173,7 @@ O Corel guarda os macros num lugar chamado **GlobalMacros**. Lá já existe um m
 - **Qualquer outro erro, ou o resultado ficou diferente do esperado**, me mande:
   1. **Print do Corel** mostrando a página com problema (e da lista de páginas embaixo, onde aparecem "Página 1, Página 2…").
   2. **Print da mensagem** do app (ou da janela do Corel, se ela aparecer).
-  3. O arquivo **`montar.txt`** da pasta `_corel` daquele anúncio (pode anexar o arquivo ou abrir no Bloco de Notas e copiar o texto).
+  3. O arquivo **`montar.txt`** da pasta `Corel` daquele anúncio, se ele ainda existir (o app apaga quando o Corel termina bem; pode anexar o arquivo ou abrir no Bloco de Notas e copiar o texto).
   4. O arquivo **`mockup-resultado.txt`**, se ainda existir: aperte **Windows + R**, digite `%TEMP%` e Enter; procure `mockup-resultado.txt` na pasta que abre. (O app costuma apagar esse arquivo depois de ler; se não estiver lá, tudo bem, o print da mensagem do app serve.)
   5. Se apareceu alguma janela do Corel no meio (por exemplo "Importar PDF"), um print dela.
 

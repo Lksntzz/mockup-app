@@ -247,7 +247,7 @@ End Sub
 ' ============================================================================================
 ' ANUNCIO 2027
 '  - AnuncioNoMolde: o app deixa a lista do anuncio em %TEMP%\mockup-anuncio.txt; o macro le, apaga e monta o .cdr.
-'  - AnuncioDaPasta: plano B, sem o app. Pergunta a pasta do anuncio e le <pasta>\_corel\montar.txt.
+'  - AnuncioDaPasta: plano B, sem o app. Pergunta a pasta do anuncio e le <pasta>\Corel\montar.txt (ou, se nao achar, <pasta>\_corel\montar.txt, das pastas antigas).
 ' Lista (manifesto), uma coisa por linha:
 '   destino=<caminho do .cdr>
 '   capas=<N>
@@ -280,21 +280,23 @@ Sub AnuncioDaPasta()
         escolha = Left(escolha, Len(escolha) - 1)
     Loop
 
-    ' aceita: o montar.txt, a pasta _corel, a pasta do anuncio ou qualquer arquivo de dentro da pasta do anuncio
+    ' aceita: o montar.txt, a pasta Corel (ou _corel), a pasta do anuncio ou qualquer arquivo de dentro da pasta do anuncio
     If LCase(NomeDoArquivo(escolha)) = "montar.txt" Then
         arquivo = escolha
         pasta = PastaDe(PastaDe(escolha))
     ElseIf EhPasta(escolha) Then
-        If LCase(NomeDoArquivo(escolha)) = "_corel" Then pasta = PastaDe(escolha) Else pasta = escolha
-        arquivo = pasta & "\_corel\montar.txt"
+        If LCase(NomeDoArquivo(escolha)) = "corel" Or LCase(NomeDoArquivo(escolha)) = "_corel" Then pasta = PastaDe(escolha) Else pasta = escolha
+        arquivo = pasta & "\Corel\montar.txt"
+        If Not Existe(arquivo) Then arquivo = pasta & "\_corel\montar.txt"
     Else
         pasta = PastaDe(escolha)
-        arquivo = pasta & "\_corel\montar.txt"
+        arquivo = pasta & "\Corel\montar.txt"
+        If Not Existe(arquivo) Then arquivo = pasta & "\_corel\montar.txt"
     End If
 
     If Not Existe(arquivo) Then
         MsgBox "Nao achei a lista do anuncio em:" & vbCrLf & arquivo & vbCrLf & vbCrLf & _
-            "Escolha a pasta do anuncio (a que tem a pasta _corel dentro).", vbExclamation, "Anuncio da pasta"
+            "Escolha a pasta do anuncio (a que tem a pasta Corel dentro).", vbExclamation, "Anuncio da pasta"
         Exit Sub
     End If
 
@@ -305,11 +307,11 @@ Private Function EscolherPastaDoAnuncio() As String
     Dim r As String
     On Error Resume Next
     ' TESTAR NO COREL: filtro do GetFileBox so com o nome montar.txt
-    r = Application.GetFileBox("Lista do anuncio (montar.txt)|montar.txt|Texto|*.txt", "Escolha o montar.txt (dentro da pasta _corel do anuncio)", 0)
+    r = Application.GetFileBox("Lista do anuncio (montar.txt)|montar.txt|Texto|*.txt", "Escolha o montar.txt (dentro da pasta Corel do anuncio)", 0)
     If Err.Number <> 0 Then
         Err.Clear
         On Error GoTo 0
-        r = InputBox("Cole o caminho completo da pasta do anuncio (a que tem a pasta _corel dentro):", "Anuncio da pasta")
+        r = InputBox("Cole o caminho completo da pasta do anuncio (a que tem a pasta Corel dentro):", "Anuncio da pasta")
     End If
     EscolherPastaDoAnuncio = Trim(Replace(r, Chr(34), ""))
 End Function

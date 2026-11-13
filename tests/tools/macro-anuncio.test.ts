@@ -27,6 +27,12 @@ describe('tools/corel/MKP.bas', () => {
     expect(bytes.some((b) => b >= 0x80 && b <= 0x9f)).toBe(false);
   });
 
+  test('AnuncioDaPasta tenta Corel\\montar.txt e depois _corel\\montar.txt', () => {
+    expect(bas).toContain('\\Corel\\montar.txt');
+    expect(bas).toContain('\\_corel\\montar.txt');
+    expect(bytes.some((b) => b > 127)).toBe(false);
+  });
+
   test('as declarações do módulo vêm antes da primeira rotina (exigência do VBA)', () => {
     const linhas = bas.split('\r\n');
     const primeiraRotina = linhas.findIndex((l) => /^(Private |Public )?(Sub|Function) /.test(l));
