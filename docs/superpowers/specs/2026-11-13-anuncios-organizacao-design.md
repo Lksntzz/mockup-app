@@ -3,11 +3,11 @@
 Data: 2026-11-13. Complementa `2026-11-12-anuncios-2027-design.md`. Pedido do usuário depois do primeiro teste real (a pasta e o `.txt` foram criados; a montagem no Corel funcionou).
 
 ## Pedido (nas palavras do usuário)
-1. Dentro da pasta da arte, os arquivos ficam organizados em subpastas, **menos o `.txt`**. A pasta `_corel` guarda o arquivo do Corel.
+1. Dentro da pasta da arte, os arquivos ficam organizados em subpastas, **menos o `.txt`**. A pasta `Corel` guarda o arquivo do Corel.
 2. O app precisa de **tela de carregamento** e de um **"Concluído"**.
 3. O app **não está gerando a imagem do código de barras**.
 
-Escolhas confirmadas: txt solto; subpastas `Arte` e `_corel`; imagem do código na pasta **e** prévia no app; carregamento em passos com status e "Concluído" no fim.
+Escolhas confirmadas: txt solto; subpastas `Arte` e `Corel`; imagem do código na pasta **e** prévia no app; carregamento em passos com status e "Concluído" no fim.
 
 ## Como fica a pasta
 ```
@@ -15,13 +15,15 @@ Escolhas confirmadas: txt solto; subpastas `Arte` e `_corel`; imagem do código 
   <arte>.txt                      (único arquivo solto)
   Arte/                           (PDF ou imagens copiadas)
   Codigo de barras/               (uma imagem .svg por capa que tem EAN)
-  _corel/
+  Corel/
     <arte>.cdr                    (criado pela macro)
-    montar.txt                    (lista que o app entrega ao Corel)
+    montar.txt                    (lista para o Corel; o app APAGA quando a montagem termina com sucesso)
 ```
-- O manifesto passa a apontar para `Arte/...` (frente/verso) e `_corel/<arte>.cdr` (destino). A macro (`MKP.bas`) não muda: ela lê os caminhos do manifesto.
-- "Montar no Corel agora" (`montarPastaExistente`): aceita o `.cdr` em `_corel` (layout novo) e também na raiz (pastas criadas antes desta mudança, como a TOQUE ROSE).
+- O manifesto passa a apontar para `Arte/...` (frente/verso) e `Corel/<arte>.cdr` (destino). A macro (`MKP.bas`) não muda: ela lê os caminhos do manifesto.
+- "Montar no Corel agora" (`montarPastaExistente`): aceita o `.cdr` em `Corel` (layout novo) e também na raiz (pastas criadas antes desta mudança, como a TOQUE ROSE).
 - Nomes das imagens: `Capa N - <EAN>.svg`.
+
+- A pasta chama-se `Corel` (sem underline). `montar.txt` existe só enquanto a montagem não terminou: o app grava antes de chamar o Corel e, se a etapa termina `feito` (`.cdr` apareceu e a macro respondeu sem erro), apaga só esse arquivo. Em erro, "Corel fechado" ou "pulado" ele permanece, porque "Montar no Corel agora" e a macro `AnuncioDaPasta` leem esse arquivo. Pastas antigas com `_corel` continuam aceitas por `montarPastaExistente`.
 
 ## Código de barras (imagem)
 - Nova função pura `gerarSvgEan13(ean)` em `src/anuncios/ean-svg.ts`, usando `layoutEan13` (mesmas medidas 543×189 da macro): barras pretas, barras de guarda mais compridas, dígitos em texto (Arial) abaixo, fundo branco.
@@ -42,8 +44,8 @@ Escolhas confirmadas: txt solto; subpastas `Arte` e `_corel`; imagem do código 
 
 ## Riscos e o que muda no teste
 - Mais arquivos no Drive (sincronização um pouco mais lenta): aceitável.
-- O `.cdr` agora fica dentro de `_corel`: o roteiro `docs/teste-manual-anuncios.md` precisa dizer isso.
-- A macro grava o `.cdr` com `SaveAs` na pasta `_corel`, que o app cria **antes** de chamar a macro (já é assim hoje).
+- O `.cdr` agora fica dentro de `Corel`: o roteiro `docs/teste-manual-anuncios.md` precisa dizer isso.
+- A macro grava o `.cdr` com `SaveAs` na pasta `Corel`, que o app cria **antes** de chamar a macro (já é assim hoje).
 - Pré-visualização em SVG depende do navegador embutido do Electron (suporta SVG sem problema).
 
 ## Abordagens consideradas
