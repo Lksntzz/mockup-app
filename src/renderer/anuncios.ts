@@ -570,6 +570,8 @@ async function carregarPendentes(): Promise<void> {
   if (abertoConcluir && !r.lista.some((x) => x.pasta === abertoConcluir!.pasta)) abertoConcluir = undefined;
   desenharPendentes();
   texto(estado, r.lista.length === 0 ? 'Nenhuma arte pendente.' : '');
+  const tit = document.getElementById('an-pend-titulo');
+  if (tit) tit.textContent = r.lista.length > 0 ? `Pendentes (${r.lista.length})` : 'Pendentes';
 }
 
 export async function mostrarAnuncios(): Promise<void> {

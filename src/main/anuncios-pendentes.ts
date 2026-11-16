@@ -14,6 +14,29 @@ export interface CardPendente {
 export type ResultadoConcluir = { ok: true; faltam: number; avisos: string[]; montarPrimeiro: boolean } | { ok: false; motivo: string };
 
 const ARQ = 'pendente.json';
+const ARQ_BAK = 'pendente.json.bak';
+const TRAVA = 'concluir.lock';
+const TRAVA_VELHA_MS = 2 * 60 * 1000;
+
+/** Lê o pendente.json; se ele estiver estragado (mas existe), tenta a cópia de segurança. ENOENT passa direto. */
+async function lerPendenciaDaPasta(pasta: string) {
+  try {
+    return lerPendencia(await readFile(join(pasta, ARQ), 'utf8'));
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException)?.code === 'ENOENT') throw e;
+    try {
+      return lerPendencia(await readFile(join(pasta, ARQ_BAK), 'utf8'));
+    } catch {
+      throw e;
+    }
+  }
+}
+
+/** Grava o pendente.json e a cópia de segurança ao lado (a cópia só vale se o principal estragar). */
+async function gravarPendencia(pasta: string, conteudo: string): Promise<void> {
+  await gravarAtomico(join(pasta, ARQ), conteudo, 'utf8');
+  await gravarAtomico(join(pasta, ARQ_BAK), conteudo, 'utf8').catch(() => undefined);
+}
 const LIMITE = 8;
 
 async function emParalelo<T, R>(itens: T[], fn: (i: T) => Promise<R>): Promise<R[]> {
@@ -70,7 +93,7 @@ export async function listarPendentes(raiz: string): Promise<CardPendente[]> {
       pasta: c.pasta, plataforma: c.plataforma, categoria: c.categoria, ...(c.subcategoria ? { subcategoria: c.subcategoria } : {}),
     };
     try {
-      const p = lerPendencia(await readFile(join(c.pasta, ARQ), 'utf8'));
+      const p = await lerPendenciaDaPasta(c.pasta);
       const ruim = erroDeArte(p.arte);
       if (ruim) throw new Error(ruim);
       return { ...base, arte: p.arte, capas: p.capas };
@@ -121,6 +144,25 @@ export function concluirPendente(raiz: string, pasta: unknown, eans: Record<numb
 }
 
 async function concluir(raiz: string, pasta: unknown, eans: Record<number, string>, skus: Record<number, string>): Promise<ResultadoConcluir> {
+  if (typeof pasta !== 'string' || !pasta || !dentroDaRaiz(raiz, pasta) || !(await ehPasta(pasta))) return concluirSemTrava(raiz, pasta, eans, skus);
+  const trava = join(pasta, TRAVA);
+  try {
+    await writeFile(trava, `${Date.now()}\n`, { flag: 'wx' });
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException)?.code !== 'EEXIST') return concluirSemTrava(raiz, pasta, eans, skus);
+    const idade = await stat(trava).then((x) => Date.now() - x.mtimeMs, () => Number.POSITIVE_INFINITY);
+    if (idade < TRAVA_VELHA_MS) return { ok: false, motivo: 'Esta arte está sendo concluída agora (talvez em outro computador). Espere alguns segundos e atualize.' };
+    // trava velha (app fechado no meio): assume e segue
+    await writeFile(trava, `${Date.now()}\n`).catch(() => undefined);
+  }
+  try {
+    return await concluirSemTrava(raiz, pasta, eans, skus);
+  } finally {
+    await rm(trava, { force: true }).catch(() => undefined);
+  }
+}
+
+async function concluirSemTrava(raiz: string, pasta: unknown, eans: Record<number, string>, skus: Record<number, string>): Promise<ResultadoConcluir> {
   const recusa = (motivo: string): ResultadoConcluir => ({ ok: false, motivo });
   if (typeof pasta !== 'string' || !pasta || !dentroDaRaiz(raiz, pasta) || !(await ehPasta(pasta))) {
     return recusa('Essa pasta não está dentro da pasta dos Anúncios 2027.');
@@ -133,7 +175,7 @@ async function concluir(raiz: string, pasta: unknown, eans: Record<number, strin
   }
   let pend;
   try {
-    pend = lerPendencia(await readFile(join(pasta, ARQ), 'utf8'));
+    pend = await lerPendenciaDaPasta(pasta);
   } catch (e) {
     if ((e as NodeJS.ErrnoException)?.code === 'ENOENT') return recusa('Essa arte não tem pendência (pendente.json não existe).');
     return recusa(e instanceof Error ? e.message : String(e));
@@ -261,11 +303,17 @@ async function concluir(raiz: string, pasta: unknown, eans: Record<number, strin
     if (linhasCorel.length > 0) {
       await mkdir(pastaCorel, { recursive: true });
       const todas = [...linhasAntes, ...linhasCorel.filter((l) => !linhasAntes.includes(l))];
-      await gravarAtomico(arqEan, Buffer.from(`${todas.join('\r\n')}\r\n`, 'latin1'));
+      const conteudoEan = Buffer.from(`${todas.join('\r\n')}\r\n`, 'latin1');
+      await gravarAtomico(arqEan, conteudoEan);
+      // o macro apaga o ean.txt ao terminar: esta cópia permite refazer se o Corel travar antes de salvar o .cdr
+      await gravarAtomico(join(pastaCorel, 'ean.bak.txt'), conteudoEan).catch(() => undefined);
     }
     const resto = aposConcluir(pend, { eans: [...novos.keys()], skus: [...novosSkus.keys()] });
-    if (resto) await gravarAtomico(join(pasta, ARQ), serializarPendencia(resto), 'utf8');
-    else await rm(join(pasta, ARQ), { force: true });
+    if (resto) await gravarPendencia(pasta, serializarPendencia(resto));
+    else {
+      await rm(join(pasta, ARQ), { force: true });
+      await rm(join(pasta, ARQ_BAK), { force: true }).catch(() => undefined);
+    }
     const montarPrimeiro = await existeArquivo(join(pastaCorel, 'montar.txt'));
     return { ok: true, faltam: resto ? resto.capas.length : 0, avisos, montarPrimeiro };
   } catch (e) {

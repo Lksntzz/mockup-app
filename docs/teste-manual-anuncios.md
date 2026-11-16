@@ -260,6 +260,13 @@ Use o **PDF de 6 páginas** (3 capas) e o nome **Teste P2**.
    - **Resultado esperado:** dois quadros dentro do card: **"1. Ajustar a arte no molde (Corel)"** (com **Frente do molde**, **Verso do molde**, **Abrir no molde (Corel)** e **Gerar PDF (Corel)**) e **"2. Fazer o MKP (mockup)"** (com **Arquivo do MKP** e **Fazer MKP**). Cada lista fica junto do botão a que pertence.
 2. Troque o **Arquivo do MKP** e clique em **Fazer MKP**: o arquivo escolhido abre no gerador. Troque Frente/Verso do molde e clique em **Abrir no molde**: o Corel recebe as páginas escolhidas.
 
+## Teste R — Segurança dos pendentes (0.13.0)
+
+1. **Contador.** Com 2 ou mais artes pendentes, o título da seção mostra **"Pendentes (2)"** (o número muda ao concluir uma).
+2. **Cópia do ean.txt.** Conclua um EAN (Teste P). Na pasta `Corel` da arte aparecem **`ean.txt`** e **`ean.bak.txt`** (iguais). Se o Corel travar antes de você salvar o `.cdr` e o `ean.txt` já tiver sumido, copie o `ean.bak.txt` e renomeie a cópia para **`ean.txt`**; depois rode o macro de novo.
+3. **Cópia do pendente.** Na pasta da arte existe `pendente.json.bak`. Se um dia o `pendente.json` estragar, o card continua aparecendo usando essa cópia.
+4. **Dois computadores.** Enquanto um PC conclui, aparece `concluir.lock` na pasta por alguns segundos; se o outro PC tentar ao mesmo tempo, vê "Esta arte está sendo concluída agora". O arquivo some sozinho (ou é ignorado após 2 minutos).
+
 ## Teste W — Wire-o rose gold no mockup de Especificação
 
 1. No app, aba **MKP**, abra um PDF de capa (arraste para a janela). Quando a capa carregar, aparece o painel da direita com **Wire-o**, **Elástico**, **Tassel** e **Imagens a gerar**.

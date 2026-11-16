@@ -170,7 +170,10 @@ export async function criarAnuncio(e: EntradaDoAnuncio, aoProgredir?: AoProgredi
     }
     await writeFile(join(pasta, 'Corel', 'montar.txt'), Buffer.from(manifestoTexto, 'latin1'));
     const pendencia = montarPendencia(arte, e.variacoes);
-    if (pendencia) await writeFile(join(pasta, 'pendente.json'), serializarPendencia(pendencia), 'utf8');
+    if (pendencia) {
+      await writeFile(join(pasta, 'pendente.json'), serializarPendencia(pendencia), 'utf8');
+      await writeFile(join(pasta, 'pendente.json.bak'), serializarPendencia(pendencia), 'utf8').catch(() => undefined);
+    }
     return { ok: true, pasta, cdr, manifestoTexto, avisos, imagensEan };
   } catch (err) {
     aoProgredir?.(etapa, 'erro');

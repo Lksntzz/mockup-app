@@ -369,3 +369,32 @@ describe('concluirPendente com SKU', () => {
     expect(await readFile(join(p, 'A1.txt'), 'utf8')).toContain('SKU: $&-1 | EAN');
   });
 });
+
+describe('segurança extra (cópia, trava, ean.bak)', () => {
+  test('pendente.json estragado: usa pendente.json.bak e lista o card', async () => {
+    const pasta = await arte(join(raiz, 'Shopee', 'Agenda'), 'A1');
+    const bom = await readFile(join(pasta, 'pendente.json'), 'utf8');
+    await writeFile(join(pasta, 'pendente.json.bak'), bom, 'utf8');
+    await writeFile(join(pasta, 'pendente.json'), '{estragado', 'utf8');
+    const l = await listarPendentes(raiz);
+    expect(l[0]?.erro).toBeUndefined();
+    expect(l[0]?.capas).toHaveLength(2);
+  });
+  test('trava recente recusa; trava velha é assumida; trava some no fim', async () => {
+    const pasta = await arte(join(raiz, 'Shopee', 'Agenda'), 'A1');
+    await writeFile(join(pasta, 'concluir.lock'), 'x');
+    const r = await concluirPendente(raiz, pasta, { 1: E1 });
+    expect(r.ok).toBe(false);
+    const { utimes } = await import('node:fs/promises');
+    const velho = new Date(Date.now() - 10 * 60 * 1000);
+    await utimes(join(pasta, 'concluir.lock'), velho, velho);
+    expect((await concluirPendente(raiz, pasta, { 1: E1 })).ok).toBe(true);
+    expect(await existe(join(pasta, 'concluir.lock'))).toBe(false);
+  });
+  test('grava ean.bak.txt igual ao ean.txt e a cópia do pendente.json', async () => {
+    const pasta = await arte(join(raiz, 'Shopee', 'Agenda'), 'A1');
+    await concluirPendente(raiz, pasta, { 1: E1 });
+    expect(await readFile(join(pasta, 'Corel', 'ean.bak.txt'))).toEqual(await readFile(join(pasta, 'Corel', 'ean.txt')));
+    expect(JSON.parse(await readFile(join(pasta, 'pendente.json.bak'), 'utf8')).capas).toHaveLength(1);
+  });
+});
