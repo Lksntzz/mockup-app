@@ -57,7 +57,7 @@ async function gerarPrevia(nome: string, inicial: string): Promise<void> {
       return;
     }
     if (urlPrevia) URL.revokeObjectURL(urlPrevia);
-    urlPrevia = URL.createObjectURL(new Blob([r.png as BlobPart], { type: 'image/png' }));
+    urlPrevia = URL.createObjectURL(new Blob([r.png as BlobPart], { type: 'image/jpeg' }));
     const img = $<HTMLImageElement>('pz-img');
     img.src = urlPrevia;
     img.hidden = false;

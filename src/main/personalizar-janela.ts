@@ -4,11 +4,13 @@ import { stat, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { BrowserWindow, nativeImage } from 'electron';
+import { pathToFileURL } from 'node:url';
 import { formatoDaArte, htmlDaPagina, nomeHtml, validarEntrada } from '../personalizar/modelo';
 import { acharRecursos } from './personalizar';
 
 export interface ImpressoraInfo { nome: string; padrao: boolean }
 /** aviso: a fonte instalada neste computador parece ser outra versão da Cream Candy (acentos e ondas podem sair fora do lugar). */
+/** png: na verdade JPEG (qualidade 90): codifica bem mais rápido que PNG e é menor; o nome do campo ficou por compatibilidade. */
 export type ResultadoPrevia = { ok: true; png: Uint8Array; aviso?: string } | { ok: false; motivo: string };
 /** preparoMs: montar a página; envioMs: do Chromium até o Windows aceitar o trabalho (mostrado na tela para achar a etapa lenta). */
 export type ResultadoImpressao = { ok: true; preparoMs?: number; envioMs?: number } | { ok: false; motivo: string };
@@ -29,7 +31,10 @@ const ALT_PX = 1123;
 /** Escala da janela na prévia: a página A4 inteira (1123 px) não cabe em telas de 1080 px, e a janela escondida também é limitada pela tela. A escala é feita na própria página (não pelo zoom do navegador). */
 const ESCALA_PREVIA = 0.8;
 
-interface Montada { win: BrowserWindow; arquivo: string }
+interface Montada { win: BrowserWindow; arquivo: string; extras: string[] }
+
+/** Largura da cópia reduzida da arte usada só na prévia: a tela mostra ~400 px, então redesenhar a arte de 2481 px a cada letra seria trabalho jogado fora (pesa em PC fraco). */
+const LARGURA_ARTE_PREVIA = 1000;
 
 /** Monta a página numa janela escondida e espera arte, fontes e tamanho final. A janela e o arquivo temporário são de quem chamou. */
 async function montar(pasta: string | undefined, nome: string, inicial: string, escala: number): Promise<{ ok: true; m: Montada } | { ok: false; motivo: string }> {
@@ -39,8 +44,16 @@ async function montar(pasta: string | undefined, nome: string, inicial: string, 
   const tam = nativeImage.createFromPath(pasta!).getSize();
   rec.recursos.formato = formatoDaArte(tam.width, tam.height);
   const arquivo = join(tmpdir(), `mockup-personalizado-${randomUUID()}.html`);
+  const extras: string[] = [arquivo];
   let win: BrowserWindow | undefined;
   try {
+    if (escala < 1 && tam.width > LARGURA_ARTE_PREVIA) {
+      const reduzida = join(tmpdir(), `mockup-previa-arte-${randomUUID()}.jpg`);
+      const img = nativeImage.createFromPath(pasta!).resize({ width: LARGURA_ARTE_PREVIA, quality: 'good' });
+      await writeFile(reduzida, img.toJPEG(92));
+      extras.push(reduzida);
+      rec.recursos.arteUrl = pathToFileURL(reduzida).href;
+    }
     await writeFile(arquivo, htmlDaPagina(rec.recursos, nome, inicial, escala), 'utf8');
     win = new BrowserWindow({
       show: false,
@@ -64,10 +77,10 @@ async function montar(pasta: string | undefined, nome: string, inicial: string, 
     }
     // a janela está escondida: espera a tela repintar com o tamanho final da letra antes de fotografar ou imprimir
     await esperarPintura(win);
-    return { ok: true, m: { win, arquivo } };
+    return { ok: true, m: { win, arquivo, extras } };
   } catch (e) {
     if (win && !win.isDestroyed()) win.destroy();
-    await unlink(arquivo).catch(() => undefined);
+    await Promise.all(extras.map((f) => unlink(f).catch(() => undefined)));
     return { ok: false, motivo: e instanceof Error && /demorou|não está instalada/.test(e.message) ? e.message : `Não consegui montar a arte: ${e instanceof Error ? e.message : String(e)}` };
   }
 }
@@ -80,7 +93,7 @@ async function esperarPintura(win: BrowserWindow, extraMs = 150): Promise<void> 
 
 async function descartar(m: Montada): Promise<void> {
   if (!m.win.isDestroyed()) m.win.destroy();
-  await unlink(m.arquivo).catch(() => undefined);
+  await Promise.all(m.extras.map((f) => unlink(f).catch(() => undefined)));
 }
 
 async function comPagina<T>(pasta: string | undefined, nome: string, inicial: string, escala: number, usar: (win: BrowserWindow) => Promise<T>): Promise<T | { ok: false; motivo: string }> {
@@ -126,6 +139,13 @@ async function janelaDaPrevia(pasta: string | undefined, nome: string, inicial: 
   return { ok: true, win: r.m.win, novo: true };
 }
 
+/** Abre a janela da prévia antes da primeira digitação (a aba acabou de abrir): a primeira prévia deixa de pagar o carregamento da arte e das fontes. */
+export function aquecerPrevia(pasta: string | undefined): void {
+  void naFila(async () => {
+    await janelaDaPrevia(pasta, 'A', 'A').catch(() => undefined);
+  }).catch(() => undefined);
+}
+
 export function previaDaPersonalizacao(pasta: string | undefined, entrada: { nome: unknown; inicial: unknown }): Promise<ResultadoPrevia> {
   const v = validarEntrada(entrada);
   if (!v.ok) return Promise.resolve(v);
@@ -147,7 +167,7 @@ export function previaDaPersonalizacao(pasta: string | undefined, entrada: { nom
         avisos.push(`Atenção: a fonte Cream Candy deste computador parece ser de outra versão (as letras têm larguras diferentes da fonte do designer). Acentos e ondas podem sair fora do lugar. Instale neste computador a mesma Cream Candy do designer. Diagnóstico (me mande este texto): larguras medidas/esperadas: ${String(larg)}.`);
       }
       const aviso = avisos.length > 0 ? avisos.join(' ') : undefined;
-      return { ok: true as const, png: new Uint8Array(img.toPNG()), ...(aviso ? { aviso } : {}) };
+      return { ok: true as const, png: new Uint8Array(img.toJPEG(90)), ...(aviso ? { aviso } : {}) };
     } catch (e) {
       soltarPrevia(); // se a janela ficou num estado estranho, a próxima prévia começa do zero
       return { ok: false as const, motivo: `Não consegui montar a prévia: ${e instanceof Error ? e.message : String(e)}` };

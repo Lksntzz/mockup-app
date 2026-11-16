@@ -65,7 +65,7 @@ import {
 } from "./anuncios";
 import { acharPastaAnuncios, criarCategoria, criarSubcategoria, listarCategorias, listarPlataformas, listarSubcategorias, mesclarPastasAchadas } from "./anuncios-pastas";
 import { mesmoNome } from "../anuncios/nomes";
-import { abrirPreferenciasDaImpressora, imprimirPersonalizacao, listarImpressoras, previaDaPersonalizacao, soltarPrevia } from "./personalizar-janela";
+import { abrirPreferenciasDaImpressora, imprimirPersonalizacao, listarImpressoras, aquecerPrevia, previaDaPersonalizacao, soltarPrevia } from "./personalizar-janela";
 import { estadoDaArte, imagemDaArte } from "./personalizar";
 import { colocarEanNoCorel, concluirPendente, listarPendentes as listarAnunciosPendentes } from "./anuncios-pendentes";
 import { criarPortaoDePin } from "./pin";
@@ -582,7 +582,12 @@ ipcMain.handle("anuncios-colocar-ean", async (_e, pasta: unknown) => {
   if (!r.pasta) return { ok: false as const, motivo: "Não achei a pasta de anúncios. Escolha na mão." };
   return colocarEanNoCorel(r.pasta, pasta);
 });
-ipcMain.handle("personalizar-estado", async () => estadoDaArte(await configDoDesigner().ler()));
+ipcMain.handle("personalizar-estado", async () => {
+  const c = await configDoDesigner().ler();
+  const estado = await estadoDaArte(c);
+  if (estado.ok) aquecerPrevia((await imagemDaArte(c)).imagem);
+  return estado;
+});
 ipcMain.handle("personalizar-previa", async (_e, entrada: unknown) => {
   const c = await configDoDesigner().ler();
   const e = (entrada ?? {}) as { nome?: unknown; inicial?: unknown };
