@@ -36,6 +36,7 @@ contextBridge.exposeInMainWorld('mockupApi', {
   personalizarPrevia: (nome: string, inicial: string) => ipcRenderer.invoke('personalizar-previa', { nome, inicial }),
   personalizarImpressoras: () => ipcRenderer.invoke('personalizar-impressoras'),
   personalizarPreferencias: (impressora: string) => ipcRenderer.invoke('personalizar-preferencias', impressora),
+  personalizarSalvarImagem: (bytes: Uint8Array) => ipcRenderer.invoke('personalizar-salvar-imagem', bytes),
   personalizarImprimir: (nome: string, inicial: string, copias: number, impressora: string) => ipcRenderer.invoke('personalizar-imprimir', { nome, inicial, copias, impressora }),
   anunciosColocarEan: (pasta: string) => ipcRenderer.invoke('anuncios-colocar-ean', pasta),
   anunciosConcluirPendente: (pasta: string, eans: Record<number, string>, skus: Record<number, string>) => ipcRenderer.invoke('anuncios-concluir-pendente', pasta, eans, skus),

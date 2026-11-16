@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { escaparHtml, htmlDaPagina, inicialDoNome, letraHtml, validarEntrada } from '../src/personalizar/modelo';
+import { escaparHtml, htmlDaPagina, formatoDaArte, inicialDoNome, letraHtml, validarEntrada } from '../src/personalizar/modelo';
 
 describe('inicialDoNome', () => {
   test.each([
@@ -107,5 +107,25 @@ describe('fontes do Windows (sem arquivo de fonte no app)', () => {
   });
   test('a página avisa quando uma fonte não está instalada', () => {
     expect(htmlDaPagina(r, 'Ana', 'A')).toContain('window.__fonteFaltando');
+  });
+});
+
+describe('formato da arte (A4 inteira ou só o quadro de 195 x 255 mm)', () => {
+  test.each([
+    [2481, 3509, 'a4'],
+    [2480, 3508, 'a4'],
+    [1000, 1414, 'a4'],
+    [2303, 3011, 'quadro'], // 195 x 255 mm a 300 dpi ≈ 2303 x 3011
+    [1950, 2550, 'quadro'],
+    [1000, 1000, 'a4'], // proporção desconhecida: não deforma por conta própria
+    [0, 0, 'a4'],
+  ])('imagem %i x %i → %s', (l, a, esperado) => {
+    expect(formatoDaArte(l, a)).toBe(esperado);
+  });
+
+  test('a página coloca o quadro centralizado e em tamanho real, e a A4 esticada na folha toda', () => {
+    const base = { arteUrl: 'file:///a.png' };
+    expect(htmlDaPagina({ ...base, formato: 'quadro' }, 'Ana', 'A')).toContain('7.5mm 21mm/195mm 255mm no-repeat');
+    expect(htmlDaPagina(base, 'Ana', 'A')).toContain('0mm 0mm/210mm 297mm no-repeat');
   });
 });

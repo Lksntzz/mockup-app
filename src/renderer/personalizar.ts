@@ -1,5 +1,6 @@
 import { inicialDoNome, validarEntrada } from '../personalizar/modelo';
-import type { MockupApi } from './global';
+import { openPdf } from '../pdf/reader';
+import type { EstadoDaArte, MockupApi } from './global';
 
 const api: MockupApi = (window as unknown as { mockupApi: MockupApi }).mockupApi;
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -98,6 +99,39 @@ function nomeDoArquivo(caminho: string): string {
   return caminho.split(/[\\/]/).pop() ?? caminho;
 }
 
+/** A4 a 300 dpi: 210 mm = 2481 px. */
+const LARGURA_A4_300DPI = 2481;
+
+/** Desenha a página 1 do PDF (pdf.js) em 300 dpi e entrega a imagem pronta ao app; devolve o novo estado. */
+async function converterPdf(caminho: string): Promise<EstadoDaArte> {
+  const doc = await openPdf((await api.lerPdf(caminho)).bytes);
+  try {
+    const r = await doc.renderPage(1, LARGURA_A4_300DPI);
+    const canvas = document.createElement('canvas');
+    canvas.width = r.width;
+    canvas.height = r.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Não consegui preparar a imagem do PDF.');
+    ctx.putImageData(new ImageData(r.data as unknown as Uint8ClampedArray<ArrayBuffer>, r.width, r.height), 0, 0);
+    const png = await new Promise<Blob | null>((ok) => canvas.toBlob(ok, 'image/png'));
+    if (!png) throw new Error('Não consegui gerar a imagem do PDF.');
+    return await api.personalizarSalvarImagem(new Uint8Array(await png.arrayBuffer()));
+  } finally {
+    await doc.close();
+  }
+}
+
+/** Se o estado pede para converter um PDF, converte (mostrando que está trabalhando) e devolve o estado final. */
+async function resolverEstado(e: EstadoDaArte): Promise<EstadoDaArte> {
+  if (!e.converter) return e;
+  mostrarEstado({ arte: e.arte, ok: false, motivo: 'Preparando a arte do PDF… (alguns segundos)' });
+  try {
+    return await converterPdf(e.converter);
+  } catch (er) {
+    return { arte: e.arte, ok: false, motivo: `Não consegui abrir o PDF: ${erroDe(er)}` };
+  }
+}
+
 function mostrarEstado(e: { arte?: string; ok: boolean; motivo: string }): void {
   texto($('pz-pasta'), e.arte ? nomeDoArquivo(e.arte) : 'não escolhida');
   modeloOk = e.ok;
@@ -110,7 +144,7 @@ function mostrarEstado(e: { arte?: string; ok: boolean; motivo: string }): void 
 
 export async function mostrarPersonalizar(): Promise<void> {
   try {
-    mostrarEstado(await api.personalizarEstado());
+    mostrarEstado(await resolverEstado(await api.personalizarEstado()));
     if (modeloOk) {
       await carregarImpressoras();
       if (!previaAtual) agendarPrevia();
@@ -122,7 +156,7 @@ export async function mostrarPersonalizar(): Promise<void> {
 
 export function iniciarPersonalizar(): void {
   $('pz-escolher').addEventListener('click', () => {
-    void api.personalizarEscolherPasta().then(async (e) => {
+    void api.personalizarEscolherPasta().then(resolverEstado).then(async (e) => {
       mostrarEstado(e);
       if (e.ok) { await carregarImpressoras(); agendarPrevia(); }
     }, (er) => mostrarEstado({ ok: false, motivo: erroDe(er) }));

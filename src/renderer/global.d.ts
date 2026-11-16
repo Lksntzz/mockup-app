@@ -25,6 +25,14 @@ export interface ArquivoPdf {
   caminho: string;
   bytes: Uint8Array;
 }
+/** Estado da arte da aba Personalizar; `converter` = PDF que a tela precisa transformar em imagem. */
+export interface EstadoDaArte {
+  arte?: string;
+  ok: boolean;
+  motivo: string;
+  converter?: string;
+}
+
 export interface MockupApi {
   versao(): Promise<string>;
   operador(): Promise<string>;
@@ -51,8 +59,9 @@ export interface MockupApi {
   anunciosSubcategorias(plataforma: string, categoria: string): Promise<{ ok: boolean; lista: string[] }>;
   anunciosCriarSubcategoria(plataforma: string, categoria: string, nome: string): Promise<ResultadoCategoria>;
   anunciosPendentes(): Promise<{ ok: true; lista: CardPendente[] } | { ok: false; motivo: string }>;
-  personalizarEstado(): Promise<{ arte?: string; ok: boolean; motivo: string }>;
-  personalizarEscolherPasta(): Promise<{ arte?: string; ok: boolean; motivo: string }>;
+  personalizarEstado(): Promise<EstadoDaArte>;
+  personalizarEscolherPasta(): Promise<EstadoDaArte>;
+  personalizarSalvarImagem(bytes: Uint8Array): Promise<EstadoDaArte>;
   personalizarPrevia(nome: string, inicial: string): Promise<{ ok: true; png: Uint8Array } | { ok: false; motivo: string }>;
   personalizarImpressoras(): Promise<{ ok: true; lista: Array<{ nome: string; padrao: boolean }> } | { ok: false; motivo: string }>;
   personalizarPreferencias(impressora: string): Promise<{ ok: true } | { ok: false; motivo: string }>;

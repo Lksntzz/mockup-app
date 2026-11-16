@@ -3,8 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { BrowserWindow } from 'electron';
-import { htmlDaPagina, validarEntrada } from '../personalizar/modelo';
+import { BrowserWindow, nativeImage } from 'electron';
+import { formatoDaArte, htmlDaPagina, validarEntrada } from '../personalizar/modelo';
 import { acharRecursos } from './personalizar';
 
 export interface ImpressoraInfo { nome: string; padrao: boolean }
@@ -31,6 +31,9 @@ const ESCALA_PREVIA = 0.8;
 async function comPagina<T>(pasta: string | undefined, nome: string, inicial: string, escala: number, usar: (win: BrowserWindow) => Promise<T>): Promise<T | { ok: false; motivo: string }> {
   const rec = await acharRecursos(pasta);
   if (!rec.ok) return rec;
+  // proporção da imagem: A4 inteira ou só o quadro de 195 x 255 mm (impresso em tamanho real, centralizado)
+  const tam = nativeImage.createFromPath(pasta!).getSize();
+  rec.recursos.formato = formatoDaArte(tam.width, tam.height);
   const arquivo = join(tmpdir(), `mockup-personalizado-${randomUUID()}.html`);
   let win: BrowserWindow | undefined;
   try {

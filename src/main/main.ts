@@ -66,7 +66,7 @@ import {
 import { acharPastaAnuncios, criarCategoria, criarSubcategoria, listarCategorias, listarPlataformas, listarSubcategorias, mesclarPastasAchadas } from "./anuncios-pastas";
 import { mesmoNome } from "../anuncios/nomes";
 import { abrirPreferenciasDaImpressora, imprimirPersonalizacao, listarImpressoras, previaDaPersonalizacao } from "./personalizar-janela";
-import { acharRecursos } from "./personalizar";
+import { estadoDaArte, imagemDaArte } from "./personalizar";
 import { colocarEanNoCorel, concluirPendente, listarPendentes as listarAnunciosPendentes } from "./anuncios-pendentes";
 import { criarPortaoDePin } from "./pin";
 import { acharPastasDoFluxo } from "./achar-pastas";
@@ -581,15 +581,11 @@ ipcMain.handle("anuncios-colocar-ean", async (_e, pasta: unknown) => {
   if (!r.pasta) return { ok: false as const, motivo: "Não achei a pasta de anúncios. Escolha na mão." };
   return colocarEanNoCorel(r.pasta, pasta);
 });
-ipcMain.handle("personalizar-estado", async () => {
-  const c = await configDoDesigner().ler();
-  const r = await acharRecursos(c.artePersonalizada);
-  return { arte: c.artePersonalizada, ok: r.ok, motivo: r.ok ? "" : r.motivo };
-});
+ipcMain.handle("personalizar-estado", async () => estadoDaArte(await configDoDesigner().ler()));
 ipcMain.handle("personalizar-previa", async (_e, entrada: unknown) => {
   const c = await configDoDesigner().ler();
   const e = (entrada ?? {}) as { nome?: unknown; inicial?: unknown };
-  return previaDaPersonalizacao(c.artePersonalizada, { nome: e.nome, inicial: e.inicial });
+  return previaDaPersonalizacao((await imagemDaArte(c)).imagem, { nome: e.nome, inicial: e.inicial });
 });
 ipcMain.handle("personalizar-impressoras", async () => {
   try {
@@ -604,19 +600,28 @@ ipcMain.handle("personalizar-preferencias", async (_e, nome: unknown) => {
 ipcMain.handle("personalizar-imprimir", async (_e, entrada: unknown) => {
   const c = await configDoDesigner().ler();
   const e = (entrada ?? {}) as { nome?: unknown; inicial?: unknown; copias?: unknown; impressora?: unknown };
-  return imprimirPersonalizacao(c.artePersonalizada, { nome: e.nome, inicial: e.inicial, copias: e.copias, impressora: e.impressora });
+  return imprimirPersonalizacao((await imagemDaArte(c)).imagem, { nome: e.nome, inicial: e.inicial, copias: e.copias, impressora: e.impressora });
 });
 ipcMain.handle("personalizar-escolher-pasta", async () => {
   const r = await dialog.showOpenDialog({
-    title: "Escolher a arte para personalizar (PNG ou JPG)",
+    title: "Escolher a arte para personalizar (PDF, PNG ou JPG)",
     properties: ["openFile"],
-    filters: [{ name: "Imagem", extensions: ["png", "jpg", "jpeg"] }],
+    filters: [{ name: "Arte (PDF ou imagem)", extensions: ["pdf", "png", "jpg", "jpeg"] }],
   });
   const caminho = r.filePaths[0];
-  if (!r.canceled && caminho) await configDoDesigner().salvar({ artePersonalizada: caminho });
-  const c = await configDoDesigner().ler();
-  const achou = await acharRecursos(c.artePersonalizada);
-  return { arte: c.artePersonalizada, ok: achou.ok, motivo: achou.ok ? "" : achou.motivo };
+  if (!r.canceled && caminho) await configDoDesigner().salvar({ artePersonalizada: caminho, arteImagem: undefined });
+  return estadoDaArte(await configDoDesigner().ler());
+});
+// a tela desenha a página 1 do PDF (pdf.js) e manda a imagem pronta; aqui só se confere que é um PNG e se guarda
+ipcMain.handle("personalizar-salvar-imagem", async (_e, bytes: unknown) => {
+  if (!(bytes instanceof Uint8Array) || bytes.length < 8 || bytes.length > 120 * 1024 * 1024 || !(bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47)) {
+    return { arte: undefined, ok: false, motivo: "A imagem feita do PDF veio inválida. Tente escolher a arte de novo." };
+  }
+  const destino = join(app.getPath("userData"), "personalizar-arte.png");
+  await mkdir(dirname(destino), { recursive: true });
+  await writeFile(destino, bytes);
+  await configDoDesigner().salvar({ arteImagem: destino });
+  return estadoDaArte(await configDoDesigner().ler());
 });
 ipcMain.handle("anuncios-abrir-pasta", async (_e, caminho: unknown) => {
   const r = await raizDosAnuncios();

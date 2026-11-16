@@ -32,6 +32,24 @@ export const EXTENSOES_DA_ARTE = ['.png', '.jpg', '.jpeg'] as const;
 export const FONTE_DO_NOME = { familia: 'Cream Candy', alternativas: ['Cream Candy', 'CreamCandy', 'Cream Candy Regular'] } as const;
 export const FONTE_DA_INICIAL = { familia: 'Century751 BT', alternativas: ['Century751 BT', 'Century751 BT Roman', 'Century751BT-RomanB'] } as const;
 
+/** O retângulo da arte (a linha preta fina) mede 195 x 255 mm e fica centralizado na A4. */
+export const QUADRO_MM = { largura: 195, altura: 255 } as const;
+
+export type FormatoDaArte = 'a4' | 'quadro';
+
+/**
+ * A arte pode ser a página A4 inteira (com sangria em volta) ou só o quadro de 195 x 255 mm. Pela proporção da imagem:
+ * parecida com a da A4 → página inteira; parecida com a do quadro → o quadro, que é impresso em tamanho real e centralizado.
+ * Qualquer outra proporção cai na A4 (nunca deforma por conta própria: a diferença aparece na prévia).
+ */
+export function formatoDaArte(largPx: number, altPx: number): FormatoDaArte {
+  if (!(largPx > 0) || !(altPx > 0)) return 'a4';
+  const r = largPx / altPx;
+  const a4 = MODELO.paginaMm.largura / MODELO.paginaMm.altura;
+  const quadro = QUADRO_MM.largura / QUADRO_MM.altura;
+  return Math.abs(r - quadro) / quadro < 0.02 && Math.abs(r - a4) / a4 >= 0.02 ? 'quadro' : 'a4';
+}
+
 export const MAX_NOME = 50;
 export const MAX_COPIAS = 99;
 
@@ -95,6 +113,8 @@ export function letraHtml(ch: string, inicio = false): string {
 export interface RecursosDaPagina {
   /** URL file:// (ou data:) da arte base, já pronta. */
   arteUrl: string;
+  /** Padrão 'a4'. */
+  formato?: FormatoDaArte;
 }
 
 /**
@@ -108,6 +128,9 @@ export function htmlDaPagina(r: RecursosDaPagina, nome: string, inicial: string,
   const meio = chars.slice(1, -1).map((c) => letraHtml(c)).join('');
   const ultima = chars.length > 1 ? letraHtml(chars[chars.length - 1] ?? '') : '';
   const m = MODELO;
+  const caixa = r.formato === 'quadro'
+    ? { x: (m.paginaMm.largura - QUADRO_MM.largura) / 2, y: (m.paginaMm.altura - QUADRO_MM.altura) / 2, w: QUADRO_MM.largura, h: QUADRO_MM.altura }
+    : { x: 0, y: 0, w: m.paginaMm.largura, h: m.paginaMm.altura };
   const css = (u: string) => u.replace(/["\\\n\r]/g, '');
   const locais = (nomes: readonly string[]) => nomes.map((n) => `local("${css(n)}")`).join(',');
   return `<!doctype html><html><head><meta charset="utf-8"><style>
@@ -115,7 +138,7 @@ export function htmlDaPagina(r: RecursosDaPagina, nome: string, inicial: string,
 @font-face{font-family:"InicialFonte";src:${locais(FONTE_DA_INICIAL.alternativas)}}
 @page{size:${m.paginaMm.largura}mm ${m.paginaMm.altura}mm;margin:0}
 html,body{margin:0;padding:0;background:#fff;overflow:hidden}
-.pg{transform:scale(${escala});transform-origin:0 0;position:relative;width:${m.paginaMm.largura}mm;height:${m.paginaMm.altura}mm;overflow:hidden;background:url("${css(r.arteUrl)}") 0 0/${m.paginaMm.largura}mm ${m.paginaMm.altura}mm no-repeat}
+.pg{transform:scale(${escala});transform-origin:0 0;position:relative;width:${m.paginaMm.largura}mm;height:${m.paginaMm.altura}mm;overflow:hidden;background:url("${css(r.arteUrl)}") ${caixa.x}mm ${caixa.y}mm/${caixa.w}mm ${caixa.h}mm no-repeat}
 .ini{position:absolute;left:${m.inicial.centroMm.x}mm;top:${m.inicial.centroMm.y}mm;transform:translate(-50%,-50%);font:${m.inicial.tamanhoPt}pt/1 "InicialFonte";white-space:nowrap;color:transparent;background:radial-gradient(ellipse 50% 50% at 50% 53%,${m.inicial.corCentro} 0%,${m.inicial.corBorda} 100%);-webkit-background-clip:text;background-clip:text}
 .nome{position:absolute;left:${m.nome.centroMm.x}mm;top:${m.nome.centroMm.y}mm;transform:translate(-50%,-50%);font:${m.nome.tamanhoPt}pt/1 "NomeFonte";color:${m.nome.cor};white-space:nowrap}
 .a{font-feature-settings:"ss03"}.z{font-feature-settings:"ss02"}
