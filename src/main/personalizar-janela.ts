@@ -9,7 +9,8 @@ import { acharRecursos } from './personalizar';
 
 export interface ImpressoraInfo { nome: string; padrao: boolean }
 export type ResultadoPrevia = { ok: true; png: Uint8Array } | { ok: false; motivo: string };
-export type ResultadoImpressao = { ok: true } | { ok: false; motivo: string };
+/** preparoMs: montar a página; envioMs: do Chromium até o Windows aceitar o trabalho (mostrado na tela para achar a etapa lenta). */
+export type ResultadoImpressao = { ok: true; preparoMs?: number; envioMs?: number } | { ok: false; motivo: string };
 
 /** Uma página por vez: prévia e impressão nunca disputam a mesma janela escondida. */
 let fila: Promise<unknown> = Promise.resolve();
@@ -97,17 +98,20 @@ export async function imprimirPersonalizacao(
   if (!v.ok) return v;
   if (typeof entrada.impressora !== 'string' || entrada.impressora === '') return { ok: false, motivo: 'Escolha a impressora.' };
   const impressora = entrada.impressora;
-  const existentes = await listarImpressoras().catch(() => [] as ImpressoraInfo[]);
-  if (!existentes.some((p) => p.nome === impressora)) return { ok: false, motivo: 'Essa impressora não está mais disponível. Atualize a lista e escolha de novo.' };
+  // sem listar as impressoras de novo aqui (abria uma janela e consultava o Windows a cada clique): se a impressora sumiu, o Windows recusa e a tela mostra o motivo
   return naFila(async () => {
-    const r = await comPagina(pasta, v.nome, v.inicial, 1, (win) =>
-      new Promise<ResultadoImpressao>((resolver) => {
+    const t0 = Date.now();
+    const r = await comPagina(pasta, v.nome, v.inicial, 1, (win) => {
+      const preparoMs = Date.now() - t0;
+      const t1 = Date.now();
+      return new Promise<ResultadoImpressao>((resolver) => {
         win.webContents.print(
-          { silent: true, printBackground: true, deviceName: impressora, copies: v.copias, pageSize: 'A4', margins: { marginType: 'none' } },
-          (sucesso, motivo) => resolver(sucesso ? { ok: true } : { ok: false, motivo: motivo ? `A impressora recusou: ${motivo}` : 'A impressora não aceitou o trabalho.' }),
+          // A4 exato, sem margens e sem redução: a arte (195 x 255 mm) sai em tamanho real, centralizada
+          { silent: true, printBackground: true, deviceName: impressora, copies: v.copias, pageSize: 'A4', margins: { marginType: 'none' }, scaleFactor: 100 },
+          (sucesso, motivo) => resolver(sucesso ? { ok: true, preparoMs, envioMs: Date.now() - t1 } : { ok: false, motivo: motivo ? `A impressora recusou: ${motivo}` : 'A impressora não aceitou o trabalho.' }),
         );
-      }),
-    );
+      });
+    });
     return r;
   });
 }

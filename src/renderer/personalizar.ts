@@ -159,7 +159,9 @@ export function iniciarPersonalizar(): void {
     atualizarBotao();
     texto($('pz-msg'), 'Enviando para a impressora…');
     void api.personalizarImprimir(v.nome, v.inicial, copias, impressora).then(
-      (r) => texto($('pz-msg'), r.ok ? `Enviado para "${impressora}": ${copias} ${copias === 1 ? 'via' : 'vias'} de ${v.nome}.` : r.motivo),
+      (r) => texto($('pz-msg'), r.ok
+        ? `Enviado para "${impressora}": ${copias} ${copias === 1 ? 'via' : 'vias'} de ${v.nome}.${r.preparoMs !== undefined && r.envioMs !== undefined ? ` (preparar a página: ${(r.preparoMs / 1000).toFixed(1)} s; a impressora aceitar o trabalho: ${(r.envioMs / 1000).toFixed(1)} s)` : ''}`
+        : r.motivo),
       (e) => texto($('pz-msg'), erroDe(e)),
     ).finally(() => { imprimindo = false; atualizarBotao(); });
   });

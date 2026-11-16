@@ -300,6 +300,15 @@ Não precisa reimportar o macro: o botão usa o `AdicionarEanNoCdr` que você j�
    - Se o papel ou a qualidade saírem diferentes do que você escolheu no passo 6, me avise (pode ser que o driver da sua impressora guarde esse padrão em outro lugar).
 8. O botão **Imprimir** fica apagado enquanto a prévia estiver sendo montada, e só imprime exatamente o que está na prévia.
 
+## Teste Z2 — Tamanho da arte e demora da impressão (aba Personalizar)
+
+A arte tem **195 × 255 mm** (o retângulo preto fino) e precisa sair **centralizada na folha A4**, a 7,5 mm das laterais e 21 mm do topo e de baixo. O app gera a página exata (conferido no PDF); se sair diferente no papel, a causa está no caminho até a impressora.
+
+1. **Separar o app da impressora:** em **Impressora**, escolha **Microsoft Print to PDF**, digite um nome e clique em **Imprimir**. Salve o PDF e abra no leitor de PDF. **Resultado esperado:** 1 página A4; meça o retângulo preto com a régua do leitor ou imprimindo em escala 100%: 195 × 255 mm.
+   - Se o PDF estiver certo, o app está certo e o problema é a configuração da impressora real (passo 2).
+2. **Impressora real:** clique em **Configurar impressora** e confira: tamanho do papel **A4** (não "A4 sem borda", Carta ou 10x15), e **desligue** qualquer opção "Ajustar à página", "Redimensionar", "Ajustar ao tamanho do papel" ou "Sem margens/ampliar". Clique em OK, imprima e meça de novo.
+3. **Demora:** depois de imprimir, a mensagem na tela mostra dois tempos: "preparar a página" (esperado: menos de 1 segundo) e "a impressora aceitar o trabalho". **Anote os dois números e me avise.** Se o segundo for grande, a lentidão está no envio ao Windows (ex.: qualidade muito alta nas preferências da impressora).
+
 ## Teste W — Wire-o rose gold no mockup de Especificação
 
 1. No app, aba **MKP**, abra um PDF de capa (arraste para a janela). Quando a capa carregar, aparece o painel da direita com **Wire-o**, **Elástico**, **Tassel** e **Imagens a gerar**.
