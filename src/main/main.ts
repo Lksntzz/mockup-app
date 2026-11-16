@@ -65,7 +65,7 @@ import {
 } from "./anuncios";
 import { acharPastaAnuncios, criarCategoria, criarSubcategoria, listarCategorias, listarPlataformas, listarSubcategorias, mesclarPastasAchadas } from "./anuncios-pastas";
 import { mesmoNome } from "../anuncios/nomes";
-import { concluirPendente, listarPendentes as listarAnunciosPendentes } from "./anuncios-pendentes";
+import { colocarEanNoCorel, concluirPendente, listarPendentes as listarAnunciosPendentes } from "./anuncios-pendentes";
 import { criarPortaoDePin } from "./pin";
 import { acharPastasDoFluxo } from "./achar-pastas";
 import { arquivoAbrivel } from "./abrir-arquivo";
@@ -573,6 +573,11 @@ ipcMain.handle("anuncios-concluir-pendente", async (_e, pasta: unknown, eans: un
     }
   }
   return concluirPendente(r.pasta, pasta, lista, listaSkus);
+});
+ipcMain.handle("anuncios-colocar-ean", async (_e, pasta: unknown) => {
+  const r = await raizDosAnuncios();
+  if (!r.pasta) return { ok: false as const, motivo: "Não achei a pasta de anúncios. Escolha na mão." };
+  return colocarEanNoCorel(r.pasta, pasta);
 });
 ipcMain.handle("anuncios-abrir-pasta", async (_e, caminho: unknown) => {
   const r = await raizDosAnuncios();

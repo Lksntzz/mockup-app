@@ -357,9 +357,12 @@ let ultimaLista: CardPendente[] = [];
 let abertoConcluir: { pasta: string; valores: Record<number, string>; skus: Record<number, string>; msg: string } | undefined;
 /** Caixa de sucesso depois de concluir (some ao fechar, ao começar outra conclusão ou ao sair da aba). */
 let sucessoConcluir: string[] | undefined;
+/** Pasta da arte cujo EAN acabou de ser salvo: habilita o botão "Colocar no Corel agora" na caixa de sucesso. */
+let sucessoPasta: string | undefined;
 
 export function limparSucessoPendentes(): void {
   sucessoConcluir = undefined;
+  sucessoPasta = undefined;
   if (iniciado) desenharPendentes();
 }
 
@@ -374,8 +377,36 @@ function caixaDeSucesso(linhas: string[]): HTMLElement {
   fechar.type = 'button';
   fechar.className = 'discreto';
   fechar.textContent = 'Fechar';
-  fechar.addEventListener('click', () => { sucessoConcluir = undefined; desenharPendentes(); });
-  caixa.append(ul, fechar);
+  fechar.addEventListener('click', () => { sucessoConcluir = undefined; sucessoPasta = undefined; desenharPendentes(); });
+  caixa.append(ul);
+  const pastaDaArte = sucessoPasta;
+  if (pastaDaArte) {
+    const colocar = document.createElement('button');
+    colocar.type = 'button';
+    colocar.className = 'primario';
+    colocar.textContent = 'Colocar no Corel agora';
+    colocar.title = 'Roda o macro AdicionarEanNoCdr no .cdr que estiver ativo (aberto na frente) no CorelDRAW';
+    const resp = document.createElement('div');
+    resp.className = 'dica';
+    resp.setAttribute('role', 'status');
+    colocar.addEventListener('click', () => {
+      colocar.disabled = true;
+      texto(resp, 'Falando com o Corel… se aparecer uma janela nele, leia e clique OK.');
+      void api.anunciosColocarEan(pastaDaArte).then(
+        (r) => {
+          colocar.disabled = false;
+          if (!r.ok) texto(resp, r.motivo);
+          else texto(resp, r.terminou ? 'Código de barras colocado. No Corel, salve o arquivo (Ctrl + S).' : 'O Corel rodou, mas o ean.txt continua na pasta: alguma capa não foi desenhada. Leia a janela do Corel e rode de novo.');
+        },
+        (e) => { colocar.disabled = false; texto(resp, `Não consegui chamar o Corel: ${erroDe(e)}`); },
+      );
+    });
+    const linhaBotao = document.createElement('div');
+    linhaBotao.className = 'an-botoes';
+    linhaBotao.append(colocar);
+    caixa.append(linhaBotao, resp);
+  }
+  caixa.append(fechar);
   return caixa;
 }
 
@@ -424,6 +455,7 @@ function desenharPendentes(): void {
           if (concluindo) return;
           abertoConcluir = { pasta: c.pasta, valores: {}, skus: {}, msg: '' };
           sucessoConcluir = undefined;
+          sucessoPasta = undefined;
           desenharPendentes();
         });
         const caixa = document.createElement('div');
@@ -529,6 +561,7 @@ function formularioConcluir(c: CardPendente): HTMLElement {
         if (Object.keys(v.eans).length > 0) linhas.push(textoOrientacaoCorel(r.montarPrimeiro));
         for (const a of r.avisos) linhas.push(`Aviso: ${a}`);
         sucessoConcluir = linhas;
+        sucessoPasta = Object.keys(v.eans).length > 0 && !r.montarPrimeiro ? c.pasta : undefined;
         abertoConcluir = undefined;
       } catch (e) {
         estado.msg = `Não consegui salvar: ${erroDe(e)}`;

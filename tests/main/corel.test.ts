@@ -303,3 +303,12 @@ describe('macro AnuncioNoMolde', () => {
     expect(existe).toBe(true);
   });
 });
+
+describe('AdicionarEanNoCdr pelo app', () => {
+  test('roda MKP.AdicionarEanNoCdr e, com o Corel fechado, só avisa (não abre o molde)', () => {
+    const vbs = scriptVbs('AdicionarEanNoCdr');
+    expect(vbs).toContain('"MKP.AdicionarEanNoCdr"');
+    expect(vbs).toContain('o CorelDRAW nao esta aberto');
+    expect(vbs).not.toContain('MOLDE.cdr');
+  });
+});

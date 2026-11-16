@@ -267,6 +267,22 @@ Use o **PDF de 6 páginas** (3 capas) e o nome **Teste P2**.
 3. **Cópia do pendente.** Na pasta da arte existe `pendente.json.bak`. Se um dia o `pendente.json` estragar, o card continua aparecendo usando essa cópia.
 4. **Dois computadores.** Enquanto um PC conclui, aparece `concluir.lock` na pasta por alguns segundos; se o outro PC tentar ao mesmo tempo, vê "Esta arte está sendo concluída agora". O arquivo some sozinho (ou é ignorado após 2 minutos).
 
+## Teste K — Botão "Colocar no Corel agora"
+
+Não precisa reimportar o macro: o botão usa o `AdicionarEanNoCdr` que você já tem.
+
+1. Crie uma arte pendente (Teste P) **com o Corel aberto** e o `.cdr` montado. Deixe o `.cdr` dessa arte **aberto e na frente** no Corel.
+2. No app, conclua o EAN de uma capa (**Salvar**).
+   - **Resultado esperado:** a caixa de sucesso, no topo dos Pendentes, ganha o botão azul **Colocar no Corel agora**.
+3. Clique nele.
+   - **Resultado esperado:** o app mostra "Falando com o Corel…"; no Corel aparece a janela do macro ("Desenhados: 1 …"). Clique **OK**. O app responde **"Código de barras colocado. No Corel, salve o arquivo (Ctrl + S)"**. Confira o código na página par e salve.
+4. Clique no botão de novo.
+   - **Resultado esperado:** o app diz que **não há códigos esperando** (o `ean.txt` já foi usado).
+5. Com o Corel **fechado**, conclua outro EAN e clique no botão.
+   - **Resultado esperado:** mensagem pedindo para abrir o `.cdr` no Corel. Nada é alterado.
+6. Com **outro .cdr** na frente (que não é o da arte), clique no botão.
+   - **Resultado esperado:** o macro não acha o `ean.txt` para aquele arquivo e abre a janela de escolher arquivo: clique **Cancelar**. Nada é desenhado.
+
 ## Teste W — Wire-o rose gold no mockup de Especificação
 
 1. No app, aba **MKP**, abra um PDF de capa (arraste para a janela). Quando a capa carregar, aparece o painel da direita com **Wire-o**, **Elástico**, **Tassel** e **Imagens a gerar**.

@@ -398,3 +398,25 @@ describe('segurança extra (cópia, trava, ean.bak)', () => {
     expect(JSON.parse(await readFile(join(pasta, 'pendente.json.bak'), 'utf8')).capas).toHaveLength(1);
   });
 });
+
+describe('colocarEanNoCorel', () => {
+  test('sem ean.txt: não chama o Corel', async () => {
+    const { colocarEanNoCorel } = await import('../../src/main/anuncios-pendentes');
+    const pasta = await arte(join(raiz, 'Shopee', 'Agenda'), 'A1');
+    const rodar = vi.fn(async () => ({ ok: true as const }));
+    const r = await colocarEanNoCorel(raiz, pasta, rodar);
+    expect(r.ok).toBe(false);
+    expect(rodar).not.toHaveBeenCalled();
+  });
+  test('terminou só quando o macro apagou o ean.txt; erro do Corel volta como motivo; fora da raiz recusa', async () => {
+    const { colocarEanNoCorel } = await import('../../src/main/anuncios-pendentes');
+    const pasta = await arte(join(raiz, 'Shopee', 'Agenda'), 'A1');
+    await concluirPendente(raiz, pasta, { 1: E1 });
+    const ean = join(pasta, 'Corel', 'ean.txt');
+    expect(await colocarEanNoCorel(raiz, pasta, async () => ({ ok: true }))).toEqual({ ok: true, terminou: false });
+    expect(await colocarEanNoCorel(raiz, pasta, async (m, c) => { expect(m).toBe('AdicionarEanNoCdr'); expect(c).toBe('-'); await rm(ean); return { ok: true }; })).toEqual({ ok: true, terminou: true });
+    await writeFile(ean, '1|x|y\r\n');
+    expect(await colocarEanNoCorel(raiz, pasta, async () => ({ ok: false, motivo: 'Corel fechado' }))).toEqual({ ok: false, motivo: 'Corel fechado' });
+    expect((await colocarEanNoCorel(raiz, base, async () => ({ ok: true }))).ok).toBe(false);
+  });
+});

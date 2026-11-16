@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 /** Macros do módulo MKP (tools/corel/MKP.bas) que o app sabe chamar. */
-export type MacroDoCorel = 'ArteDoClienteNoMolde' | 'ExportarPDFparaMKP' | 'AnuncioNoMolde';
+export type MacroDoCorel = 'ArteDoClienteNoMolde' | 'ExportarPDFparaMKP' | 'AnuncioNoMolde' | 'AdicionarEanNoCdr';
 
 export type ResultadoCorel = { ok: true } | { ok: false; motivo: string; aberto?: true };
 
@@ -21,6 +21,8 @@ const ARQUIVO_DO_CAMINHO: Record<MacroDoCorel, string> = {
   ArteDoClienteNoMolde: 'mockup-arte.txt',
   ExportarPDFparaMKP: 'mockup-pdf.txt',
   AnuncioNoMolde: 'mockup-anuncio.txt',
+  // este macro não lê caminho: usa o .cdr ativo e o ean.txt da pasta dele (o arquivo existe só para manter o mesmo molde dos outros)
+  AdicionarEanNoCdr: 'mockup-ean.txt',
 };
 
 /** O VBA lê o arquivo na página de código do Windows em português (letras até 0xFF, sem a faixa de controle 0x80–0x9F). */

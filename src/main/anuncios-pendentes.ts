@@ -5,6 +5,7 @@ import { gerarSvgEan13 } from '../anuncios/ean-svg';
 import { isValidGtin13, normalizarEan } from '../anuncios/gtin';
 import { aposConcluir, lerPendencia, serializarPendencia, type CapaPendente } from '../anuncios/pendencia';
 import { dentroDaRaiz } from './anuncios';
+import { rodarMacroDoCorel, type ResultadoCorel } from './corel';
 import { ehPastaDeArte, listarCategorias, listarPlataformas } from './anuncios-pastas';
 import { ehPasta, nomesEm } from './pasta-fluxo';
 
@@ -319,4 +320,31 @@ async function concluirSemTrava(raiz: string, pasta: unknown, eans: Record<numbe
   } catch (e) {
     return recusa(`Não consegui gravar: ${e instanceof Error ? e.message : String(e)}`);
   }
+}
+
+export type ResultadoColocarEan = { ok: true; terminou: boolean } | { ok: false; motivo: string };
+
+/**
+ * "Colocar no Corel": roda o macro AdicionarEanNoCdr no .cdr que está ativo no Corel. O macro só olha o ean.txt da pasta desse .cdr
+ * (e pergunta antes se o ean.txt veio de outra pasta), então um .cdr errado ativo não recebe os códigos desta arte.
+ * Terminou = o macro apagou o ean.txt (ele só apaga quando nenhuma capa falhou).
+ */
+export async function colocarEanNoCorel(
+  raiz: string,
+  pasta: unknown,
+  rodar: (macro: 'AdicionarEanNoCdr', caminho: string) => Promise<ResultadoCorel> = rodarMacroDoCorel,
+): Promise<ResultadoColocarEan> {
+  if (typeof pasta !== 'string' || !pasta || !dentroDaRaiz(raiz, pasta) || !(await ehPasta(pasta))) {
+    return { ok: false, motivo: 'Essa pasta não está dentro da pasta dos Anúncios 2027.' };
+  }
+  const temCorel = await ehPasta(join(pasta, 'Corel'));
+  const pastaCorel = join(pasta, !temCorel && (await ehPasta(join(pasta, '_corel'))) ? '_corel' : 'Corel');
+  const arqEan = join(pastaCorel, 'ean.txt');
+  if (!(await existeArquivo(arqEan))) {
+    return { ok: false, motivo: 'Não há códigos de barras esperando (o ean.txt não existe). Conclua o EAN antes, ou o código já foi colocado no .cdr.' };
+  }
+  // o caminho não é usado por este macro: manda um valor fixo para não recusar pasta com letras que o Corel não lê
+  const r = await rodar('AdicionarEanNoCdr', '-');
+  if (!r.ok) return { ok: false, motivo: r.motivo };
+  return { ok: true, terminou: !(await existeArquivo(arqEan)) };
 }
