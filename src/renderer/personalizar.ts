@@ -115,6 +115,7 @@ function mostrarEstado(e: EstadoDasArtes): void {
 let ultimoEstado: EstadoDasArtes = { artes: [] };
 
 function atualizarArteEscolhida(e: EstadoDasArtes): void {
+  titulo();
   ultimoEstado = e;
   const escolhida = e.artes.find((a) => a.id === modeloEscolhido());
   modeloOk = escolhida?.ok === true;
@@ -139,6 +140,13 @@ export async function mostrarPersonalizar(): Promise<void> {
     texto($('pz-aviso'), erroDe(e));
     $('pz-aviso').hidden = false;
   }
+}
+
+/** O título da página mostra o nome da arte escolhida. */
+function titulo(): void {
+  const t = modeloPorId(modeloEscolhido())?.titulo;
+  const h = document.getElementById('pz-titulo');
+  if (t && h) h.textContent = `Personalizar — ${t}`;
 }
 
 export function iniciarPersonalizar(): void {
