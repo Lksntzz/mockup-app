@@ -1,4 +1,4 @@
-import { inicialDoNome, semAcento, validarEntrada } from '../personalizar/modelo';
+import { inicialDoNome, modeloPorId, semAcento, validarEntrada } from '../personalizar/modelo';
 import type { EstadoDasArtes, MockupApi } from './global';
 
 const api: MockupApi = (window as unknown as { mockupApi: MockupApi }).mockupApi;
@@ -17,9 +17,11 @@ let previaAtual: { modelo: string; nome: string; inicial: string } | undefined;
 let urlPrevia: string | undefined;
 
 const modeloEscolhido = (): string => $<HTMLSelectElement>('pz-arte').value;
+/** A arte escolhida deixa acento na letra grande? */
+const comAcento = (): boolean => modeloPorId(modeloEscolhido())?.inicialComAcento === true;
 
 function entradaDaTela() {
-  return validarEntrada({ nome: $<HTMLInputElement>('pz-nome').value, inicial: $<HTMLInputElement>('pz-inicial').value });
+  return validarEntrada({ nome: $<HTMLInputElement>('pz-nome').value, inicial: $<HTMLInputElement>('pz-inicial').value }, false, comAcento());
 }
 
 function atualizarBotao(): void {
@@ -143,19 +145,21 @@ export function iniciarPersonalizar(): void {
   $<HTMLSelectElement>('pz-arte').addEventListener('change', () => {
     try { localStorage.setItem('pz-arte', modeloEscolhido()); } catch { /* sem armazenamento: só não lembra */ }
     atualizarArteEscolhida(ultimoEstado);
+    if (!inicialManual) $<HTMLInputElement>('pz-inicial').value = inicialDoNome($<HTMLInputElement>('pz-nome').value, comAcento());
+    else if (!comAcento()) $<HTMLInputElement>('pz-inicial').value = semAcento($<HTMLInputElement>('pz-inicial').value);
     if (modeloOk) agendarPrevia();
   });
   $<HTMLInputElement>('pz-nome').addEventListener('input', () => {
-    if (!inicialManual) $<HTMLInputElement>('pz-inicial').value = inicialDoNome($<HTMLInputElement>('pz-nome').value);
+    if (!inicialManual) $<HTMLInputElement>('pz-inicial').value = inicialDoNome($<HTMLInputElement>('pz-nome').value, comAcento());
     agendarPrevia();
   });
   $<HTMLInputElement>('pz-inicial').addEventListener('input', () => {
     // apagar a letra volta para o automático; digitar uma letra passa a valer a do operador
     const campo = $<HTMLInputElement>('pz-inicial');
-    if (semAcento(campo.value) !== campo.value) campo.value = semAcento(campo.value); // a letra grande nunca leva acento
+    if (!comAcento() && semAcento(campo.value) !== campo.value) campo.value = semAcento(campo.value); // nesta arte a letra grande não leva acento
     const v = campo.value;
     inicialManual = v.trim() !== '';
-    if (!inicialManual) $<HTMLInputElement>('pz-inicial').value = inicialDoNome($<HTMLInputElement>('pz-nome').value);
+    if (!inicialManual) $<HTMLInputElement>('pz-inicial').value = inicialDoNome($<HTMLInputElement>('pz-nome').value, comAcento());
     agendarPrevia();
   });
   $<HTMLInputElement>('pz-copias').addEventListener('input', atualizarBotao);

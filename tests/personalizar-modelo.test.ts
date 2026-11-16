@@ -204,3 +204,24 @@ describe('troca só do nome (prévia reaproveita a janela)', () => {
     expect(h).toContain('window.__ajustar=');
   });
 });
+
+describe('letra grande com acento (por arte)', () => {
+  test('por padrão sem acento; com a permissão da arte, mantém o acento em maiúscula', () => {
+    expect(inicialDoNome('ágata')).toBe('A');
+    expect(inicialDoNome('ágata', true)).toBe('Á');
+    expect(inicialDoNome('Ísis', true)).toBe('Í');
+    expect(inicialDoNome('  çarina', true)).toBe('Ç');
+    expect(inicialDoNome('123', true)).toBe('');
+  });
+  test('validarEntrada tira o acento da letra grande, a menos que a arte deixe', () => {
+    const e = { nome: 'Ágata', inicial: 'Á' };
+    const sem = validarEntrada(e);
+    expect(sem.ok && sem.inicial).toBe('A');
+    const com = validarEntrada(e, false, true);
+    expect(com.ok && com.inicial).toBe('Á');
+  });
+  test('só a Delicate deixa acento na letra grande', () => {
+    expect(modeloPorId('delicate')?.inicialComAcento).toBe(true);
+    expect(modeloPorId('caderneta-saude')?.inicialComAcento).not.toBe(true);
+  });
+});

@@ -28,6 +28,8 @@ export interface ModeloDeArte {
   frente?: string;
   fonteNome: FonteDoNome;
   fonteInicial: FonteDoTexto;
+  /** A letra grande leva o acento do nome ("Ágata" → Á)? Nas artes em que a fonte da letra grande tem as letras acentuadas. Padrão: não. */
+  inicialComAcento?: boolean;
   /** Medidas tiradas do Corel (A4, milímetros a partir do topo/esquerda). */
   nome: { centroMm: { x: number; y: number }; tamanhoPt: number; larguraMaxMm: number; cor: string };
   inicial: { centroMm: { x: number; y: number }; tamanhoPt: number; larguraMaxMm: number; corCentro: string; corBorda: string };
@@ -76,6 +78,7 @@ export const MODELOS: readonly ModeloDeArte[] = [
     frente: 'delicate-frente.png',
     fonteNome: ANGELINA_MALIKA,
     fonteInicial: { familia: 'Lucida Bright', alternativas: ['Lucida Bright', 'LucidaBright', 'Lucida Bright Regular'] },
+    inicialComAcento: true,
     nome: { centroMm: { x: 101.74, y: 186.16 }, tamanhoPt: 34.62, larguraMaxMm: 105, cor: '#CC93AD' },
     inicial: { centroMm: { x: 105, y: 133.68 }, tamanhoPt: 266.287, larguraMaxMm: 75, corCentro: '#CC93AD', corBorda: '#CC93AD' },
   },
@@ -97,10 +100,13 @@ export function semAcento(t: string): string {
   return t.normalize('NFD').replace(/\p{M}/gu, '').normalize('NFC');
 }
 
-/** Primeira letra do nome, em maiúscula e SEM acento ("ágata" → "A"). Vazio se o nome não tem letra. */
-export function inicialDoNome(nome: string): string {
+/** Primeira letra do nome, em maiúscula, sem acento (ou com, se a arte deixa: "ágata" → "Á"). Vazio se o nome não tem letra. */
+export function inicialDoNome(nome: string, comAcento = false): string {
   for (const ch of nome.trim()) {
-    if (/\p{L}/u.test(ch)) return semAcento(ch.toLocaleUpperCase('pt-BR'));
+    if (/\p{L}/u.test(ch)) {
+      const maiuscula = ch.toLocaleUpperCase('pt-BR');
+      return comAcento ? maiuscula.normalize('NFC') : semAcento(maiuscula);
+    }
   }
   return '';
 }
@@ -114,7 +120,7 @@ export interface EntradaPersonalizar {
 export type ValidacaoEntrada = { ok: true; nome: string; inicial: string; copias: number } | { ok: false; motivo: string };
 
 /** Valida o que o operador digitou (usada na tela e de novo no processo principal). */
-export function validarEntrada(e: { nome: unknown; inicial: unknown; copias?: unknown }, exigirCopias = false): ValidacaoEntrada {
+export function validarEntrada(e: { nome: unknown; inicial: unknown; copias?: unknown }, exigirCopias = false, comAcento = false): ValidacaoEntrada {
   if (typeof e.nome !== 'string') return { ok: false, motivo: 'Digite o nome.' };
   const nome = e.nome.replace(/\s+/g, ' ').trim();
   if (nome === '') return { ok: false, motivo: 'Digite o nome.' };
@@ -122,7 +128,7 @@ export function validarEntrada(e: { nome: unknown; inicial: unknown; copias?: un
   // eslint-disable-next-line no-control-regex
   if (/[\u0000-\u001f\u007f<>]/.test(nome)) return { ok: false, motivo: 'O nome tem um caractere que não pode ser usado.' };
   if (typeof e.inicial !== 'string') return { ok: false, motivo: 'A letra grande é inválida.' };
-  const inicial = semAcento(e.inicial.trim());
+  const inicial = comAcento ? e.inicial.trim().normalize('NFC') : semAcento(e.inicial.trim());
   if (inicial === '') return { ok: false, motivo: 'A letra grande está vazia.' };
   if ([...inicial].length > 2) return { ok: false, motivo: 'A letra grande deve ter 1 ou 2 letras.' };
   // eslint-disable-next-line no-control-regex
