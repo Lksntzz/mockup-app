@@ -283,6 +283,26 @@ Não precisa reimportar o macro: o botão usa o `AdicionarEanNoCdr` que você j�
 6. Com **outro .cdr** na frente (que não é o da arte), clique no botão.
    - **Resultado esperado:** o macro não acha o `ean.txt` para aquele arquivo e abre a janela de escolher arquivo: clique **Cancelar**. Nada é desenhado.
 
+## Teste Z — Aba Personalizar (nome e letra grande, impressão em 1 clique)
+
+**Preparação (uma vez, em uma pasta compartilhada, por exemplo no Drive):** crie uma pasta, por exemplo `MODELO PERSONALIZADO`, e coloque dentro 3 arquivos:
+- a arte base (o PNG/JPG que eu te mandei, `arte.jpg`: o nome do arquivo **precisa ter a palavra "arte"**);
+- a fonte do nome (`CREAM_CANDY.OTF`: o nome precisa ter **"cream"**);
+- a fonte da letra grande (`CENTURY751_BT_ROMAN.TTF`: o nome precisa ter **"century"**).
+
+As fontes não vão para o GitHub (têm licença própria): ficam só nessa pasta.
+
+1. Abra o app e clique na aba **Personalizar**. **Resultado esperado:** aparece "Pasta do modelo: não escolhida" e um aviso pedindo a pasta.
+2. Clique em **Escolher pasta** e escolha a pasta do modelo. **Resultado esperado:** o aviso some e aparecem os campos (nome, letra grande, quantidade, impressora) e a prévia. Se faltar algum arquivo, o aviso diz exatamente qual.
+3. Digite o nome **Cecília**. **Resultado esperado:** a letra grande vira **C** sozinha e, em poucos segundos, a prévia mostra a arte com o nome centralizado (com a linha decorativa dos dois lados) e o C em degradê. Compare com a arte do Corel.
+4. Digite **Maria Eduarda dos Santos**. **Resultado esperado:** o nome diminui sozinho até caber, e a letra grande vira **M**. Digite **Ágata**: a letra grande vira **Á**.
+5. Apague a letra grande e digite outra (por exemplo `X`). **Resultado esperado:** a prévia usa o X. Apague de novo: ela volta a seguir o nome.
+6. **Impressora (uma vez por computador):** escolha a impressora e clique em **Configurar impressora**. **Resultado esperado:** abre a janela "Preferências de impressão" do Windows. Escolha o **papel adesivo fotográfico**, a qualidade que vocês usam e clique em **OK**.
+7. Com o nome na tela e a prévia pronta, clique em **Imprimir** (quantidade 1).
+   - **Resultado esperado:** **sem abrir janela**, sai uma folha A4 com a arte, o nome e a letra. Confira com uma régua: a página deve sair em tamanho real (a folha inteira, sem encolher).
+   - Se o papel ou a qualidade saírem diferentes do que você escolheu no passo 6, me avise (pode ser que o driver da sua impressora guarde esse padrão em outro lugar).
+8. O botão **Imprimir** fica apagado enquanto a prévia estiver sendo montada, e só imprime exatamente o que está na prévia.
+
 ## Teste W — Wire-o rose gold no mockup de Especificação
 
 1. No app, aba **MKP**, abra um PDF de capa (arraste para a janela). Quando a capa carregar, aparece o painel da direita com **Wire-o**, **Elástico**, **Tassel** e **Imagens a gerar**.

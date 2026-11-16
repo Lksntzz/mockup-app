@@ -65,6 +65,8 @@ import {
 } from "./anuncios";
 import { acharPastaAnuncios, criarCategoria, criarSubcategoria, listarCategorias, listarPlataformas, listarSubcategorias, mesclarPastasAchadas } from "./anuncios-pastas";
 import { mesmoNome } from "../anuncios/nomes";
+import { abrirPreferenciasDaImpressora, imprimirPersonalizacao, listarImpressoras, previaDaPersonalizacao } from "./personalizar-janela";
+import { acharRecursos } from "./personalizar";
 import { colocarEanNoCorel, concluirPendente, listarPendentes as listarAnunciosPendentes } from "./anuncios-pendentes";
 import { criarPortaoDePin } from "./pin";
 import { acharPastasDoFluxo } from "./achar-pastas";
@@ -578,6 +580,42 @@ ipcMain.handle("anuncios-colocar-ean", async (_e, pasta: unknown) => {
   const r = await raizDosAnuncios();
   if (!r.pasta) return { ok: false as const, motivo: "Não achei a pasta de anúncios. Escolha na mão." };
   return colocarEanNoCorel(r.pasta, pasta);
+});
+ipcMain.handle("personalizar-estado", async () => {
+  const c = await configDoDesigner().ler();
+  const r = await acharRecursos(c.pastaPersonalizado);
+  return { pasta: c.pastaPersonalizado, ok: r.ok, motivo: r.ok ? "" : r.motivo };
+});
+ipcMain.handle("personalizar-previa", async (_e, entrada: unknown) => {
+  const c = await configDoDesigner().ler();
+  const e = (entrada ?? {}) as { nome?: unknown; inicial?: unknown };
+  return previaDaPersonalizacao(c.pastaPersonalizado, { nome: e.nome, inicial: e.inicial });
+});
+ipcMain.handle("personalizar-impressoras", async () => {
+  try {
+    return { ok: true as const, lista: await listarImpressoras() };
+  } catch (e) {
+    return { ok: false as const, motivo: `Não consegui listar as impressoras: ${e instanceof Error ? e.message : String(e)}` };
+  }
+});
+ipcMain.handle("personalizar-preferencias", async (_e, nome: unknown) => {
+  return abrirPreferenciasDaImpressora(nome);
+});
+ipcMain.handle("personalizar-imprimir", async (_e, entrada: unknown) => {
+  const c = await configDoDesigner().ler();
+  const e = (entrada ?? {}) as { nome?: unknown; inicial?: unknown; copias?: unknown; impressora?: unknown };
+  return imprimirPersonalizacao(c.pastaPersonalizado, { nome: e.nome, inicial: e.inicial, copias: e.copias, impressora: e.impressora });
+});
+ipcMain.handle("personalizar-escolher-pasta", async () => {
+  const r = await dialog.showOpenDialog({
+    title: "Escolher a pasta do modelo personalizado (arte base e fontes)",
+    properties: ["openDirectory"],
+  });
+  const caminho = r.filePaths[0];
+  if (!r.canceled && caminho) await configDoDesigner().salvar({ pastaPersonalizado: caminho });
+  const c = await configDoDesigner().ler();
+  const achou = await acharRecursos(c.pastaPersonalizado);
+  return { pasta: c.pastaPersonalizado, ok: achou.ok, motivo: achou.ok ? "" : achou.motivo };
 });
 ipcMain.handle("anuncios-abrir-pasta", async (_e, caminho: unknown) => {
   const r = await raizDosAnuncios();

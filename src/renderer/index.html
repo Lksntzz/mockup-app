@@ -17,6 +17,7 @@
         <button id="tab-historico" type="button" aria-pressed="false">Histórico</button>
         <button id="tab-pasta1" type="button" aria-pressed="false" hidden>Cliente <span id="badge-cliente" class="badge" hidden></span></button>
         <button id="tab-anuncios" type="button" aria-pressed="false" hidden>Anúncios</button>
+        <button id="tab-personalizar" type="button" aria-pressed="false">Personalizar</button>
         <button id="tab-config" type="button" class="so-icone" aria-pressed="false" aria-label="Configuração" title="Configuração" hidden><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
       </nav>
       <span class="espaco"></span>
@@ -116,6 +117,41 @@
             </div>
             <div id="pasta1-lista"></div>
           </section>
+      <section id="personalizar" class="pagina estreita" hidden>
+        <div class="pagina-topo"><h2 class="pagina-titulo">Personalizar — Caderneta de Saúde</h2></div>
+        <div id="pz-aviso" class="an-aviso" role="status" hidden></div>
+        <div class="pz-pasta">
+          <span>Pasta do modelo: <strong id="pz-pasta">não escolhida</strong></span>
+          <button id="pz-escolher" class="discreto" type="button">Escolher pasta</button>
+        </div>
+        <div id="pz-corpo" class="pz-corpo" hidden>
+          <div class="pz-form">
+            <label>Nome da criança
+              <input id="pz-nome" type="text" maxlength="50" autocomplete="off" spellcheck="false" />
+            </label>
+            <label>Letra grande
+              <input id="pz-inicial" type="text" maxlength="2" autocomplete="off" spellcheck="false" />
+              <span class="dica">Preenchida sozinha com a primeira letra do nome. Pode corrigir.</span>
+            </label>
+            <label>Quantidade de vias
+              <input id="pz-copias" type="number" min="1" max="99" value="1" />
+            </label>
+            <label>Impressora
+              <select id="pz-impressora"></select>
+            </label>
+            <div class="an-botoes">
+              <button id="pz-impressoras" class="discreto" type="button">↻ Atualizar impressoras</button>
+              <button id="pz-preferencias" class="discreto" type="button" title="Abre a janela do Windows onde você escolhe o tipo de papel e a qualidade (uma vez só)">Configurar impressora</button>
+            </div>
+            <button id="pz-imprimir" class="primario grande" type="button" disabled>Imprimir</button>
+            <div id="pz-msg" class="dica" role="status"></div>
+          </div>
+          <div class="pz-previa">
+            <img id="pz-img" alt="Prévia da arte com o nome" hidden />
+            <div id="pz-previa-msg" class="dica">Digite o nome para ver a prévia.</div>
+          </div>
+        </div>
+      </section>
       <section id="anuncios" class="pagina estreita" hidden>
         <div class="pagina-topo"><h2 class="pagina-titulo">Anúncios 2027</h2></div>
         <div id="an-aviso" class="an-aviso" role="status" hidden></div>

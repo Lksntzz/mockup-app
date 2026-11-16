@@ -16,6 +16,7 @@ import { caixaDoMolde, ehArteDoMoldeDoCorel, ehPaginaA4 } from '../pdf/molde';
 import { coverCrop, reduzir } from '../pdf/fit';
 import { capaPageNumbers } from '../pdf/pages';
 import { openPdf, PdfError } from '../pdf/reader';
+import { iniciarPersonalizar, mostrarPersonalizar } from './personalizar';
 import { iniciarAnuncios, limparSucessoPendentes, mostrarAnuncios } from './anuncios';
 import type { ArquivoPdf, EstadoAtualizacao, MockupApi } from './global';
 import { criarTrabalhos } from '../app/trabalhos';
@@ -1099,7 +1100,7 @@ async function desenharHistorico(): Promise<void> {
   }
 }
 
-function mostrarAba(aba: 'novo' | 'historico' | 'pasta1' | 'config' | 'anuncios'): void {
+function mostrarAba(aba: 'novo' | 'historico' | 'pasta1' | 'config' | 'anuncios' | 'personalizar'): void {
   if ((aba === 'pasta1' || aba === 'config' || aba === 'anuncios') && !designer.designer) aba = 'novo';
   const pagina = aba !== 'novo';
   document.querySelector<HTMLElement>('.area')!.hidden = pagina;
@@ -1108,6 +1109,9 @@ function mostrarAba(aba: 'novo' | 'historico' | 'pasta1' | 'config' | 'anuncios'
   $('pasta1').hidden = aba !== 'pasta1';
   $('config').hidden = aba !== 'config';
   $('anuncios').hidden = aba !== 'anuncios';
+  $('personalizar').hidden = aba !== 'personalizar';
+  $('tab-personalizar').setAttribute('aria-pressed', String(aba === 'personalizar'));
+  if (aba === 'personalizar') void mostrarPersonalizar();
   $('tab-anuncios').setAttribute('aria-pressed', String(aba === 'anuncios'));
   $('tab-config').setAttribute('aria-pressed', String(aba === 'config'));
   $('tab-novo').setAttribute('aria-pressed', String(aba === 'novo'));
@@ -1128,6 +1132,8 @@ $('tab-historico').addEventListener('click', () => mostrarAba('historico'));
 $('tab-pasta1').addEventListener('click', () => mostrarAba('pasta1'));
 $('tab-config').addEventListener('click', () => mostrarAba('config'));
 $('tab-anuncios').addEventListener('click', () => mostrarAba('anuncios'));
+$('tab-personalizar').addEventListener('click', () => mostrarAba('personalizar'));
+iniciarPersonalizar();
 iniciarAnuncios();
 
 /** Mostra na Configuração o caminho de cada pasta do fluxo. */

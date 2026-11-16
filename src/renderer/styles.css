@@ -481,3 +481,13 @@ button.secundario:hover:not(:disabled) { background: #f3f4f6; border-color: #c3c
 /* grupos do card (1. molde no Corel, 2. fazer o MKP) */
 .cc-grupo { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--borda); border-radius: 10px; background: #fafbff; }
 .cc-grupo-titulo { flex: 1 1 100%; font-size: 12px; font-weight: 700; color: var(--acento-escuro, #3730a3); }
+
+/* aba Personalizar */
+.pz-pasta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 8px 0 14px; font-size: 13px; }
+.pz-corpo { display: grid; grid-template-columns: minmax(260px, 340px) 1fr; gap: 24px; align-items: start; }
+.pz-form { display: flex; flex-direction: column; gap: 12px; }
+.pz-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; }
+.pz-form input, .pz-form select { font: inherit; font-weight: 400; padding: 8px 10px; border: 1px solid var(--borda); border-radius: 8px; }
+.pz-previa { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.pz-previa img { width: min(100%, 420px); height: auto; border: 1px solid var(--borda); border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,.12); background: #fff; }
+@media (max-width: 760px) { .pz-corpo { grid-template-columns: 1fr; } }
