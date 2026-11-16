@@ -1,4 +1,4 @@
-import { inicialDoNome, validarEntrada } from '../personalizar/modelo';
+import { inicialDoNome, semAcento, validarEntrada } from '../personalizar/modelo';
 import { openPdf } from '../pdf/reader';
 import type { EstadoDaArte, MockupApi } from './global';
 
@@ -61,7 +61,7 @@ async function gerarPrevia(nome: string, inicial: string): Promise<void> {
     const img = $<HTMLImageElement>('pz-img');
     img.src = urlPrevia;
     img.hidden = false;
-    texto($('pz-previa-msg'), '');
+    texto($('pz-previa-msg'), r.aviso ?? '');
     previaAtual = { nome, inicial };
   } catch (e) {
     if (minha === seqPrevia) texto($('pz-previa-msg'), erroDe(e));
@@ -167,7 +167,9 @@ export function iniciarPersonalizar(): void {
   });
   $<HTMLInputElement>('pz-inicial').addEventListener('input', () => {
     // apagar a letra volta para o automático; digitar uma letra passa a valer a do operador
-    const v = $<HTMLInputElement>('pz-inicial').value;
+    const campo = $<HTMLInputElement>('pz-inicial');
+    if (semAcento(campo.value) !== campo.value) campo.value = semAcento(campo.value); // a letra grande nunca leva acento
+    const v = campo.value;
     inicialManual = v.trim() !== '';
     if (!inicialManual) $<HTMLInputElement>('pz-inicial').value = inicialDoNome($<HTMLInputElement>('pz-nome').value);
     agendarPrevia();

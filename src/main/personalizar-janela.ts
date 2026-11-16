@@ -8,7 +8,8 @@ import { formatoDaArte, htmlDaPagina, validarEntrada } from '../personalizar/mod
 import { acharRecursos } from './personalizar';
 
 export interface ImpressoraInfo { nome: string; padrao: boolean }
-export type ResultadoPrevia = { ok: true; png: Uint8Array } | { ok: false; motivo: string };
+/** aviso: a fonte instalada neste computador parece ser outra versão da Cream Candy (acentos e ondas podem sair fora do lugar). */
+export type ResultadoPrevia = { ok: true; png: Uint8Array; aviso?: string } | { ok: false; motivo: string };
 /** preparoMs: montar a página; envioMs: do Chromium até o Windows aceitar o trabalho (mostrado na tela para achar a etapa lenta). */
 export type ResultadoImpressao = { ok: true; preparoMs?: number; envioMs?: number } | { ok: false; motivo: string };
 
@@ -77,7 +78,11 @@ export function previaDaPersonalizacao(pasta: string | undefined, entrada: { nom
   return naFila(async () => {
     const r = await comPagina(pasta, v.nome, v.inicial, ESCALA_PREVIA, async (win) => {
       const img = await win.webContents.capturePage();
-      return { ok: true as const, png: new Uint8Array(img.toPNG()) };
+      const dif = (await win.webContents.executeJavaScript('window.__fonteDiferente || []')) as unknown;
+      const aviso = Array.isArray(dif) && dif.length > 0
+        ? 'Atenção: a fonte Cream Candy deste computador parece ser de outra versão (as letras têm larguras diferentes da fonte do designer). Acentos e ondas podem sair fora do lugar. Instale neste computador a mesma Cream Candy do designer.'
+        : undefined;
+      return { ok: true as const, png: new Uint8Array(img.toPNG()), ...(aviso ? { aviso } : {}) };
     });
     return r;
   });

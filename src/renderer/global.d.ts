@@ -62,7 +62,7 @@ export interface MockupApi {
   personalizarEstado(): Promise<EstadoDaArte>;
   personalizarEscolherPasta(): Promise<EstadoDaArte>;
   personalizarSalvarImagem(bytes: Uint8Array): Promise<EstadoDaArte>;
-  personalizarPrevia(nome: string, inicial: string): Promise<{ ok: true; png: Uint8Array } | { ok: false; motivo: string }>;
+  personalizarPrevia(nome: string, inicial: string): Promise<{ ok: true; png: Uint8Array; aviso?: string } | { ok: false; motivo: string }>;
   personalizarImpressoras(): Promise<{ ok: true; lista: Array<{ nome: string; padrao: boolean }> } | { ok: false; motivo: string }>;
   personalizarPreferencias(impressora: string): Promise<{ ok: true } | { ok: false; motivo: string }>;
   personalizarImprimir(nome: string, inicial: string, copias: number, impressora: string): Promise<{ ok: true; preparoMs?: number; envioMs?: number } | { ok: false; motivo: string }>;

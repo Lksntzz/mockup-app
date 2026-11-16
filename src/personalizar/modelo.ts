@@ -1,4 +1,4 @@
-import { ACENTOS, DESLOCA_INICIO } from './acentos';
+import { ACENTOS } from './acentos';
 
 /**
  * Modelo "Caderneta de Saúde personalizada": medidas tiradas do arquivo do Corel (A4, em milímetros a partir do topo/esquerda).
@@ -53,10 +53,15 @@ export function formatoDaArte(largPx: number, altPx: number): FormatoDaArte {
 export const MAX_NOME = 50;
 export const MAX_COPIAS = 99;
 
-/** Primeira letra do nome, em maiúscula ("ágata" → "Á"). Vazio se o nome não tem letra. */
+/** Tira os acentos ("Á" → "A", "ç" → "c"). A letra grande nunca leva acento. */
+export function semAcento(t: string): string {
+  return t.normalize('NFD').replace(/\p{M}/gu, '').normalize('NFC');
+}
+
+/** Primeira letra do nome, em maiúscula e SEM acento ("ágata" → "A"). Vazio se o nome não tem letra. */
 export function inicialDoNome(nome: string): string {
   for (const ch of nome.trim()) {
-    if (/\p{L}/u.test(ch)) return ch.toLocaleUpperCase('pt-BR');
+    if (/\p{L}/u.test(ch)) return semAcento(ch.toLocaleUpperCase('pt-BR'));
   }
   return '';
 }
@@ -78,7 +83,7 @@ export function validarEntrada(e: { nome: unknown; inicial: unknown; copias?: un
   // eslint-disable-next-line no-control-regex
   if (/[\u0000-\u001f\u007f<>]/.test(nome)) return { ok: false, motivo: 'O nome tem um caractere que não pode ser usado.' };
   if (typeof e.inicial !== 'string') return { ok: false, motivo: 'A letra grande é inválida.' };
-  const inicial = e.inicial.trim();
+  const inicial = semAcento(e.inicial.trim());
   if (inicial === '') return { ok: false, motivo: 'A letra grande está vazia.' };
   if ([...inicial].length > 2) return { ok: false, motivo: 'A letra grande deve ter 1 ou 2 letras.' };
   // eslint-disable-next-line no-control-regex
@@ -105,10 +110,14 @@ export function letraHtml(ch: string, inicio = false): string {
   const acento = ACENTOS[ch];
   if (acento === undefined) return escaparHtml(ch);
   const base = ch.normalize('NFD').charAt(0);
-  // na variação de início (ss03, só maiúsculas) o corpo da letra anda para a direita, por causa da onda à esquerda
-  const dx = inicio ? (DESLOCA_INICIO[base] ?? 0) : 0;
-  return `<svg class="ac" width="1" height="1" style="--dx:${dx}"><path d="${acento}"/></svg>${escaparHtml(base)}`;
+  // na variação de início (ss03, só maiúsculas) o corpo da letra anda para a direita, por causa da onda à esquerda:
+  // o quanto anda é MEDIDO na página, com a fonte instalada neste computador (data-b), e não copiado de uma versão da fonte
+  const medir = inicio && /[A-Z]/.test(base) ? ` data-b="${base}"` : '';
+  return `<svg class="ac" width="1" height="1"${medir}><path d="${acento}"/></svg>${escaparHtml(base)}`;
 }
+
+/** Largura (unidades de 1/1000 em) de algumas letras na Cream Candy do designer: serve para avisar se a fonte deste computador é outra versão. */
+export const LARGURAS_ESPERADAS: Readonly<Record<string, number>> = { a: 297, e: 202, o: 195, A: 561, M: 770, i: 155, l: 242, s: 253 };
 
 export interface RecursosDaPagina {
   /** URL file:// (ou data:) da arte base, já pronta. */
@@ -143,6 +152,7 @@ html,body{margin:0;padding:0;background:#fff;overflow:hidden}
 .nome{position:absolute;left:${m.nome.centroMm.x}mm;top:${m.nome.centroMm.y}mm;transform:translate(-50%,-50%);font:${m.nome.tamanhoPt}pt/1 "NomeFonte";color:${m.nome.cor};white-space:nowrap}
 .a{font-feature-settings:"ss03"}.z{font-feature-settings:"ss02"}
 .ac{display:inline-block;width:1px;height:1px;margin-right:-1px;overflow:visible;vertical-align:baseline}.ac path{fill:currentColor;transform:translate(0,1px) scale(var(--k,0.1),calc(var(--k,0.1) * -1)) translate(calc(var(--dx,0) * 1px),0)}
+.med{position:absolute;left:-99999px;top:0;font-size:1000px;line-height:1;white-space:nowrap;font-family:"NomeFonte"}
 </style></head><body><div class="pg"><div class="ini" id="ini">${escaparHtml(inicial)}</div><div class="nome" id="nome"><span class="a">${primeira}</span>${meio}<span class="z">${ultima}</span></div></div>
 <script>
 (function(){
@@ -154,9 +164,23 @@ html,body{margin:0;padding:0;background:#fff;overflow:hidden}
   function tem(f,nome){return document.fonts.load('40pt '+f).then(function(l){if(!(l.length>0&&l[0].status==='loaded'))falta.push(nome);},function(){falta.push(nome);});}
   var falta=window.__fonteFaltando=[];
   tem('NomeFonte','${FONTE_DO_NOME.familia}').then(function(){return tem('InicialFonte','${FONTE_DA_INICIAL.familia}');}).then(function(){return document.fonts.ready;}).then(function(){
+    if(!falta.length){
+      var med=document.createElement('div');med.className='med';document.body.appendChild(med);
+      var larg=function(t,ss){var sp=document.createElement('span');sp.textContent=t;if(ss)sp.style.fontFeatureSettings='"'+ss+'"';med.appendChild(sp);var w=sp.getBoundingClientRect().width;med.removeChild(sp);return w;};
+      var esp=${JSON.stringify(LARGURAS_ESPERADAS)},rs=[];
+      for(var k in esp){rs.push(larg(k)/esp[k]);}
+      rs.sort(function(x,y){return x-y;});
+      // escala da fonte deste computador em relação à do designer (ex.: outra versão com outras unidades por em): os acentos acompanham
+      var r=rs[Math.floor(rs.length/2)];if(!(r>0.5&&r<2))r=1;
+      var dif=[];for(var q in esp){if(Math.abs(larg(q)/esp[q]/r-1)>0.015)dif.push(q);}
+      window.__fonteDiferente=dif;window.__escalaFonte=r;
+      var bs=document.querySelectorAll('svg.ac[data-b]');
+      for(var j=0;j<bs.length;j++){var b=bs[j].getAttribute('data-b');bs[j].style.setProperty('--dx',String((larg(b,'ss03')-larg(b))/r));}
+      document.body.removeChild(med);
+    }
     var nomeEl=document.getElementById('nome');
     caber(nomeEl,${m.nome.larguraMaxMm},20);
-    nomeEl.style.setProperty('--k',parseFloat(getComputedStyle(nomeEl).fontSize)/1000);
+    nomeEl.style.setProperty('--k',parseFloat(getComputedStyle(nomeEl).fontSize)/1000*(window.__escalaFonte||1));
     caber(document.getElementById('ini'),${m.inicial.larguraMaxMm},60);
     window.__pronto=true;
   }).catch(function(){window.__pronto=true;});

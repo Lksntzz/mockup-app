@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'vitest';
-import { escaparHtml, htmlDaPagina, formatoDaArte, inicialDoNome, letraHtml, validarEntrada } from '../src/personalizar/modelo';
+import { escaparHtml, htmlDaPagina, formatoDaArte, inicialDoNome, letraHtml, semAcento, validarEntrada } from '../src/personalizar/modelo';
 
 describe('inicialDoNome', () => {
   test.each([
     ['Cecília', 'C'],
-    ['  ágata', 'Á'],
+    ['  ágata', 'A'],
     ['maria eduarda', 'M'],
     ['  ', ''],
     ['123', ''],
@@ -76,10 +76,11 @@ describe('acentos desenhados por cima (letraHtml)', () => {
     expect(letraHtml('ì')).toBe('ì');
   });
 
-  test('na letra de início o acento acompanha o corpo da letra, que anda para a direita por causa da onda', () => {
-    expect(letraHtml('Á', true)).toMatch(/--dx:9\d\d/);
-    expect(letraHtml('Á', false)).toContain('--dx:0');
-    expect(letraHtml('á', true)).toContain('--dx:0'); // minúscula não tem variação de início
+  test('na letra de início (maiúscula) o deslocamento do corpo da letra é medido na página, não copiado de uma versão da fonte', () => {
+    expect(letraHtml('Á', true)).toContain('data-b="A"');
+    expect(letraHtml('Á', false)).not.toContain('data-b');
+    expect(letraHtml('á', true)).not.toContain('data-b'); // minúscula não tem variação de início
+    expect(letraHtml('Á', true)).not.toMatch(/--dx:\d/);
   });
 
   test('a página usa onda no início e no fim do nome inteiro e acentos nas letras do meio', () => {
@@ -127,5 +128,14 @@ describe('formato da arte (A4 inteira ou só o quadro de 195 x 255 mm)', () => {
     const base = { arteUrl: 'file:///a.png' };
     expect(htmlDaPagina({ ...base, formato: 'quadro' }, 'Ana', 'A')).toContain('7.5mm 21mm/195mm 255mm no-repeat');
     expect(htmlDaPagina(base, 'Ana', 'A')).toContain('0mm 0mm/210mm 297mm no-repeat');
+  });
+});
+
+describe('letra grande sem acento', () => {
+  test.each([['Ísis', 'I'], ['Ágata', 'A'], ['çarina', 'C'], ['ângela', 'A'], ['Zoé', 'Z']])('%s -> %s', (n, i) => expect(inicialDoNome(n)).toBe(i));
+  test('mesmo se o operador digitar com acento, vale a letra sem acento', () => {
+    const v = validarEntrada({ nome: 'Ísis', inicial: 'Í' });
+    expect(v.ok && v.inicial).toBe('I');
+    expect(semAcento('Ç')).toBe('C');
   });
 });
