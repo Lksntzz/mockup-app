@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { escaparHtml, htmlDaPagina, inicialDoNome, validarEntrada } from '../src/personalizar/modelo';
+import { escaparHtml, htmlDaPagina, inicialDoNome, letraHtml, validarEntrada } from '../src/personalizar/modelo';
 
 describe('inicialDoNome', () => {
   test.each([
@@ -50,4 +50,49 @@ describe('htmlDaPagina', () => {
     expect(htmlDaPagina({ ...r, arteUrl: 'file:///a/"x".png' }, 'Ana', 'A')).not.toContain('"x"');
   });
   test('escaparHtml', () => expect(escaparHtml(`<&"'>`)).toBe('&lt;&amp;&quot;&#39;&gt;'));
+});
+
+describe('acentos desenhados por cima (letraHtml)', () => {
+  test('letra sem acento sai como texto puro', () => {
+    expect(letraHtml('a')).toBe('a');
+    expect(letraHtml('<')).toBe('&lt;');
+  });
+
+  test('letra acentuada vira a letra sem acento + desenho do acento', () => {
+    const h = letraHtml('é');
+    expect(h).toMatch(/^<svg class="ac" [^>]*><path d="M[^"]+"\/><\/svg>e$/);
+    expect(h).not.toContain('é');
+  });
+
+  test.each(['Á', 'À', 'Â', 'Ã', 'Ä', 'É', 'Ê', 'Í', 'Ó', 'Ô', 'Õ', 'Ú', 'Ü', 'Ç', 'Ñ', 'á', 'à', 'â', 'ã', 'é', 'ê', 'ó', 'ô', 'õ', 'ú', 'ü', 'ç', 'ñ'])(
+    'o português tem acento desenhado para %s',
+    (c) => {
+      expect(letraHtml(c)).toContain('<path d="M');
+    },
+  );
+
+  test('i minúsculo acentuado usa a letra pronta da fonte (o acento substitui o pingo)', () => {
+    expect(letraHtml('í')).toBe('í');
+    expect(letraHtml('ì')).toBe('ì');
+  });
+
+  test('na letra de início o acento acompanha o corpo da letra, que anda para a direita por causa da onda', () => {
+    expect(letraHtml('Á', true)).toMatch(/--dx:9\d\d/);
+    expect(letraHtml('Á', false)).toContain('--dx:0');
+    expect(letraHtml('á', true)).toContain('--dx:0'); // minúscula não tem variação de início
+  });
+
+  test('a página usa onda no início e no fim do nome inteiro e acentos nas letras do meio', () => {
+    const r = { arteUrl: 'file:///a.jpg', fonteNomeUrl: 'file:///c.otf', fonteInicialUrl: 'file:///x.ttf' };
+    const h = htmlDaPagina(r, 'Ágata Zoé', 'Á');
+    expect(h).toMatch(/<span class="a"><svg[^>]*><path[^>]*\/><\/svg>A<\/span>/);
+    expect(h).toMatch(/<span class="z"><svg[^>]*><path[^>]*\/><\/svg>e<\/span>/);
+    expect(h).not.toMatch(/<span class="a">[^<]*<\/span>.*class="a"/s);
+  });
+
+  test('nome digitado com acento "solto" (a + marca, como vem de alguns teclados) também funciona', () => {
+    const r = { arteUrl: 'file:///a.jpg', fonteNomeUrl: 'file:///c.otf', fonteInicialUrl: 'file:///x.ttf' };
+    const solto = 'Jose\u0301'; // José com o acento como caractere separado
+    expect(htmlDaPagina(r, solto, 'J')).toContain('<path d="M');
+  });
 });

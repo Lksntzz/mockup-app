@@ -1,3 +1,5 @@
+import { ACENTOS, DESLOCA_INICIO } from './acentos';
+
 /**
  * Modelo "Caderneta de Saúde personalizada": medidas tiradas do arquivo do Corel (A4, em milímetros a partir do topo/esquerda).
  * A arte base e as fontes ficam numa pasta compartilhada escolhida no app (não vão para o GitHub: as fontes têm licença própria).
@@ -78,6 +80,19 @@ export function escaparHtml(t: string): string {
   return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+/**
+ * Uma letra do nome em HTML. Letra com acento vira a letra sem acento + o acento desenhado por cima (SVG de 1 px sem largura útil, com a base na linha de base do texto):
+ * assim a letra pode usar a variação com "onda" da fonte, que não existe acentuada, e o acento sai igual em qualquer posição.
+ */
+export function letraHtml(ch: string, inicio = false): string {
+  const acento = ACENTOS[ch];
+  if (acento === undefined) return escaparHtml(ch);
+  const base = ch.normalize('NFD').charAt(0);
+  // na variação de início (ss03, só maiúsculas) o corpo da letra anda para a direita, por causa da onda à esquerda
+  const dx = inicio ? (DESLOCA_INICIO[base] ?? 0) : 0;
+  return `<svg class="ac" width="1" height="1" style="--dx:${dx}"><path d="${acento}"/></svg>${escaparHtml(base)}`;
+}
+
 export interface RecursosDaPagina {
   /** URLs file:// (ou data:) já prontas. */
   arteUrl: string;
@@ -87,14 +102,14 @@ export interface RecursosDaPagina {
 
 /**
  * HTML da página A4: arte + letra grande (degradê) + nome centralizado.
- * A primeira letra do nome usa a variação de início (ss03) e a última a de fim (ss02): são as linhas ao lado do nome, que vêm da própria fonte.
+ * A primeira letra do nome usa a variação de início (ss03) e a última a de fim (ss02): são as linhas ao lado do nome, que vêm da própria fonte. Os acentos são desenhados por cima (letraHtml).
  * Um pequeno script diminui a fonte do nome (e da letra) até caber na largura máxima do modelo e avisa quando terminou (window.__pronto).
  */
 export function htmlDaPagina(r: RecursosDaPagina, nome: string, inicial: string, escala = 1): string {
-  const chars = [...nome];
-  const primeira = escaparHtml(chars[0] ?? '');
-  const meio = escaparHtml(chars.slice(1, -1).join(''));
-  const ultima = chars.length > 1 ? escaparHtml(chars[chars.length - 1] ?? '') : '';
+  const chars = [...nome.normalize('NFC')];
+  const primeira = letraHtml(chars[0] ?? '', true);
+  const meio = chars.slice(1, -1).map((c) => letraHtml(c)).join('');
+  const ultima = chars.length > 1 ? letraHtml(chars[chars.length - 1] ?? '') : '';
   const m = MODELO;
   const css = (u: string) => u.replace(/["\\\n\r]/g, '');
   return `<!doctype html><html><head><meta charset="utf-8"><style>
@@ -106,6 +121,7 @@ html,body{margin:0;padding:0;background:#fff;overflow:hidden}
 .ini{position:absolute;left:${m.inicial.centroMm.x}mm;top:${m.inicial.centroMm.y}mm;transform:translate(-50%,-50%);font:${m.inicial.tamanhoPt}pt/1 "InicialFonte";white-space:nowrap;color:transparent;background:radial-gradient(ellipse 50% 50% at 50% 53%,${m.inicial.corCentro} 0%,${m.inicial.corBorda} 100%);-webkit-background-clip:text;background-clip:text}
 .nome{position:absolute;left:${m.nome.centroMm.x}mm;top:${m.nome.centroMm.y}mm;transform:translate(-50%,-50%);font:${m.nome.tamanhoPt}pt/1 "NomeFonte";color:${m.nome.cor};white-space:nowrap}
 .a{font-feature-settings:"ss03"}.z{font-feature-settings:"ss02"}
+.ac{display:inline-block;width:1px;height:1px;margin-right:-1px;overflow:visible;vertical-align:baseline}.ac path{fill:currentColor;transform:translate(0,1px) scale(var(--k,0.1),calc(var(--k,0.1) * -1)) translate(calc(var(--dx,0) * 1px),0)}
 </style></head><body><div class="pg"><div class="ini" id="ini">${escaparHtml(inicial)}</div><div class="nome" id="nome"><span class="a">${primeira}</span>${meio}<span class="z">${ultima}</span></div></div>
 <script>
 (function(){
@@ -115,7 +131,9 @@ html,body{margin:0;padding:0;background:#fff;overflow:hidden}
     while(el.getBoundingClientRect().width>max+0.5&&pt>minPt&&i++<60){pt=Math.max(minPt,pt*Math.min(0.97,max/el.getBoundingClientRect().width));el.style.fontSize=pt+'pt';}
   }
   document.fonts.load('40pt NomeFonte').then(function(){return document.fonts.load('40pt InicialFonte');}).then(function(){return document.fonts.ready;}).then(function(){
-    caber(document.getElementById('nome'),${m.nome.larguraMaxMm},20);
+    var nomeEl=document.getElementById('nome');
+    caber(nomeEl,${m.nome.larguraMaxMm},20);
+    nomeEl.style.setProperty('--k',parseFloat(getComputedStyle(nomeEl).fontSize)/1000);
     caber(document.getElementById('ini'),${m.inicial.larguraMaxMm},60);
     window.__pronto=true;
   }).catch(function(){window.__pronto=true;});
