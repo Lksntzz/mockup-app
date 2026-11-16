@@ -65,7 +65,7 @@ import {
 } from "./anuncios";
 import { acharPastaAnuncios, criarCategoria, criarSubcategoria, listarCategorias, listarPlataformas, listarSubcategorias, mesclarPastasAchadas } from "./anuncios-pastas";
 import { mesmoNome } from "../anuncios/nomes";
-import { abrirPreferenciasDaImpressora, imprimirPersonalizacao, listarImpressoras, previaDaPersonalizacao } from "./personalizar-janela";
+import { abrirPreferenciasDaImpressora, imprimirPersonalizacao, listarImpressoras, previaDaPersonalizacao, soltarPrevia } from "./personalizar-janela";
 import { estadoDaArte, imagemDaArte } from "./personalizar";
 import { colocarEanNoCorel, concluirPendente, listarPendentes as listarAnunciosPendentes } from "./anuncios-pendentes";
 import { criarPortaoDePin } from "./pin";
@@ -316,6 +316,7 @@ let bandeja: Tray | null = null;
 let avisouBandeja = false;
 app.on("before-quit", () => {
   saindo = true;
+  soltarPrevia();
 });
 
 function mostrarJanela(): void {
@@ -987,7 +988,10 @@ function criarJanela(oculta = false): BrowserWindow {
     () => void atualizador.verificar(false),
     INTERVALO_DE_VERIFICACAO,
   );
-  win.on("closed", () => clearInterval(timer));
+  win.on("closed", () => {
+    clearInterval(timer);
+    soltarPrevia();
+  });
   win.on("close", (e) => {
     if (!deveEsconderAoFechar({ designer: designerLigado }, saindo)) return;
     e.preventDefault();

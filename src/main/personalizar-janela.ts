@@ -1,10 +1,10 @@
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { unlink, writeFile } from 'node:fs/promises';
+import { stat, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { BrowserWindow, nativeImage } from 'electron';
-import { formatoDaArte, htmlDaPagina, validarEntrada } from '../personalizar/modelo';
+import { formatoDaArte, htmlDaPagina, nomeHtml, validarEntrada } from '../personalizar/modelo';
 import { acharRecursos } from './personalizar';
 
 export interface ImpressoraInfo { nome: string; padrao: boolean }
@@ -29,7 +29,10 @@ const ALT_PX = 1123;
 /** Escala da janela na prévia: a página A4 inteira (1123 px) não cabe em telas de 1080 px, e a janela escondida também é limitada pela tela. A escala é feita na própria página (não pelo zoom do navegador). */
 const ESCALA_PREVIA = 0.8;
 
-async function comPagina<T>(pasta: string | undefined, nome: string, inicial: string, escala: number, usar: (win: BrowserWindow) => Promise<T>): Promise<T | { ok: false; motivo: string }> {
+interface Montada { win: BrowserWindow; arquivo: string }
+
+/** Monta a página numa janela escondida e espera arte, fontes e tamanho final. A janela e o arquivo temporário são de quem chamou. */
+async function montar(pasta: string | undefined, nome: string, inicial: string, escala: number): Promise<{ ok: true; m: Montada } | { ok: false; motivo: string }> {
   const rec = await acharRecursos(pasta);
   if (!rec.ok) return rec;
   // proporção da imagem: A4 inteira ou só o quadro de 195 x 255 mm (impresso em tamanho real, centralizado)
@@ -52,31 +55,90 @@ async function comPagina<T>(pasta: string | undefined, nome: string, inicial: st
     for (;;) {
       const pronto = await win.webContents.executeJavaScript('window.__pronto === true');
       if (pronto) break;
-      if (Date.now() - inicio > ESPERA_MAX_MS) return { ok: false, motivo: 'A arte demorou demais para carregar. Tente de novo.' };
+      if (Date.now() - inicio > ESPERA_MAX_MS) throw new Error('A arte demorou demais para carregar. Tente de novo.');
       await new Promise((r) => setTimeout(r, 80));
     }
     const faltam = (await win.webContents.executeJavaScript('window.__fonteFaltando || []')) as unknown;
     if (Array.isArray(faltam) && faltam.length > 0) {
-      return { ok: false, motivo: `A fonte ${faltam.map(String).join(' e ')} não está instalada neste computador. Instale no Windows a mesma fonte que o Corel usa e tente de novo.` };
+      throw new Error(`A fonte ${faltam.map(String).join(' e ')} não está instalada neste computador. Instale no Windows a mesma fonte que o Corel usa e tente de novo.`);
     }
     // a janela está escondida: espera a tela repintar com o tamanho final da letra antes de fotografar ou imprimir
-    await win.webContents.executeJavaScript('new Promise(function(r){var t=setTimeout(r,600);requestAnimationFrame(function(){requestAnimationFrame(function(){clearTimeout(t);r(true);});});})');
-    win.webContents.invalidate();
-    await new Promise((r) => setTimeout(r, 150));
-    return await usar(win);
+    await esperarPintura(win);
+    return { ok: true, m: { win, arquivo } };
+  } catch (e) {
+    if (win && !win.isDestroyed()) win.destroy();
+    await unlink(arquivo).catch(() => undefined);
+    return { ok: false, motivo: e instanceof Error && /demorou|não está instalada/.test(e.message) ? e.message : `Não consegui montar a arte: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function esperarPintura(win: BrowserWindow, extraMs = 150): Promise<void> {
+  await win.webContents.executeJavaScript('new Promise(function(r){var t=setTimeout(r,600);requestAnimationFrame(function(){requestAnimationFrame(function(){clearTimeout(t);r(true);});});})');
+  win.webContents.invalidate();
+  await new Promise((r) => setTimeout(r, extraMs));
+}
+
+async function descartar(m: Montada): Promise<void> {
+  if (!m.win.isDestroyed()) m.win.destroy();
+  await unlink(m.arquivo).catch(() => undefined);
+}
+
+async function comPagina<T>(pasta: string | undefined, nome: string, inicial: string, escala: number, usar: (win: BrowserWindow) => Promise<T>): Promise<T | { ok: false; motivo: string }> {
+  const r = await montar(pasta, nome, inicial, escala);
+  if (!r.ok) return r;
+  try {
+    return await usar(r.m.win);
   } catch (e) {
     return { ok: false, motivo: `Não consegui montar a arte: ${e instanceof Error ? e.message : String(e)}` };
   } finally {
-    if (win && !win.isDestroyed()) win.destroy();
-    await unlink(arquivo).catch(() => undefined);
+    await descartar(r.m);
   }
+}
+
+/** Janela da prévia mantida aberta: arte e fontes carregam uma vez; a cada digitação só o nome muda. Fecha sozinha depois de um tempo parada. */
+let previaViva: { chave: string; m: Montada; limpeza: ReturnType<typeof setTimeout> } | undefined;
+const PREVIA_OCIOSA_MS = 3 * 60_000;
+
+/** Fecha a janela escondida da prévia (ao sair do programa ou ao fechar a janela principal: ela não pode manter o app vivo). */
+export function soltarPrevia(): void {
+  if (!previaViva) return;
+  clearTimeout(previaViva.limpeza);
+  const m = previaViva.m;
+  previaViva = undefined;
+  void descartar(m);
+}
+
+async function janelaDaPrevia(pasta: string | undefined, nome: string, inicial: string): Promise<{ ok: true; win: BrowserWindow; novo: boolean } | { ok: false; motivo: string }> {
+  // a arte pode ser trocada (ou o PDF reconvertido) mantendo o mesmo caminho: tamanho e data entram na chave
+  const info = pasta ? await stat(pasta).catch(() => undefined) : undefined;
+  const chave = `${pasta ?? ''}|${info?.size ?? 0}|${info?.mtimeMs ?? 0}`;
+  if (previaViva && (previaViva.chave !== chave || previaViva.m.win.isDestroyed())) soltarPrevia();
+  if (previaViva) {
+    clearTimeout(previaViva.limpeza);
+    previaViva.limpeza = setTimeout(soltarPrevia, PREVIA_OCIOSA_MS);
+    return { ok: true, win: previaViva.m.win, novo: false };
+  }
+  const r = await montar(pasta, nome, inicial, ESCALA_PREVIA);
+  if (!r.ok) return r;
+  const limpeza = setTimeout(soltarPrevia, PREVIA_OCIOSA_MS);
+  limpeza.unref();
+  previaViva = { chave, m: r.m, limpeza };
+  return { ok: true, win: r.m.win, novo: true };
 }
 
 export function previaDaPersonalizacao(pasta: string | undefined, entrada: { nome: unknown; inicial: unknown }): Promise<ResultadoPrevia> {
   const v = validarEntrada(entrada);
   if (!v.ok) return Promise.resolve(v);
   return naFila(async () => {
-    const r = await comPagina(pasta, v.nome, v.inicial, ESCALA_PREVIA, async (win) => {
+    try {
+      const j = await janelaDaPrevia(pasta, v.nome, v.inicial);
+      if (!j.ok) return j;
+      const win = j.win;
+      if (!j.novo) {
+        // janela já pronta: troca só o nome e a letra grande e espera repintar
+        await win.webContents.executeJavaScript(`window.__atualizar(${JSON.stringify(nomeHtml(v.nome))}, ${JSON.stringify(v.inicial)})`);
+        await esperarPintura(win, 40);
+      }
       const img = await win.webContents.capturePage();
       const dif = (await win.webContents.executeJavaScript('window.__fonteDiferente || []')) as unknown;
       const larg = (await win.webContents.executeJavaScript('(window.__largurasFonte || "") + (window.__erroMedicao ? " erro: " + window.__erroMedicao : "")')) as unknown;
@@ -86,8 +148,10 @@ export function previaDaPersonalizacao(pasta: string | undefined, entrada: { nom
       }
       const aviso = avisos.length > 0 ? avisos.join(' ') : undefined;
       return { ok: true as const, png: new Uint8Array(img.toPNG()), ...(aviso ? { aviso } : {}) };
-    });
-    return r;
+    } catch (e) {
+      soltarPrevia(); // se a janela ficou num estado estranho, a próxima prévia começa do zero
+      return { ok: false as const, motivo: `Não consegui montar a prévia: ${e instanceof Error ? e.message : String(e)}` };
+    }
   });
 }
 

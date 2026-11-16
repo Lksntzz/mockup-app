@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { escaparHtml, htmlDaPagina, formatoDaArte, inicialDoNome, DESCE_CIRCUNFLEXO, letraHtml, semAcento, validarEntrada } from '../src/personalizar/modelo';
+import { escaparHtml, htmlDaPagina, formatoDaArte, inicialDoNome, DESCE_CIRCUNFLEXO, letraHtml, nomeHtml, semAcento, validarEntrada } from '../src/personalizar/modelo';
 
 describe('inicialDoNome', () => {
   test.each([
@@ -154,5 +154,17 @@ describe('circunflexo desce um pouco', () => {
     expect(letraHtml('ê')).toContain(`translate(0,${1000 + DESCE_CIRCUNFLEXO})`);
     expect(letraHtml('Á')).toContain('translate(0,1000)');
     expect(letraHtml('ã')).toContain('translate(0,1000)');
+  });
+});
+
+describe('troca só do nome (prévia reaproveita a janela)', () => {
+  test('nomeHtml é exatamente o miolo do nome que a página usa', () => {
+    const h = htmlDaPagina({ arteUrl: 'file:///a.jpg' }, 'Ísis', 'I');
+    expect(h).toContain(`<div class="nome" id="nome">${nomeHtml('Ísis')}</div>`);
+  });
+  test('a página oferece __atualizar e __ajustar para trocar nome e letra sem recarregar', () => {
+    const h = htmlDaPagina({ arteUrl: 'file:///a.jpg' }, 'Ana', 'A');
+    expect(h).toContain('window.__atualizar=');
+    expect(h).toContain('window.__ajustar=');
   });
 });

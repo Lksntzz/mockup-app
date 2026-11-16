@@ -135,11 +135,16 @@ export interface RecursosDaPagina {
  * A primeira letra do nome usa a variação de início (ss03) e a última a de fim (ss02): são as linhas ao lado do nome, que vêm da própria fonte. Os acentos são desenhados por cima (letraHtml).
  * Um pequeno script diminui a fonte do nome (e da letra) até caber na largura máxima do modelo e avisa quando terminou (window.__pronto).
  */
-export function htmlDaPagina(r: RecursosDaPagina, nome: string, inicial: string, escala = 1): string {
+/** O miolo do elemento do nome (primeira letra com onda de início, meio, última com onda de fim). Também usado para trocar só o nome numa página já carregada. */
+export function nomeHtml(nome: string): string {
   const chars = [...nome.normalize('NFC')];
   const primeira = letraHtml(chars[0] ?? '', true);
   const meio = chars.slice(1, -1).map((c) => letraHtml(c)).join('');
   const ultima = chars.length > 1 ? letraHtml(chars[chars.length - 1] ?? '') : '';
+  return `<span class="a">${primeira}</span>${meio}<span class="z">${ultima}</span>`;
+}
+
+export function htmlDaPagina(r: RecursosDaPagina, nome: string, inicial: string, escala = 1): string {
   const m = MODELO;
   const caixa = r.formato === 'quadro'
     ? { x: (m.paginaMm.largura - QUADRO_MM.largura) / 2, y: (m.paginaMm.altura - QUADRO_MM.altura) / 2, w: QUADRO_MM.largura, h: QUADRO_MM.altura }
@@ -157,7 +162,7 @@ html,body{margin:0;padding:0;background:#fff;overflow:hidden}
 .a{font-feature-settings:"ss03"}.z{font-feature-settings:"ss02"}
 .ac{display:inline-block;width:1em;height:1em;margin:-1em -1em 0 0;overflow:visible;vertical-align:baseline}.ac path{fill:currentColor}
 .med{position:absolute;left:-99999px;top:0;font-size:1000px;line-height:1;white-space:nowrap;font-family:"NomeFonte"}
-</style></head><body><div class="pg"><div class="ini" id="ini">${escaparHtml(inicial)}</div><div class="nome" id="nome"><span class="a">${primeira}</span>${meio}<span class="z">${ultima}</span></div></div>
+</style></head><body><div class="pg"><div class="ini" id="ini">${escaparHtml(inicial)}</div><div class="nome" id="nome">${nomeHtml(nome)}</div></div>
 <script>
 (function(){
   var MM=96/25.4*${escala};
@@ -176,9 +181,20 @@ html,body{margin:0;padding:0;background:#fff;overflow:hidden}
       window.__fonteDiferente=dif;window.__largurasFonte=todas.join(', ');
       document.body.removeChild(med);
     }}catch(e){window.__erroMedicao=String(e&&e.message||e);}
-    var nomeEl=document.getElementById('nome');
-    caber(nomeEl,${m.nome.larguraMaxMm},20);
-    caber(document.getElementById('ini'),${m.inicial.larguraMaxMm},60);
+    window.__ajustar=function(){
+      var nomeEl=document.getElementById('nome'),iniEl=document.getElementById('ini');
+      nomeEl.style.fontSize='';iniEl.style.fontSize='';
+      caber(nomeEl,${m.nome.larguraMaxMm},20);
+      caber(iniEl,${m.inicial.larguraMaxMm},60);
+    };
+    /* troca só o nome e a letra grande numa página já carregada (a prévia reaproveita a janela: arte e fontes não recarregam) */
+    window.__atualizar=function(nomeInterno,ini){
+      document.getElementById('nome').innerHTML=nomeInterno;
+      document.getElementById('ini').textContent=ini;
+      window.__ajustar();
+      return new Promise(function(r){requestAnimationFrame(function(){requestAnimationFrame(function(){r(true);});});});
+    };
+    window.__ajustar();
     window.__pronto=true;
   }).catch(function(){window.__pronto=true;});
 })();

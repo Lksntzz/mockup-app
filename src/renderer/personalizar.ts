@@ -41,7 +41,7 @@ function agendarPrevia(): void {
     return;
   }
   texto($('pz-previa-msg'), 'Montando a prévia…');
-  pendentePrevia = setTimeout(() => void gerarPrevia(v.nome, v.inicial), 350);
+  pendentePrevia = setTimeout(() => void gerarPrevia(v.nome, v.inicial), 250);
 }
 
 async function gerarPrevia(nome: string, inicial: string): Promise<void> {
