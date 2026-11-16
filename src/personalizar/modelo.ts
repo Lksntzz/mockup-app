@@ -113,7 +113,7 @@ export function letraHtml(ch: string, inicio = false): string {
   // na variação de início (ss03, só maiúsculas) o corpo da letra anda para a direita, por causa da onda à esquerda:
   // o quanto anda vem da tabela medida na fonte do designer (DESLOCA_INICIO)
   const dx = inicio ? (DESLOCA_INICIO[base] ?? 0) : 0;
-  return `<svg class="ac" width="1" height="1" style="--dx:${dx}"><path d="${acento}"/></svg>${escaparHtml(base)}`;
+  return `<svg class="ac" viewBox="0 0 1000 1000"><path transform="translate(${dx},1000) scale(1,-1)" d="${acento}"/></svg>${escaparHtml(base)}`;
 }
 
 /** Largura (unidades de 1/1000 em) de algumas letras na Cream Candy do designer: serve para avisar se a fonte deste computador é outra versão. */
@@ -151,7 +151,7 @@ html,body{margin:0;padding:0;background:#fff;overflow:hidden}
 .ini{position:absolute;left:${m.inicial.centroMm.x}mm;top:${m.inicial.centroMm.y}mm;transform:translate(-50%,-50%);font:${m.inicial.tamanhoPt}pt/1 "InicialFonte";white-space:nowrap;color:transparent;background:radial-gradient(ellipse 50% 50% at 50% 53%,${m.inicial.corCentro} 0%,${m.inicial.corBorda} 100%);-webkit-background-clip:text;background-clip:text}
 .nome{position:absolute;left:${m.nome.centroMm.x}mm;top:${m.nome.centroMm.y}mm;transform:translate(-50%,-50%);font:${m.nome.tamanhoPt}pt/1 "NomeFonte";color:${m.nome.cor};white-space:nowrap}
 .a{font-feature-settings:"ss03"}.z{font-feature-settings:"ss02"}
-.ac{display:inline-block;width:1px;height:1px;margin-right:-1px;overflow:visible;vertical-align:baseline}.ac path{fill:currentColor;transform:translate(0,1px) scale(var(--k,0.1),calc(var(--k,0.1) * -1)) translate(calc(var(--dx,0) * 1px),0)}
+.ac{display:inline-block;width:1em;height:1em;margin:-1em -1em 0 0;overflow:visible;vertical-align:baseline}.ac path{fill:currentColor}
 .med{position:absolute;left:-99999px;top:0;font-size:1000px;line-height:1;white-space:nowrap;font-family:"NomeFonte"}
 </style></head><body><div class="pg"><div class="ini" id="ini">${escaparHtml(inicial)}</div><div class="nome" id="nome"><span class="a">${primeira}</span>${meio}<span class="z">${ultima}</span></div></div>
 <script>
@@ -174,7 +174,6 @@ html,body{margin:0;padding:0;background:#fff;overflow:hidden}
     }}catch(e){window.__erroMedicao=String(e&&e.message||e);}
     var nomeEl=document.getElementById('nome');
     caber(nomeEl,${m.nome.larguraMaxMm},20);
-    nomeEl.style.setProperty('--k',parseFloat(getComputedStyle(nomeEl).fontSize)/1000);
     caber(document.getElementById('ini'),${m.inicial.larguraMaxMm},60);
     window.__pronto=true;
   }).catch(function(){window.__pronto=true;});

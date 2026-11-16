@@ -60,14 +60,14 @@ describe('acentos desenhados por cima (letraHtml)', () => {
 
   test('letra acentuada vira a letra sem acento + desenho do acento', () => {
     const h = letraHtml('é');
-    expect(h).toMatch(/^<svg class="ac" [^>]*><path d="M[^"]+"\/><\/svg>e$/);
+    expect(h).toMatch(/^<svg class="ac" [^>]*><path [^>]*d="M[^"]+"\/><\/svg>e$/);
     expect(h).not.toContain('é');
   });
 
   test.each(['Á', 'À', 'Â', 'Ã', 'Ä', 'É', 'Ê', 'Í', 'Ó', 'Ô', 'Õ', 'Ú', 'Ü', 'Ç', 'Ñ', 'á', 'à', 'â', 'ã', 'é', 'ê', 'ó', 'ô', 'õ', 'ú', 'ü', 'ç', 'ñ'])(
     'o português tem acento desenhado para %s',
     (c) => {
-      expect(letraHtml(c)).toContain('<path d="M');
+      expect(letraHtml(c)).toContain(' d="M');
     },
   );
 
@@ -77,9 +77,9 @@ describe('acentos desenhados por cima (letraHtml)', () => {
   });
 
   test('na letra de início (maiúscula) o acento acompanha o corpo da letra pela tabela da fonte do designer', () => {
-    expect(letraHtml('Á', true)).toMatch(/style="--dx:9\d\d"/); // o corpo do A anda ~903 unidades
-    expect(letraHtml('Á', false)).toContain('--dx:0');
-    expect(letraHtml('á', true)).toContain('--dx:0'); // minúscula não tem variação de início
+    expect(letraHtml('Á', true)).toMatch(/translate\(9\d\d,1000\)/); // o corpo do A anda ~903 unidades
+    expect(letraHtml('Á', false)).toContain('translate(0,1000)');
+    expect(letraHtml('á', true)).toContain('translate(0,1000)'); // minúscula não tem variação de início
   });
 
   test('a página só mede a fonte para avisar se é de outra versão; não muda a posição dos acentos por conta própria', () => {
@@ -88,6 +88,7 @@ describe('acentos desenhados por cima (letraHtml)', () => {
     expect(h).toContain('window.__largurasFonte');
     expect(h).not.toContain('setProperty(\'--dx\'');
     expect(h).not.toContain('__escalaFonte');
+    expect(h).not.toContain('--k'); // o tamanho do acento vem só do layout (em), sem script
   });
 
   test('a página usa onda no início e no fim do nome inteiro e acentos nas letras do meio', () => {
@@ -101,7 +102,7 @@ describe('acentos desenhados por cima (letraHtml)', () => {
   test('nome digitado com acento "solto" (a + marca, como vem de alguns teclados) também funciona', () => {
     const r = { arteUrl: 'file:///a.jpg' };
     const solto = 'Jose\u0301'; // José com o acento como caractere separado
-    expect(htmlDaPagina(r, solto, 'J')).toContain('<path d="M');
+    expect(htmlDaPagina(r, solto, 'J')).toContain(' d="M');
   });
 });
 
