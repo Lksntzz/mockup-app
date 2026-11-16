@@ -24,14 +24,13 @@ export const MODELO = {
   },
 } as const;
 
-/** Arquivos que a pasta do modelo precisa ter (o nome exato não importa, só o trecho e a extensão). */
-export const ARQUIVOS_DO_MODELO = [
-  { chave: 'arte', rotulo: 'a arte base (PNG ou JPG)', trecho: 'arte', extensoes: ['.png', '.jpg', '.jpeg'] },
-  { chave: 'fonteNome', rotulo: 'a fonte do nome (Cream Candy, .otf ou .ttf)', trecho: 'cream', extensoes: ['.otf', '.ttf'] },
-  { chave: 'fonteInicial', rotulo: 'a fonte da letra grande (Century751 BT, .ttf ou .otf)', trecho: 'century', extensoes: ['.ttf', '.otf'] },
-] as const;
-
-export type ChaveDoArquivo = (typeof ARQUIVOS_DO_MODELO)[number]['chave'];
+/**
+ * A arte base é escolhida pelo operador (PNG ou JPG). As fontes NÃO vão no app nem no GitHub (o repositório e as releases são públicos e as
+ * fontes têm licença própria): usa-se as que já estão instaladas no Windows, as mesmas do Corel.
+ */
+export const EXTENSOES_DA_ARTE = ['.png', '.jpg', '.jpeg'] as const;
+export const FONTE_DO_NOME = { familia: 'Cream Candy', alternativas: ['Cream Candy', 'CreamCandy', 'Cream Candy Regular'] } as const;
+export const FONTE_DA_INICIAL = { familia: 'Century751 BT', alternativas: ['Century751 BT', 'Century751 BT Roman', 'Century751BT-RomanB'] } as const;
 
 export const MAX_NOME = 50;
 export const MAX_COPIAS = 99;
@@ -94,10 +93,8 @@ export function letraHtml(ch: string, inicio = false): string {
 }
 
 export interface RecursosDaPagina {
-  /** URLs file:// (ou data:) já prontas. */
+  /** URL file:// (ou data:) da arte base, já pronta. */
   arteUrl: string;
-  fonteNomeUrl: string;
-  fonteInicialUrl: string;
 }
 
 /**
@@ -112,9 +109,10 @@ export function htmlDaPagina(r: RecursosDaPagina, nome: string, inicial: string,
   const ultima = chars.length > 1 ? letraHtml(chars[chars.length - 1] ?? '') : '';
   const m = MODELO;
   const css = (u: string) => u.replace(/["\\\n\r]/g, '');
+  const locais = (nomes: readonly string[]) => nomes.map((n) => `local("${css(n)}")`).join(',');
   return `<!doctype html><html><head><meta charset="utf-8"><style>
-@font-face{font-family:"NomeFonte";src:url("${css(r.fonteNomeUrl)}")}
-@font-face{font-family:"InicialFonte";src:url("${css(r.fonteInicialUrl)}")}
+@font-face{font-family:"NomeFonte";src:${locais(FONTE_DO_NOME.alternativas)}}
+@font-face{font-family:"InicialFonte";src:${locais(FONTE_DA_INICIAL.alternativas)}}
 @page{size:${m.paginaMm.largura}mm ${m.paginaMm.altura}mm;margin:0}
 html,body{margin:0;padding:0;background:#fff;overflow:hidden}
 .pg{transform:scale(${escala});transform-origin:0 0;position:relative;width:${m.paginaMm.largura}mm;height:${m.paginaMm.altura}mm;overflow:hidden;background:url("${css(r.arteUrl)}") 0 0/${m.paginaMm.largura}mm ${m.paginaMm.altura}mm no-repeat}
@@ -130,7 +128,9 @@ html,body{margin:0;padding:0;background:#fff;overflow:hidden}
     var pt=parseFloat(getComputedStyle(el).fontSize)*0.75, max=maxMm*MM, i=0;
     while(el.getBoundingClientRect().width>max+0.5&&pt>minPt&&i++<60){pt=Math.max(minPt,pt*Math.min(0.97,max/el.getBoundingClientRect().width));el.style.fontSize=pt+'pt';}
   }
-  document.fonts.load('40pt NomeFonte').then(function(){return document.fonts.load('40pt InicialFonte');}).then(function(){return document.fonts.ready;}).then(function(){
+  function tem(f,nome){return document.fonts.load('40pt '+f).then(function(l){if(!(l.length>0&&l[0].status==='loaded'))falta.push(nome);},function(){falta.push(nome);});}
+  var falta=window.__fonteFaltando=[];
+  tem('NomeFonte','${FONTE_DO_NOME.familia}').then(function(){return tem('InicialFonte','${FONTE_DA_INICIAL.familia}');}).then(function(){return document.fonts.ready;}).then(function(){
     var nomeEl=document.getElementById('nome');
     caber(nomeEl,${m.nome.larguraMaxMm},20);
     nomeEl.style.setProperty('--k',parseFloat(getComputedStyle(nomeEl).fontSize)/1000);

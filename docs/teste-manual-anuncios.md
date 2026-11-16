@@ -285,15 +285,10 @@ Não precisa reimportar o macro: o botão usa o `AdicionarEanNoCdr` que você j�
 
 ## Teste Z — Aba Personalizar (nome e letra grande, impressão em 1 clique)
 
-**Preparação (uma vez, em uma pasta compartilhada, por exemplo no Drive):** crie uma pasta, por exemplo `MODELO PERSONALIZADO`, e coloque dentro 3 arquivos:
-- a arte base (o PNG/JPG que eu te mandei, `arte.jpg`: o nome do arquivo **precisa ter a palavra "arte"**);
-- a fonte do nome (`CREAM_CANDY.OTF`: o nome precisa ter **"cream"**);
-- a fonte da letra grande (`CENTURY751_BT_ROMAN.TTF`: o nome precisa ter **"century"**).
+**Preparação:** as duas fontes (**Cream Candy** e **Century751 BT**) precisam estar **instaladas no Windows** do computador (as mesmas que o Corel usa). Elas **não vão dentro do app** nem no GitHub, porque o repositório e as releases são públicos e as fontes têm licença própria. A arte base (`arte.jpg`, que te mandei) pode ficar em qualquer pasta: o operador escolhe só ela.
 
-As fontes não vão para o GitHub (têm licença própria): ficam só nessa pasta.
-
-1. Abra o app e clique na aba **Personalizar**. **Resultado esperado:** aparece "Pasta do modelo: não escolhida" e um aviso pedindo a pasta.
-2. Clique em **Escolher pasta** e escolha a pasta do modelo. **Resultado esperado:** o aviso some e aparecem os campos (nome, letra grande, quantidade, impressora) e a prévia. Se faltar algum arquivo, o aviso diz exatamente qual.
+1. Abra o app e clique na aba **Personalizar**. **Resultado esperado:** aparece "Arte: não escolhida" e um aviso pedindo a arte.
+2. Clique em **Escolher arte** e escolha o `arte.jpg`. **Resultado esperado:** o aviso some e aparecem os campos (nome, letra grande, quantidade, impressora) e a prévia. O app lembra a arte escolhida da próxima vez. Se uma das fontes não estiver instalada, o aviso diz qual (ex.: "A fonte Cream Candy não está instalada neste computador").
 3. Digite o nome **Cecília**. **Resultado esperado:** a letra grande vira **C** sozinha e, em poucos segundos, a prévia mostra a arte com o nome centralizado (com a linha decorativa dos dois lados) e o C em degradê. Compare com a arte do Corel.
 4. Digite **Maria Eduarda dos Santos**. **Resultado esperado:** o nome diminui sozinho até caber, e a letra grande vira **M**. A **onda** aparece só no começo (à esquerda do M) e no fim (à direita do último "s"); as letras do meio não têm onda.
 4b. **Acentos (desenhados pelo app, porque a fonte não tem o ´):** digite um de cada vez e confira se o acento está **em cima da letra certa, no estilo da fonte**, e se a onda continua: **Ágata** (acento na primeira letra, com a onda), **Ângela**, **José** (acento na última letra, com a onda), **João Pedro**, **Conceição** (cedilha), **Zoé Lúcia**, **Ísis Mãe**. A letra grande vira **Á**, **Â**, **J**...

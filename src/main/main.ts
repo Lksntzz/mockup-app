@@ -583,13 +583,13 @@ ipcMain.handle("anuncios-colocar-ean", async (_e, pasta: unknown) => {
 });
 ipcMain.handle("personalizar-estado", async () => {
   const c = await configDoDesigner().ler();
-  const r = await acharRecursos(c.pastaPersonalizado);
-  return { pasta: c.pastaPersonalizado, ok: r.ok, motivo: r.ok ? "" : r.motivo };
+  const r = await acharRecursos(c.artePersonalizada);
+  return { arte: c.artePersonalizada, ok: r.ok, motivo: r.ok ? "" : r.motivo };
 });
 ipcMain.handle("personalizar-previa", async (_e, entrada: unknown) => {
   const c = await configDoDesigner().ler();
   const e = (entrada ?? {}) as { nome?: unknown; inicial?: unknown };
-  return previaDaPersonalizacao(c.pastaPersonalizado, { nome: e.nome, inicial: e.inicial });
+  return previaDaPersonalizacao(c.artePersonalizada, { nome: e.nome, inicial: e.inicial });
 });
 ipcMain.handle("personalizar-impressoras", async () => {
   try {
@@ -604,18 +604,19 @@ ipcMain.handle("personalizar-preferencias", async (_e, nome: unknown) => {
 ipcMain.handle("personalizar-imprimir", async (_e, entrada: unknown) => {
   const c = await configDoDesigner().ler();
   const e = (entrada ?? {}) as { nome?: unknown; inicial?: unknown; copias?: unknown; impressora?: unknown };
-  return imprimirPersonalizacao(c.pastaPersonalizado, { nome: e.nome, inicial: e.inicial, copias: e.copias, impressora: e.impressora });
+  return imprimirPersonalizacao(c.artePersonalizada, { nome: e.nome, inicial: e.inicial, copias: e.copias, impressora: e.impressora });
 });
 ipcMain.handle("personalizar-escolher-pasta", async () => {
   const r = await dialog.showOpenDialog({
-    title: "Escolher a pasta do modelo personalizado (arte base e fontes)",
-    properties: ["openDirectory"],
+    title: "Escolher a arte para personalizar (PNG ou JPG)",
+    properties: ["openFile"],
+    filters: [{ name: "Imagem", extensions: ["png", "jpg", "jpeg"] }],
   });
   const caminho = r.filePaths[0];
-  if (!r.canceled && caminho) await configDoDesigner().salvar({ pastaPersonalizado: caminho });
+  if (!r.canceled && caminho) await configDoDesigner().salvar({ artePersonalizada: caminho });
   const c = await configDoDesigner().ler();
-  const achou = await acharRecursos(c.pastaPersonalizado);
-  return { pasta: c.pastaPersonalizado, ok: achou.ok, motivo: achou.ok ? "" : achou.motivo };
+  const achou = await acharRecursos(c.artePersonalizada);
+  return { arte: c.artePersonalizada, ok: achou.ok, motivo: achou.ok ? "" : achou.motivo };
 });
 ipcMain.handle("anuncios-abrir-pasta", async (_e, caminho: unknown) => {
   const r = await raizDosAnuncios();

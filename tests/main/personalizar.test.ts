@@ -8,38 +8,30 @@ let pasta: string;
 beforeEach(async () => { pasta = await mkdtemp(join(tmpdir(), 'pers-')); });
 afterEach(async () => { await rm(pasta, { recursive: true, force: true }); });
 
-describe('acharRecursos', () => {
-  test('sem pasta ou pasta inexistente: motivo em português', async () => {
-    expect((await acharRecursos(undefined)).ok).toBe(false);
-    const r = await acharRecursos(join(pasta, 'nao-existe'));
+describe('acharRecursos (a arte escolhida pelo operador)', () => {
+  test('sem arte ou arquivo inexistente: motivo em português', async () => {
+    const a = await acharRecursos(undefined);
+    expect(a.ok).toBe(false);
+    const r = await acharRecursos(join(pasta, 'nao-existe.png'));
     expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.motivo).toContain('Não achei');
   });
-  test('lista o que falta', async () => {
-    await writeFile(join(pasta, 'arte base.png'), 'x');
-    const r = await acharRecursos(pasta);
-    expect(r.ok).toBe(false);
-    if (!r.ok) {
-      expect(r.motivo).toContain('Cream Candy');
-      expect(r.motivo).toContain('Century751');
-      expect(r.motivo).not.toContain('arte base');
-    }
-  });
-  test('acha os três pelo trecho do nome (maiúsculas não importam) e devolve URLs file://', async () => {
+  test('só aceita PNG ou JPG (maiúsculas não importam) e devolve URL file://', async () => {
     await writeFile(join(pasta, 'ARTE.PNG'), 'x');
-    await writeFile(join(pasta, 'CREAM_CANDY.OTF'), 'x');
-    await writeFile(join(pasta, 'CENTURY751_BT_ROMAN.TTF'), 'x');
-    await mkdir(join(pasta, 'arte-pasta.png'));
-    const r = await acharRecursos(pasta);
+    await writeFile(join(pasta, 'b.JPG'), 'x');
+    await writeFile(join(pasta, 'c.pdf'), 'x');
+    const r = await acharRecursos(join(pasta, 'ARTE.PNG'));
     expect(r.ok).toBe(true);
-    if (r.ok) {
-      expect(r.recursos.arteUrl.startsWith('file://')).toBe(true);
-      expect(r.recursos.fonteNomeUrl.toLowerCase()).toContain('cream_candy.otf');
-    }
+    if (r.ok) expect(r.recursos.arteUrl.startsWith('file://')).toBe(true);
+    expect((await acharRecursos(join(pasta, 'b.JPG'))).ok).toBe(true);
+    const pdf = await acharRecursos(join(pasta, 'c.pdf'));
+    expect(pdf.ok).toBe(false);
+    if (!pdf.ok) expect(pdf.motivo).toContain('PNG ou JPG');
   });
-  test('arquivo vazio não conta', async () => {
-    await writeFile(join(pasta, 'arte.png'), '');
-    await writeFile(join(pasta, 'cream.otf'), 'x');
-    await writeFile(join(pasta, 'century.ttf'), 'x');
-    expect((await acharRecursos(pasta)).ok).toBe(false);
+  test('arquivo vazio e pasta com nome de imagem não contam', async () => {
+    await writeFile(join(pasta, 'vazia.png'), '');
+    expect((await acharRecursos(join(pasta, 'vazia.png'))).ok).toBe(false);
+    await mkdir(join(pasta, 'pasta.png'));
+    expect((await acharRecursos(join(pasta, 'pasta.png'))).ok).toBe(false);
   });
 });

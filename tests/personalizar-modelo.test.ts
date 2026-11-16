@@ -83,7 +83,7 @@ describe('acentos desenhados por cima (letraHtml)', () => {
   });
 
   test('a página usa onda no início e no fim do nome inteiro e acentos nas letras do meio', () => {
-    const r = { arteUrl: 'file:///a.jpg', fonteNomeUrl: 'file:///c.otf', fonteInicialUrl: 'file:///x.ttf' };
+    const r = { arteUrl: 'file:///a.jpg' };
     const h = htmlDaPagina(r, 'Ágata Zoé', 'Á');
     expect(h).toMatch(/<span class="a"><svg[^>]*><path[^>]*\/><\/svg>A<\/span>/);
     expect(h).toMatch(/<span class="z"><svg[^>]*><path[^>]*\/><\/svg>e<\/span>/);
@@ -91,8 +91,21 @@ describe('acentos desenhados por cima (letraHtml)', () => {
   });
 
   test('nome digitado com acento "solto" (a + marca, como vem de alguns teclados) também funciona', () => {
-    const r = { arteUrl: 'file:///a.jpg', fonteNomeUrl: 'file:///c.otf', fonteInicialUrl: 'file:///x.ttf' };
+    const r = { arteUrl: 'file:///a.jpg' };
     const solto = 'Jose\u0301'; // José com o acento como caractere separado
     expect(htmlDaPagina(r, solto, 'J')).toContain('<path d="M');
+  });
+});
+
+describe('fontes do Windows (sem arquivo de fonte no app)', () => {
+  const r = { arteUrl: 'file:///a.jpg' };
+  test('a página pede as fontes instaladas pelo nome e não carrega arquivo de fonte', () => {
+    const h = htmlDaPagina(r, 'Ana', 'A');
+    expect(h).toContain('local("Cream Candy")');
+    expect(h).toContain('local("Century751 BT")');
+    expect(h).not.toMatch(/url\("[^"]*\.(otf|ttf)"\)/i);
+  });
+  test('a página avisa quando uma fonte não está instalada', () => {
+    expect(htmlDaPagina(r, 'Ana', 'A')).toContain('window.__fonteFaltando');
   });
 });

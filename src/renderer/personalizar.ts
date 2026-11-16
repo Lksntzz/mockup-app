@@ -93,8 +93,13 @@ async function carregarImpressoras(): Promise<void> {
   atualizarBotao();
 }
 
-function mostrarEstado(e: { pasta?: string; ok: boolean; motivo: string }): void {
-  texto($('pz-pasta'), e.pasta ?? 'não escolhida');
+/** Só o nome do arquivo (Windows ou não), para caber na tela. */
+function nomeDoArquivo(caminho: string): string {
+  return caminho.split(/[\\/]/).pop() ?? caminho;
+}
+
+function mostrarEstado(e: { arte?: string; ok: boolean; motivo: string }): void {
+  texto($('pz-pasta'), e.arte ? nomeDoArquivo(e.arte) : 'não escolhida');
   modeloOk = e.ok;
   const aviso = $('pz-aviso');
   aviso.hidden = e.ok;

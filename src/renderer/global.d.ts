@@ -51,8 +51,8 @@ export interface MockupApi {
   anunciosSubcategorias(plataforma: string, categoria: string): Promise<{ ok: boolean; lista: string[] }>;
   anunciosCriarSubcategoria(plataforma: string, categoria: string, nome: string): Promise<ResultadoCategoria>;
   anunciosPendentes(): Promise<{ ok: true; lista: CardPendente[] } | { ok: false; motivo: string }>;
-  personalizarEstado(): Promise<{ pasta?: string; ok: boolean; motivo: string }>;
-  personalizarEscolherPasta(): Promise<{ pasta?: string; ok: boolean; motivo: string }>;
+  personalizarEstado(): Promise<{ arte?: string; ok: boolean; motivo: string }>;
+  personalizarEscolherPasta(): Promise<{ arte?: string; ok: boolean; motivo: string }>;
   personalizarPrevia(nome: string, inicial: string): Promise<{ ok: true; png: Uint8Array } | { ok: false; motivo: string }>;
   personalizarImpressoras(): Promise<{ ok: true; lista: Array<{ nome: string; padrao: boolean }> } | { ok: false; motivo: string }>;
   personalizarPreferencias(impressora: string): Promise<{ ok: true } | { ok: false; motivo: string }>;

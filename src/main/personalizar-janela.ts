@@ -50,6 +50,10 @@ async function comPagina<T>(pasta: string | undefined, nome: string, inicial: st
       if (Date.now() - inicio > ESPERA_MAX_MS) return { ok: false, motivo: 'A arte demorou demais para carregar. Tente de novo.' };
       await new Promise((r) => setTimeout(r, 80));
     }
+    const faltam = (await win.webContents.executeJavaScript('window.__fonteFaltando || []')) as unknown;
+    if (Array.isArray(faltam) && faltam.length > 0) {
+      return { ok: false, motivo: `A fonte ${faltam.map(String).join(' e ')} não está instalada neste computador. Instale no Windows a mesma fonte que o Corel usa e tente de novo.` };
+    }
     // a janela está escondida: espera a tela repintar com o tamanho final da letra antes de fotografar ou imprimir
     await win.webContents.executeJavaScript('new Promise(function(r){var t=setTimeout(r,600);requestAnimationFrame(function(){requestAnimationFrame(function(){clearTimeout(t);r(true);});});})');
     win.webContents.invalidate();

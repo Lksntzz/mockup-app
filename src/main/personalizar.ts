@@ -1,47 +1,21 @@
-import { readdir, stat } from 'node:fs/promises';
-import { extname, join } from 'node:path';
+import { stat } from 'node:fs/promises';
+import { extname } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ARQUIVOS_DO_MODELO, type ChaveDoArquivo, type RecursosDaPagina } from '../personalizar/modelo';
+import { EXTENSOES_DA_ARTE, type RecursosDaPagina } from '../personalizar/modelo';
 
 const MAX_ARTE = 60 * 1024 * 1024;
-const MAX_FONTE = 10 * 1024 * 1024;
 
 export type ResultadoRecursos = { ok: true; recursos: RecursosDaPagina } | { ok: false; motivo: string };
 
-/** Procura na pasta escolhida a arte base e as duas fontes (pelo trecho do nome e pela extensão). Nunca lança. */
-export async function acharRecursos(pasta: string | undefined): Promise<ResultadoRecursos> {
-  if (!pasta) return { ok: false, motivo: 'Escolha a pasta do modelo (a que tem a arte base e as fontes).' };
-  let nomes: string[];
-  try {
-    nomes = await readdir(pasta);
-  } catch {
-    return { ok: false, motivo: 'Não consegui abrir a pasta do modelo. Confira se ela existe e escolha de novo.' };
+/** Confere a arte escolhida pelo operador (existe, é PNG/JPG, não é vazia nem enorme). As fontes vêm do Windows. Nunca lança. */
+export async function acharRecursos(arte: string | undefined): Promise<ResultadoRecursos> {
+  if (!arte) return { ok: false, motivo: 'Escolha a arte (PNG ou JPG) para personalizar.' };
+  if (!(EXTENSOES_DA_ARTE as readonly string[]).includes(extname(arte).toLowerCase())) {
+    return { ok: false, motivo: 'A arte precisa ser um arquivo PNG ou JPG. Escolha de novo.' };
   }
-  const achados: Partial<Record<ChaveDoArquivo, string>> = {};
-  const faltando: string[] = [];
-  for (const a of ARQUIVOS_DO_MODELO) {
-    const candidatos = nomes
-      .filter((n) => n.toLowerCase().includes(a.trecho) && (a.extensoes as readonly string[]).includes(extname(n).toLowerCase()))
-      .sort();
-    let escolhido: string | undefined;
-    for (const n of candidatos) {
-      const caminho = join(pasta, n);
-      const st = await stat(caminho).catch(() => undefined);
-      if (st?.isFile() && st.size > 0 && st.size <= (a.chave === 'arte' ? MAX_ARTE : MAX_FONTE)) {
-        escolhido = caminho;
-        break;
-      }
-    }
-    if (escolhido) achados[a.chave] = escolhido;
-    else faltando.push(`${a.rotulo} — o nome do arquivo precisa ter "${a.trecho}"`);
-  }
-  if (faltando.length > 0) return { ok: false, motivo: `Falta na pasta do modelo: ${faltando.join('; ')}.` };
-  return {
-    ok: true,
-    recursos: {
-      arteUrl: pathToFileURL(achados.arte!).href,
-      fonteNomeUrl: pathToFileURL(achados.fonteNome!).href,
-      fonteInicialUrl: pathToFileURL(achados.fonteInicial!).href,
-    },
-  };
+  const st = await stat(arte).catch(() => undefined);
+  if (!st?.isFile()) return { ok: false, motivo: 'Não achei o arquivo da arte. Confira se ele ainda existe e escolha de novo.' };
+  if (st.size === 0) return { ok: false, motivo: 'O arquivo da arte está vazio. Escolha outro.' };
+  if (st.size > MAX_ARTE) return { ok: false, motivo: 'O arquivo da arte é grande demais (mais de 60 MB). Escolha outro.' };
+  return { ok: true, recursos: { arteUrl: pathToFileURL(arte).href } };
 }
