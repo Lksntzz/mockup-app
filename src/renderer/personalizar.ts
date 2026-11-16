@@ -1,6 +1,5 @@
 import { inicialDoNome, semAcento, validarEntrada } from '../personalizar/modelo';
-import { openPdf } from '../pdf/reader';
-import type { EstadoDaArte, MockupApi } from './global';
+import type { EstadoDasArtes, MockupApi } from './global';
 
 const api: MockupApi = (window as unknown as { mockupApi: MockupApi }).mockupApi;
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -14,8 +13,10 @@ let gerando = false;
 let seqPrevia = 0;
 let pendentePrevia: ReturnType<typeof setTimeout> | undefined;
 /** O que a prévia na tela mostra: o botão Imprimir só vale para exatamente isso (nada de imprimir um nome diferente do que se vê). */
-let previaAtual: { nome: string; inicial: string } | undefined;
+let previaAtual: { modelo: string; nome: string; inicial: string } | undefined;
 let urlPrevia: string | undefined;
+
+const modeloEscolhido = (): string => $<HTMLSelectElement>('pz-arte').value;
 
 function entradaDaTela() {
   return validarEntrada({ nome: $<HTMLInputElement>('pz-nome').value, inicial: $<HTMLInputElement>('pz-inicial').value });
@@ -26,7 +27,7 @@ function atualizarBotao(): void {
   const copias = Number($<HTMLInputElement>('pz-copias').value);
   const copiasOk = Number.isInteger(copias) && copias >= 1 && copias <= 99;
   const impressora = $<HTMLSelectElement>('pz-impressora').value;
-  const bate = v.ok && previaAtual?.nome === v.nome && previaAtual.inicial === v.inicial;
+  const bate = v.ok && previaAtual?.modelo === modeloEscolhido() && previaAtual.nome === v.nome && previaAtual.inicial === v.inicial;
   $<HTMLButtonElement>('pz-imprimir').disabled = imprimindo || gerando || !modeloOk || !bate || !copiasOk || impressora === '';
 }
 
@@ -41,15 +42,15 @@ function agendarPrevia(): void {
     return;
   }
   texto($('pz-previa-msg'), 'Montando a prévia…');
-  pendentePrevia = setTimeout(() => void gerarPrevia(v.nome, v.inicial), 250);
+  pendentePrevia = setTimeout(() => void gerarPrevia(modeloEscolhido(), v.nome, v.inicial), 250);
 }
 
-async function gerarPrevia(nome: string, inicial: string): Promise<void> {
+async function gerarPrevia(modelo: string, nome: string, inicial: string): Promise<void> {
   const minha = ++seqPrevia;
   gerando = true;
   atualizarBotao();
   try {
-    const r = await api.personalizarPrevia(nome, inicial);
+    const r = await api.personalizarPrevia(modelo, nome, inicial);
     if (minha !== seqPrevia) return; // chegou depois de uma digitação mais nova
     if (!r.ok) {
       $<HTMLImageElement>('pz-img').hidden = true;
@@ -62,7 +63,7 @@ async function gerarPrevia(nome: string, inicial: string): Promise<void> {
     img.src = urlPrevia;
     img.hidden = false;
     texto($('pz-previa-msg'), r.aviso ?? '');
-    previaAtual = { nome, inicial };
+    previaAtual = { modelo, nome, inicial };
   } catch (e) {
     if (minha === seqPrevia) texto($('pz-previa-msg'), erroDe(e));
   } finally {
@@ -94,72 +95,55 @@ async function carregarImpressoras(): Promise<void> {
   atualizarBotao();
 }
 
-/** Só o nome do arquivo (Windows ou não), para caber na tela. */
-function nomeDoArquivo(caminho: string): string {
-  return caminho.split(/[\\/]/).pop() ?? caminho;
-}
-
-/** A4 a 300 dpi: 210 mm = 2481 px. */
-const LARGURA_A4_300DPI = 2481;
-
-/** Desenha a página 1 do PDF (pdf.js) em 300 dpi e entrega a imagem pronta ao app; devolve o novo estado. */
-async function converterPdf(caminho: string): Promise<EstadoDaArte> {
-  const doc = await openPdf((await api.lerPdf(caminho)).bytes);
-  try {
-    const r = await doc.renderPage(1, LARGURA_A4_300DPI);
-    const canvas = document.createElement('canvas');
-    canvas.width = r.width;
-    canvas.height = r.height;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('Não consegui preparar a imagem do PDF.');
-    ctx.putImageData(new ImageData(r.data as unknown as Uint8ClampedArray<ArrayBuffer>, r.width, r.height), 0, 0);
-    const png = await new Promise<Blob | null>((ok) => canvas.toBlob(ok, 'image/png'));
-    if (!png) throw new Error('Não consegui gerar a imagem do PDF.');
-    return await api.personalizarSalvarImagem(new Uint8Array(await png.arrayBuffer()));
-  } finally {
-    await doc.close();
+/** Mostra a lista de artes (lembrando a última escolhida) e liga o corpo da tela se a arte escolhida está inteira no programa. */
+function mostrarEstado(e: EstadoDasArtes): void {
+  const sel = $<HTMLSelectElement>('pz-arte');
+  const antes = sel.value || (() => { try { return localStorage.getItem('pz-arte') ?? ''; } catch { return ''; } })();
+  sel.replaceChildren();
+  for (const a of e.artes) {
+    const o = document.createElement('option');
+    o.value = a.id;
+    o.textContent = a.titulo;
+    sel.append(o);
   }
+  if (e.artes.some((a) => a.id === antes)) sel.value = antes;
+  atualizarArteEscolhida(e);
 }
 
-/** Se o estado pede para converter um PDF, converte (mostrando que está trabalhando) e devolve o estado final. */
-async function resolverEstado(e: EstadoDaArte): Promise<EstadoDaArte> {
-  if (!e.converter) return e;
-  mostrarEstado({ arte: e.arte, ok: false, motivo: 'Preparando a arte do PDF… (alguns segundos)' });
-  try {
-    return await converterPdf(e.converter);
-  } catch (er) {
-    return { arte: e.arte, ok: false, motivo: `Não consegui abrir o PDF: ${erroDe(er)}` };
-  }
-}
+let ultimoEstado: EstadoDasArtes = { artes: [] };
 
-function mostrarEstado(e: { arte?: string; ok: boolean; motivo: string }): void {
-  texto($('pz-pasta'), e.arte ? nomeDoArquivo(e.arte) : 'não escolhida');
-  modeloOk = e.ok;
+function atualizarArteEscolhida(e: EstadoDasArtes): void {
+  ultimoEstado = e;
+  const escolhida = e.artes.find((a) => a.id === modeloEscolhido());
+  modeloOk = escolhida?.ok === true;
   const aviso = $('pz-aviso');
-  aviso.hidden = e.ok;
-  texto(aviso, e.ok ? '' : e.motivo);
-  $('pz-corpo').hidden = !e.ok;
+  aviso.hidden = modeloOk;
+  texto(aviso, modeloOk ? '' : (escolhida?.motivo ?? 'Nenhuma arte disponível.'));
+  $('pz-corpo').hidden = !modeloOk;
   atualizarBotao();
 }
 
 export async function mostrarPersonalizar(): Promise<void> {
   try {
-    mostrarEstado(await resolverEstado(await api.personalizarEstado()));
+    let lembrada: string | undefined;
+    try { lembrada = localStorage.getItem('pz-arte') ?? undefined; } catch { /* sem armazenamento: usa a primeira */ }
+    mostrarEstado(await api.personalizarEstado(lembrada));
     if (modeloOk) {
       await carregarImpressoras();
       if (!previaAtual) agendarPrevia();
     }
   } catch (e) {
-    mostrarEstado({ ok: false, motivo: erroDe(e) });
+    mostrarEstado({ artes: [] });
+    texto($('pz-aviso'), erroDe(e));
+    $('pz-aviso').hidden = false;
   }
 }
 
 export function iniciarPersonalizar(): void {
-  $('pz-escolher').addEventListener('click', () => {
-    void api.personalizarEscolherPasta().then(resolverEstado).then(async (e) => {
-      mostrarEstado(e);
-      if (e.ok) { await carregarImpressoras(); agendarPrevia(); }
-    }, (er) => mostrarEstado({ ok: false, motivo: erroDe(er) }));
+  $<HTMLSelectElement>('pz-arte').addEventListener('change', () => {
+    try { localStorage.setItem('pz-arte', modeloEscolhido()); } catch { /* sem armazenamento: só não lembra */ }
+    atualizarArteEscolhida(ultimoEstado);
+    if (modeloOk) agendarPrevia();
   });
   $<HTMLInputElement>('pz-nome').addEventListener('input', () => {
     if (!inicialManual) $<HTMLInputElement>('pz-inicial').value = inicialDoNome($<HTMLInputElement>('pz-nome').value);
@@ -194,7 +178,7 @@ export function iniciarPersonalizar(): void {
     imprimindo = true;
     atualizarBotao();
     texto($('pz-msg'), 'Enviando para a impressora…');
-    void api.personalizarImprimir(v.nome, v.inicial, copias, impressora).then(
+    void api.personalizarImprimir(modeloEscolhido(), v.nome, v.inicial, copias, impressora).then(
       (r) => texto($('pz-msg'), r.ok
         ? `Enviado para "${impressora}": ${copias} ${copias === 1 ? 'via' : 'vias'} de ${v.nome}.${r.preparoMs !== undefined && r.envioMs !== undefined ? ` (preparar a página: ${(r.preparoMs / 1000).toFixed(1)} s; a impressora aceitar o trabalho: ${(r.envioMs / 1000).toFixed(1)} s)` : ''}`
         : r.motivo),

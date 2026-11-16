@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { escaparHtml, htmlDaPagina, formatoDaArte, inicialDoNome, DESCE_CIRCUNFLEXO, letraHtml, nomeHtml, semAcento, validarEntrada } from '../src/personalizar/modelo';
+import { escaparHtml, htmlDaPagina, inicialDoNome, DESCE_CIRCUNFLEXO, letraHtml, MODELOS, modeloPorId, nomeHtml, semAcento, validarEntrada } from '../src/personalizar/modelo';
+import { FONTES_ACENTOS } from '../src/personalizar/acentos';
 
 describe('inicialDoNome', () => {
   test.each([
@@ -77,9 +78,9 @@ describe('acentos desenhados por cima (letraHtml)', () => {
   });
 
   test('na letra de início (maiúscula) o acento acompanha o corpo da letra pela tabela da fonte do designer', () => {
-    expect(letraHtml('Á', true)).toMatch(/translate\(9\d\d,1000\)/); // o corpo do A anda ~903 unidades
-    expect(letraHtml('Á', false)).toContain('translate(0,1000)');
-    expect(letraHtml('á', true)).toContain('translate(0,1000)'); // minúscula não tem variação de início
+    expect(letraHtml('Á', true)).toMatch(/translate\(9\d\d,2000\)/); // o corpo do A anda ~903 unidades
+    expect(letraHtml('Á', false)).toContain('translate(0,2000)');
+    expect(letraHtml('á', true)).toContain('translate(0,2000)'); // minúscula não tem variação de início
   });
 
   test('a página só mede a fonte para avisar se é de outra versão; não muda a posição dos acentos por conta própria', () => {
@@ -119,23 +120,58 @@ describe('fontes do Windows (sem arquivo de fonte no app)', () => {
   });
 });
 
-describe('formato da arte (A4 inteira ou só o quadro de 195 x 255 mm)', () => {
-  test.each([
-    [2481, 3509, 'a4'],
-    [2480, 3508, 'a4'],
-    [1000, 1414, 'a4'],
-    [2303, 3011, 'quadro'], // 195 x 255 mm a 300 dpi ≈ 2303 x 3011
-    [1950, 2550, 'quadro'],
-    [1000, 1000, 'a4'], // proporção desconhecida: não deforma por conta própria
-    [0, 0, 'a4'],
-  ])('imagem %i x %i → %s', (l, a, esperado) => {
-    expect(formatoDaArte(l, a)).toBe(esperado);
+describe('catálogo de artes', () => {
+  test('a lista tem a Caderneta de Saúde primeiro e a Delicate; ids únicos', () => {
+    expect(MODELOS.map((m) => m.id)).toEqual(['caderneta-saude', 'delicate']);
+    expect(new Set(MODELOS.map((m) => m.id)).size).toBe(MODELOS.length);
   });
+  test('modeloPorId: vazio é o padrão; id desconhecido não vira outra arte', () => {
+    expect(modeloPorId(undefined)?.id).toBe('caderneta-saude');
+    expect(modeloPorId('')?.id).toBe('caderneta-saude');
+    expect(modeloPorId('delicate')?.titulo).toBe('Delicate');
+    expect(modeloPorId('nao-existe')).toBeUndefined();
+    expect(modeloPorId(42)).toBeUndefined();
+  });
+  test('toda fonte de nome do catálogo tem tabela de acentos gerada', () => {
+    for (const m of MODELOS) expect(FONTES_ACENTOS[m.fonteNome.acentos], m.id).toBeDefined();
+  });
+});
 
-  test('a página coloca o quadro centralizado e em tamanho real, e a A4 esticada na folha toda', () => {
-    const base = { arteUrl: 'file:///a.png' };
-    expect(htmlDaPagina({ ...base, formato: 'quadro' }, 'Ana', 'A')).toContain('7.5mm 21mm/195mm 255mm no-repeat');
-    expect(htmlDaPagina(base, 'Ana', 'A')).toContain('0mm 0mm/210mm 297mm no-repeat');
+describe('a página usa o modelo escolhido', () => {
+  const caderneta = MODELOS[0]!;
+  const delicate = MODELOS[1]!;
+  test('a arte cobre a folha A4 inteira', () => {
+    expect(htmlDaPagina({ arteUrl: 'file:///a.png' }, 'Ana', 'A')).toContain('0 0/100% 100% no-repeat');
+  });
+  test('Delicate: fontes, cor, variações da Angelina Malika e a camada da frente por cima da letra e abaixo do nome', () => {
+    const h = htmlDaPagina({ arteUrl: 'file:///a.jpg', frenteUrl: 'file:///f.png', modelo: delicate }, 'Eloa', 'E');
+    expect(h).toContain('local("Angelina Malika")');
+    expect(h).toContain('local("Lucida Bright")');
+    expect(h).toContain('.a{font-feature-settings:"ss02"}.z{font-feature-settings:"ss06"}');
+    expect(h).toContain('#CC93AD');
+    const i = h.indexOf('id="ini"');
+    const f = h.indexOf('class="fr"');
+    const n = h.indexOf('id="nome"');
+    expect(i).toBeGreaterThan(-1);
+    expect(f).toBeGreaterThan(i); // a camada fica depois da letra grande...
+    expect(n).toBeGreaterThan(f); // ...e antes do nome
+    expect(h).toContain('url("file:///f.png")');
+  });
+  test('Caderneta: Cream Candy com ss03/ss02 e sem camada da frente', () => {
+    const h = htmlDaPagina({ arteUrl: 'file:///a.jpg', modelo: caderneta }, 'Ana', 'A');
+    expect(h).toContain('.a{font-feature-settings:"ss03"}.z{font-feature-settings:"ss02"}');
+    expect(h).not.toContain('class="fr"');
+  });
+  test('os acentos usam a tabela e a escala (em) da fonte do modelo', () => {
+    const cc = nomeHtml('aéa', caderneta);
+    const am = nomeHtml('aéa', delicate);
+    expect(cc).toContain('viewBox="0 0 1000 2000"');
+    expect(am).toContain('viewBox="0 0 1300 2600"');
+    expect(cc).not.toBe(am);
+  });
+  test('o circunflexo desce proporcionalmente ao tamanho (upm) da fonte', () => {
+    const am = letraHtml('Â', false, FONTES_ACENTOS.angelinaMalika);
+    expect(am).toContain(`translate(0,${2600 + Math.round((DESCE_CIRCUNFLEXO * 1300) / 1000)})`);
   });
 });
 
@@ -150,10 +186,10 @@ describe('letra grande sem acento', () => {
 
 describe('circunflexo desce um pouco', () => {
   test('só o ^ é descido; agudo e til ficam onde a fonte põe', () => {
-    expect(letraHtml('Â')).toContain(`translate(0,${1000 + DESCE_CIRCUNFLEXO})`);
-    expect(letraHtml('ê')).toContain(`translate(0,${1000 + DESCE_CIRCUNFLEXO})`);
-    expect(letraHtml('Á')).toContain('translate(0,1000)');
-    expect(letraHtml('ã')).toContain('translate(0,1000)');
+    expect(letraHtml('Â')).toContain(`translate(0,${2000 + DESCE_CIRCUNFLEXO})`);
+    expect(letraHtml('ê')).toContain(`translate(0,${2000 + DESCE_CIRCUNFLEXO})`);
+    expect(letraHtml('Á')).toContain('translate(0,2000)');
+    expect(letraHtml('ã')).toContain('translate(0,2000)');
   });
 });
 

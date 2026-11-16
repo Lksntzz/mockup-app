@@ -25,12 +25,9 @@ export interface ArquivoPdf {
   caminho: string;
   bytes: Uint8Array;
 }
-/** Estado da arte da aba Personalizar; `converter` = PDF que a tela precisa transformar em imagem. */
-export interface EstadoDaArte {
-  arte?: string;
-  ok: boolean;
-  motivo: string;
-  converter?: string;
+/** As artes que o operador escolhe na aba Personalizar e se os arquivos de cada uma estão no programa. */
+export interface EstadoDasArtes {
+  artes: Array<{ id: string; titulo: string; ok: boolean; motivo: string }>;
 }
 
 export interface MockupApi {
@@ -59,13 +56,11 @@ export interface MockupApi {
   anunciosSubcategorias(plataforma: string, categoria: string): Promise<{ ok: boolean; lista: string[] }>;
   anunciosCriarSubcategoria(plataforma: string, categoria: string, nome: string): Promise<ResultadoCategoria>;
   anunciosPendentes(): Promise<{ ok: true; lista: CardPendente[] } | { ok: false; motivo: string }>;
-  personalizarEstado(): Promise<EstadoDaArte>;
-  personalizarEscolherPasta(): Promise<EstadoDaArte>;
-  personalizarSalvarImagem(bytes: Uint8Array): Promise<EstadoDaArte>;
-  personalizarPrevia(nome: string, inicial: string): Promise<{ ok: true; png: Uint8Array; aviso?: string } | { ok: false; motivo: string }>;
+  personalizarEstado(modelo?: string): Promise<EstadoDasArtes>;
+  personalizarPrevia(modelo: string, nome: string, inicial: string): Promise<{ ok: true; png: Uint8Array; aviso?: string } | { ok: false; motivo: string }>;
   personalizarImpressoras(): Promise<{ ok: true; lista: Array<{ nome: string; padrao: boolean }> } | { ok: false; motivo: string }>;
   personalizarPreferencias(impressora: string): Promise<{ ok: true } | { ok: false; motivo: string }>;
-  personalizarImprimir(nome: string, inicial: string, copias: number, impressora: string): Promise<{ ok: true; preparoMs?: number; envioMs?: number } | { ok: false; motivo: string }>;
+  personalizarImprimir(modelo: string, nome: string, inicial: string, copias: number, impressora: string): Promise<{ ok: true; preparoMs?: number; envioMs?: number } | { ok: false; motivo: string }>;
   anunciosColocarEan(pasta: string): Promise<ResultadoColocarEan>;
   anunciosConcluirPendente(pasta: string, eans: Record<number, string>, skus: Record<number, string>): Promise<ResultadoConcluir>;
   anunciosAbrirPasta(caminho: string): Promise<{ ok: true } | { ok: false; motivo: string }>;

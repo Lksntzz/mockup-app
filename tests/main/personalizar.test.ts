@@ -1,73 +1,71 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { utimes } from 'node:fs/promises';
-import { acharRecursos, estadoDaArte, imagemDaArte } from '../../src/main/personalizar';
+import { acharRecursos, estadoDasArtes } from '../../src/main/personalizar';
+import { MODELOS } from '../../src/personalizar/modelo';
 
 let pasta: string;
 beforeEach(async () => { pasta = await mkdtemp(join(tmpdir(), 'pers-')); });
 afterEach(async () => { await rm(pasta, { recursive: true, force: true }); });
 
-describe('acharRecursos (a arte escolhida pelo operador)', () => {
-  test('sem arte ou arquivo inexistente: motivo em português', async () => {
-    const a = await acharRecursos(undefined);
-    expect(a.ok).toBe(false);
-    const r = await acharRecursos(join(pasta, 'nao-existe.png'));
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.motivo).toContain('Não achei');
-  });
-  test('só aceita PNG ou JPG (maiúsculas não importam) e devolve URL file://', async () => {
-    await writeFile(join(pasta, 'ARTE.PNG'), 'x');
-    await writeFile(join(pasta, 'b.JPG'), 'x');
-    await writeFile(join(pasta, 'c.pdf'), 'x');
-    const r = await acharRecursos(join(pasta, 'ARTE.PNG'));
+async function criarArquivosDe(id: string): Promise<void> {
+  const m = MODELOS.find((x) => x.id === id)!;
+  await writeFile(join(pasta, m.arte), 'x');
+  if (m.frente) await writeFile(join(pasta, m.frente), 'x');
+}
+
+describe('acharRecursos (a arte escolhida pelo nome na lista)', () => {
+  test('arte do catálogo com os arquivos presentes: devolve as URLs file://', async () => {
+    await criarArquivosDe('delicate');
+    const r = await acharRecursos('delicate', pasta);
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.recursos.arteUrl.startsWith('file://')).toBe(true);
-    expect((await acharRecursos(join(pasta, 'b.JPG'))).ok).toBe(true);
-    const pdf = await acharRecursos(join(pasta, 'c.pdf'));
-    expect(pdf.ok).toBe(false);
-    if (!pdf.ok) expect(pdf.motivo).toContain('PNG ou JPG');
+    if (r.ok) {
+      expect(r.arte.recursos.arteUrl.startsWith('file://')).toBe(true);
+      expect(r.arte.recursos.frenteUrl?.startsWith('file://')).toBe(true);
+      expect(r.arte.modelo.id).toBe('delicate');
+    }
   });
-  test('arquivo vazio e pasta com nome de imagem não contam', async () => {
-    await writeFile(join(pasta, 'vazia.png'), '');
-    expect((await acharRecursos(join(pasta, 'vazia.png'))).ok).toBe(false);
-    await mkdir(join(pasta, 'pasta.png'));
-    expect((await acharRecursos(join(pasta, 'pasta.png'))).ok).toBe(false);
+  test('arte sem camada da frente não leva frenteUrl', async () => {
+    await criarArquivosDe('caderneta-saude');
+    const r = await acharRecursos('caderneta-saude', pasta);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.arte.recursos.frenteUrl).toBeUndefined();
+  });
+  test('id vazio usa a primeira da lista; id desconhecido é recusado (não imprime a arte errada)', async () => {
+    await criarArquivosDe(MODELOS[0]!.id);
+    expect((await acharRecursos(undefined, pasta)).ok).toBe(true);
+    const r = await acharRecursos('nao-existe', pasta);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.motivo).toContain('Escolha a arte');
+  });
+  test('arquivo faltando ou vazio: pede para reinstalar', async () => {
+    const falta = await acharRecursos('delicate', pasta);
+    expect(falta.ok).toBe(false);
+    if (!falta.ok) expect(falta.motivo).toContain('Reinstale');
+    await writeFile(join(pasta, 'delicate.jpg'), '');
+    await writeFile(join(pasta, 'delicate-frente.png'), 'x');
+    expect((await acharRecursos('delicate', pasta)).ok).toBe(false);
+  });
+  test('a camada da frente também é obrigatória quando a arte tem uma', async () => {
+    await writeFile(join(pasta, 'delicate.jpg'), 'x');
+    expect((await acharRecursos('delicate', pasta)).ok).toBe(false);
   });
 });
 
-describe('arte em PDF (a tela transforma a página 1 em imagem)', () => {
-  test('imagem (PNG/JPG) vai direto, sem converter', async () => {
-    await writeFile(join(pasta, 'a.png'), 'x');
-    expect(await imagemDaArte({ artePersonalizada: join(pasta, 'a.png') })).toEqual({ imagem: join(pasta, 'a.png') });
-    expect((await estadoDaArte({ artePersonalizada: join(pasta, 'a.png') })).ok).toBe(true);
+describe('estadoDasArtes', () => {
+  test('lista todas as artes do catálogo, cada uma com seu estado', async () => {
+    await criarArquivosDe('caderneta-saude');
+    const e = await estadoDasArtes(pasta);
+    expect(e.artes.map((a) => a.id)).toEqual(MODELOS.map((m) => m.id));
+    expect(e.artes.find((a) => a.id === 'caderneta-saude')?.ok).toBe(true);
+    expect(e.artes.find((a) => a.id === 'delicate')?.ok).toBe(false);
   });
-  test('PDF sem imagem pronta pede a conversão', async () => {
-    await writeFile(join(pasta, 'a.pdf'), '%PDF-1.4');
-    const e = await estadoDaArte({ artePersonalizada: join(pasta, 'a.pdf') });
-    expect(e.ok).toBe(false);
-    expect(e.converter).toBe(join(pasta, 'a.pdf'));
-  });
-  test('PDF com imagem pronta e mais nova que o PDF usa a imagem', async () => {
-    await writeFile(join(pasta, 'a.pdf'), '%PDF-1.4');
-    await writeFile(join(pasta, 'feita.png'), 'png');
-    const c = { artePersonalizada: join(pasta, 'a.pdf'), arteImagem: join(pasta, 'feita.png') };
-    await utimes(join(pasta, 'a.pdf'), new Date(Date.now() - 60_000), new Date(Date.now() - 60_000));
-    expect(await imagemDaArte(c)).toEqual({ imagem: join(pasta, 'feita.png') });
-    expect((await estadoDaArte(c)).ok).toBe(true);
-  });
-  test('PDF alterado depois da imagem feita pede a conversão de novo', async () => {
-    await writeFile(join(pasta, 'feita.png'), 'png');
-    await writeFile(join(pasta, 'a.pdf'), '%PDF-1.4');
-    await utimes(join(pasta, 'feita.png'), new Date(Date.now() - 60_000), new Date(Date.now() - 60_000));
-    const e = await estadoDaArte({ artePersonalizada: join(pasta, 'a.pdf'), arteImagem: join(pasta, 'feita.png') });
-    expect(e.converter).toBe(join(pasta, 'a.pdf'));
-  });
-  test('PDF que sumiu: avisa que não achou o arquivo (não pede conversão)', async () => {
-    const e = await estadoDaArte({ artePersonalizada: join(pasta, 'sumiu.pdf') });
-    expect(e.ok).toBe(false);
-    expect(e.converter).toBeUndefined();
-    expect(e.motivo).toContain('Não achei');
+});
+
+describe('os arquivos das artes existem de verdade em assets/artes', () => {
+  test('cada arte do catálogo tem seus arquivos no repositório', async () => {
+    const e = await estadoDasArtes(join(__dirname, '..', '..', 'assets', 'artes'));
+    for (const a of e.artes) expect(a.ok, a.motivo).toBe(true);
   });
 });

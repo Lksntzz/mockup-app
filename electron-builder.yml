@@ -17,6 +17,10 @@ files:
   - build/icon.png
   - "!**/*.map"
 asar: true
+# as artes da aba Personalizar ficam fora do asar: o Chromium da janela escondida lê as imagens direto da pasta
+extraResources:
+  - from: assets/artes
+    to: artes
 win:
   icon: build/icon.ico
   target:

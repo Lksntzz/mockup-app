@@ -1,12 +1,12 @@
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { stat, unlink, writeFile } from 'node:fs/promises';
+import { unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { BrowserWindow, nativeImage } from 'electron';
+import { app, BrowserWindow, nativeImage } from 'electron';
 import { pathToFileURL } from 'node:url';
-import { formatoDaArte, htmlDaPagina, nomeHtml, validarEntrada } from '../personalizar/modelo';
-import { acharRecursos } from './personalizar';
+import { htmlDaPagina, modeloPorId, nomeHtml, validarEntrada } from '../personalizar/modelo';
+import { acharRecursos, estadoDasArtes, type EstadoDasArtes } from './personalizar';
 
 export interface ImpressoraInfo { nome: string; padrao: boolean }
 /** aviso: a fonte instalada neste computador parece ser outra versão da Cream Candy (acentos e ondas podem sair fora do lugar). */
@@ -31,30 +31,46 @@ const ALT_PX = 1123;
 /** Escala da janela na prévia: a página A4 inteira (1123 px) não cabe em telas de 1080 px, e a janela escondida também é limitada pela tela. A escala é feita na própria página (não pelo zoom do navegador). */
 const ESCALA_PREVIA = 0.8;
 
+/** Pasta das artes: dentro do programa instalado (resources/artes) ou assets/artes no desenvolvimento. */
+export function pastaDasArtes(): string {
+  return app.isPackaged ? join(process.resourcesPath, 'artes') : join(app.getAppPath(), 'assets', 'artes');
+}
+
+export function estadoDaPersonalizacao(): Promise<EstadoDasArtes> {
+  return estadoDasArtes(pastaDasArtes());
+}
+
 interface Montada { win: BrowserWindow; arquivo: string; extras: string[] }
 
 /** Largura da cópia reduzida da arte usada só na prévia: a tela mostra ~400 px, então redesenhar a arte de 2481 px a cada letra seria trabalho jogado fora (pesa em PC fraco). */
 const LARGURA_ARTE_PREVIA = 1000;
 
 /** Monta a página numa janela escondida e espera arte, fontes e tamanho final. A janela e o arquivo temporário são de quem chamou. */
-async function montar(pasta: string | undefined, nome: string, inicial: string, escala: number): Promise<{ ok: true; m: Montada } | { ok: false; motivo: string }> {
-  const rec = await acharRecursos(pasta);
+async function montar(modeloId: unknown, nome: string, inicial: string, escala: number): Promise<{ ok: true; m: Montada } | { ok: false; motivo: string }> {
+  const rec = await acharRecursos(modeloId, pastaDasArtes());
   if (!rec.ok) return rec;
-  // proporção da imagem: A4 inteira ou só o quadro de 195 x 255 mm (impresso em tamanho real, centralizado)
-  const tam = nativeImage.createFromPath(pasta!).getSize();
-  rec.recursos.formato = formatoDaArte(tam.width, tam.height);
+  const { recursos, arteArquivo, frenteArquivo } = rec.arte;
   const arquivo = join(tmpdir(), `mockup-personalizado-${randomUUID()}.html`);
   const extras: string[] = [arquivo];
   let win: BrowserWindow | undefined;
   try {
-    if (escala < 1 && tam.width > LARGURA_ARTE_PREVIA) {
-      const reduzida = join(tmpdir(), `mockup-previa-arte-${randomUUID()}.jpg`);
-      const img = nativeImage.createFromPath(pasta!).resize({ width: LARGURA_ARTE_PREVIA, quality: 'good' });
-      await writeFile(reduzida, img.toJPEG(92));
-      extras.push(reduzida);
-      rec.recursos.arteUrl = pathToFileURL(reduzida).href;
+    if (escala < 1) {
+      // cópias reduzidas (arte e camada da frente) só para a prévia
+      const reduzir = async (origem: string, ext: 'jpg' | 'png'): Promise<string | undefined> => {
+        const img = nativeImage.createFromPath(origem);
+        if (img.getSize().width <= LARGURA_ARTE_PREVIA) return undefined;
+        const destino = join(tmpdir(), `mockup-previa-arte-${randomUUID()}.${ext}`);
+        const peq = img.resize({ width: LARGURA_ARTE_PREVIA, quality: 'good' });
+        await writeFile(destino, ext === 'jpg' ? peq.toJPEG(92) : peq.toPNG());
+        extras.push(destino);
+        return destino;
+      };
+      const arteRed = await reduzir(arteArquivo, 'jpg');
+      if (arteRed) recursos.arteUrl = pathToFileURL(arteRed).href;
+      const frenteRed = frenteArquivo ? await reduzir(frenteArquivo, 'png') : undefined;
+      if (frenteRed) recursos.frenteUrl = pathToFileURL(frenteRed).href;
     }
-    await writeFile(arquivo, htmlDaPagina(rec.recursos, nome, inicial, escala), 'utf8');
+    await writeFile(arquivo, htmlDaPagina(recursos, nome, inicial, escala), 'utf8');
     win = new BrowserWindow({
       show: false,
       width: Math.round(LARG_PX * escala),
@@ -96,8 +112,8 @@ async function descartar(m: Montada): Promise<void> {
   await Promise.all(m.extras.map((f) => unlink(f).catch(() => undefined)));
 }
 
-async function comPagina<T>(pasta: string | undefined, nome: string, inicial: string, escala: number, usar: (win: BrowserWindow) => Promise<T>): Promise<T | { ok: false; motivo: string }> {
-  const r = await montar(pasta, nome, inicial, escala);
+async function comPagina<T>(modeloId: unknown, nome: string, inicial: string, escala: number, usar: (win: BrowserWindow) => Promise<T>): Promise<T | { ok: false; motivo: string }> {
+  const r = await montar(modeloId, nome, inicial, escala);
   if (!r.ok) return r;
   try {
     return await usar(r.m.win);
@@ -121,17 +137,16 @@ export function soltarPrevia(): void {
   void descartar(m);
 }
 
-async function janelaDaPrevia(pasta: string | undefined, nome: string, inicial: string): Promise<{ ok: true; win: BrowserWindow; novo: boolean } | { ok: false; motivo: string }> {
-  // a arte pode ser trocada (ou o PDF reconvertido) mantendo o mesmo caminho: tamanho e data entram na chave
-  const info = pasta ? await stat(pasta).catch(() => undefined) : undefined;
-  const chave = `${pasta ?? ''}|${info?.size ?? 0}|${info?.mtimeMs ?? 0}`;
+async function janelaDaPrevia(modeloId: unknown, nome: string, inicial: string): Promise<{ ok: true; win: BrowserWindow; novo: boolean } | { ok: false; motivo: string }> {
+  // uma janela por arte: trocar de arte na lista monta a nova (as artes ficam dentro do programa, então só o id importa)
+  const chave = typeof modeloId === 'string' && modeloId !== '' ? modeloId : '(padrão)';
   if (previaViva && (previaViva.chave !== chave || previaViva.m.win.isDestroyed())) soltarPrevia();
   if (previaViva) {
     clearTimeout(previaViva.limpeza);
     previaViva.limpeza = setTimeout(soltarPrevia, PREVIA_OCIOSA_MS);
     return { ok: true, win: previaViva.m.win, novo: false };
   }
-  const r = await montar(pasta, nome, inicial, ESCALA_PREVIA);
+  const r = await montar(modeloId, nome, inicial, ESCALA_PREVIA);
   if (!r.ok) return r;
   const limpeza = setTimeout(soltarPrevia, PREVIA_OCIOSA_MS);
   limpeza.unref();
@@ -140,23 +155,23 @@ async function janelaDaPrevia(pasta: string | undefined, nome: string, inicial: 
 }
 
 /** Abre a janela da prévia antes da primeira digitação (a aba acabou de abrir): a primeira prévia deixa de pagar o carregamento da arte e das fontes. */
-export function aquecerPrevia(pasta: string | undefined): void {
+export function aquecerPrevia(modeloId: unknown): void {
   void naFila(async () => {
-    await janelaDaPrevia(pasta, 'A', 'A').catch(() => undefined);
+    await janelaDaPrevia(modeloId, 'A', 'A').catch(() => undefined);
   }).catch(() => undefined);
 }
 
-export function previaDaPersonalizacao(pasta: string | undefined, entrada: { nome: unknown; inicial: unknown }): Promise<ResultadoPrevia> {
+export function previaDaPersonalizacao(entrada: { modelo: unknown; nome: unknown; inicial: unknown }): Promise<ResultadoPrevia> {
   const v = validarEntrada(entrada);
   if (!v.ok) return Promise.resolve(v);
   return naFila(async () => {
     try {
-      const j = await janelaDaPrevia(pasta, v.nome, v.inicial);
+      const j = await janelaDaPrevia(entrada.modelo, v.nome, v.inicial);
       if (!j.ok) return j;
       const win = j.win;
       if (!j.novo) {
         // janela já pronta: troca só o nome e a letra grande e espera repintar
-        await win.webContents.executeJavaScript(`window.__atualizar(${JSON.stringify(nomeHtml(v.nome))}, ${JSON.stringify(v.inicial)})`);
+        await win.webContents.executeJavaScript(`window.__atualizar(${JSON.stringify(nomeHtml(v.nome, modeloPorId(entrada.modelo)))}, ${JSON.stringify(v.inicial)})`);
         await esperarPintura(win, 40);
       }
       const img = await win.webContents.capturePage();
@@ -186,8 +201,7 @@ export async function listarImpressoras(): Promise<ImpressoraInfo[]> {
 }
 
 export async function imprimirPersonalizacao(
-  pasta: string | undefined,
-  entrada: { nome: unknown; inicial: unknown; copias: unknown; impressora: unknown },
+  entrada: { modelo: unknown; nome: unknown; inicial: unknown; copias: unknown; impressora: unknown },
 ): Promise<ResultadoImpressao> {
   const v = validarEntrada(entrada, true);
   if (!v.ok) return v;
@@ -196,7 +210,7 @@ export async function imprimirPersonalizacao(
   // sem listar as impressoras de novo aqui (abria uma janela e consultava o Windows a cada clique): se a impressora sumiu, o Windows recusa e a tela mostra o motivo
   return naFila(async () => {
     const t0 = Date.now();
-    const r = await comPagina(pasta, v.nome, v.inicial, 1, (win) => {
+    const r = await comPagina(entrada.modelo, v.nome, v.inicial, 1, (win) => {
       const preparoMs = Date.now() - t0;
       const t1 = Date.now();
       return new Promise<ResultadoImpressao>((resolver) => {

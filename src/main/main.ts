@@ -65,8 +65,7 @@ import {
 } from "./anuncios";
 import { acharPastaAnuncios, criarCategoria, criarSubcategoria, listarCategorias, listarPlataformas, listarSubcategorias, mesclarPastasAchadas } from "./anuncios-pastas";
 import { mesmoNome } from "../anuncios/nomes";
-import { abrirPreferenciasDaImpressora, imprimirPersonalizacao, listarImpressoras, aquecerPrevia, previaDaPersonalizacao, soltarPrevia } from "./personalizar-janela";
-import { estadoDaArte, imagemDaArte } from "./personalizar";
+import { abrirPreferenciasDaImpressora, aquecerPrevia, estadoDaPersonalizacao, imprimirPersonalizacao, listarImpressoras, previaDaPersonalizacao, soltarPrevia } from "./personalizar-janela";
 import { colocarEanNoCorel, concluirPendente, listarPendentes as listarAnunciosPendentes } from "./anuncios-pendentes";
 import { criarPortaoDePin } from "./pin";
 import { acharPastasDoFluxo } from "./achar-pastas";
@@ -582,16 +581,15 @@ ipcMain.handle("anuncios-colocar-ean", async (_e, pasta: unknown) => {
   if (!r.pasta) return { ok: false as const, motivo: "Não achei a pasta de anúncios. Escolha na mão." };
   return colocarEanNoCorel(r.pasta, pasta);
 });
-ipcMain.handle("personalizar-estado", async () => {
-  const c = await configDoDesigner().ler();
-  const estado = await estadoDaArte(c);
-  if (estado.ok) aquecerPrevia((await imagemDaArte(c)).imagem);
+ipcMain.handle("personalizar-estado", async (_e, modeloId: unknown) => {
+  const estado = await estadoDaPersonalizacao();
+  const escolhida = estado.artes.find((x) => x.id === (typeof modeloId === "string" ? modeloId : estado.artes[0]?.id));
+  if (escolhida?.ok) aquecerPrevia(escolhida.id);
   return estado;
 });
 ipcMain.handle("personalizar-previa", async (_e, entrada: unknown) => {
-  const c = await configDoDesigner().ler();
-  const e = (entrada ?? {}) as { nome?: unknown; inicial?: unknown };
-  return previaDaPersonalizacao((await imagemDaArte(c)).imagem, { nome: e.nome, inicial: e.inicial });
+  const e = (entrada ?? {}) as { modelo?: unknown; nome?: unknown; inicial?: unknown };
+  return previaDaPersonalizacao({ modelo: e.modelo, nome: e.nome, inicial: e.inicial });
 });
 ipcMain.handle("personalizar-impressoras", async () => {
   try {
@@ -604,30 +602,8 @@ ipcMain.handle("personalizar-preferencias", async (_e, nome: unknown) => {
   return abrirPreferenciasDaImpressora(nome);
 });
 ipcMain.handle("personalizar-imprimir", async (_e, entrada: unknown) => {
-  const c = await configDoDesigner().ler();
-  const e = (entrada ?? {}) as { nome?: unknown; inicial?: unknown; copias?: unknown; impressora?: unknown };
-  return imprimirPersonalizacao((await imagemDaArte(c)).imagem, { nome: e.nome, inicial: e.inicial, copias: e.copias, impressora: e.impressora });
-});
-ipcMain.handle("personalizar-escolher-pasta", async () => {
-  const r = await dialog.showOpenDialog({
-    title: "Escolher a arte para personalizar (PDF, PNG ou JPG)",
-    properties: ["openFile"],
-    filters: [{ name: "Arte (PDF ou imagem)", extensions: ["pdf", "png", "jpg", "jpeg"] }],
-  });
-  const caminho = r.filePaths[0];
-  if (!r.canceled && caminho) await configDoDesigner().salvar({ artePersonalizada: caminho, arteImagem: undefined });
-  return estadoDaArte(await configDoDesigner().ler());
-});
-// a tela desenha a página 1 do PDF (pdf.js) e manda a imagem pronta; aqui só se confere que é um PNG e se guarda
-ipcMain.handle("personalizar-salvar-imagem", async (_e, bytes: unknown) => {
-  if (!(bytes instanceof Uint8Array) || bytes.length < 8 || bytes.length > 120 * 1024 * 1024 || !(bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47)) {
-    return { arte: undefined, ok: false, motivo: "A imagem feita do PDF veio inválida. Tente escolher a arte de novo." };
-  }
-  const destino = join(app.getPath("userData"), "personalizar-arte.png");
-  await mkdir(dirname(destino), { recursive: true });
-  await writeFile(destino, bytes);
-  await configDoDesigner().salvar({ arteImagem: destino });
-  return estadoDaArte(await configDoDesigner().ler());
+  const e = (entrada ?? {}) as { modelo?: unknown; nome?: unknown; inicial?: unknown; copias?: unknown; impressora?: unknown };
+  return imprimirPersonalizacao({ modelo: e.modelo, nome: e.nome, inicial: e.inicial, copias: e.copias, impressora: e.impressora });
 });
 ipcMain.handle("anuncios-abrir-pasta", async (_e, caminho: unknown) => {
   const r = await raizDosAnuncios();
