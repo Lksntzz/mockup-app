@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { escaparHtml, htmlDaPagina, formatoDaArte, inicialDoNome, letraHtml, semAcento, validarEntrada } from '../src/personalizar/modelo';
+import { escaparHtml, htmlDaPagina, formatoDaArte, inicialDoNome, DESCE_CIRCUNFLEXO, letraHtml, semAcento, validarEntrada } from '../src/personalizar/modelo';
 
 describe('inicialDoNome', () => {
   test.each([
@@ -145,5 +145,14 @@ describe('letra grande sem acento', () => {
     const v = validarEntrada({ nome: 'Ísis', inicial: 'Í' });
     expect(v.ok && v.inicial).toBe('I');
     expect(semAcento('Ç')).toBe('C');
+  });
+});
+
+describe('circunflexo desce um pouco', () => {
+  test('só o ^ é descido; agudo e til ficam onde a fonte põe', () => {
+    expect(letraHtml('Â')).toContain(`translate(0,${1000 + DESCE_CIRCUNFLEXO})`);
+    expect(letraHtml('ê')).toContain(`translate(0,${1000 + DESCE_CIRCUNFLEXO})`);
+    expect(letraHtml('Á')).toContain('translate(0,1000)');
+    expect(letraHtml('ã')).toContain('translate(0,1000)');
   });
 });

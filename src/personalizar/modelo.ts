@@ -106,6 +106,9 @@ export function escaparHtml(t: string): string {
  * Uma letra do nome em HTML. Letra com acento vira a letra sem acento + o acento desenhado por cima (SVG de 1 px sem largura útil, com a base na linha de base do texto):
  * assim a letra pode usar a variação com "onda" da fonte, que não existe acentuada, e o acento sai igual em qualquer posição.
  */
+/** Quanto o circunflexo (^) desce, em 1/1000 do tamanho da letra: na fonte ele fica alto e encosta nos enfeites da arte. */
+export const DESCE_CIRCUNFLEXO = 50;
+
 export function letraHtml(ch: string, inicio = false): string {
   const acento = ACENTOS[ch];
   if (acento === undefined) return escaparHtml(ch);
@@ -113,7 +116,8 @@ export function letraHtml(ch: string, inicio = false): string {
   // na variação de início (ss03, só maiúsculas) o corpo da letra anda para a direita, por causa da onda à esquerda:
   // o quanto anda vem da tabela medida na fonte do designer (DESLOCA_INICIO)
   const dx = inicio ? (DESLOCA_INICIO[base] ?? 0) : 0;
-  return `<svg class="ac" viewBox="0 0 1000 1000"><path transform="translate(${dx},1000) scale(1,-1)" d="${acento}"/></svg>${escaparHtml(base)}`;
+  const dy = ch.normalize('NFD').includes('\u0302') ? DESCE_CIRCUNFLEXO : 0;
+  return `<svg class="ac" viewBox="0 0 1000 1000"><path transform="translate(${dx},${1000 + dy}) scale(1,-1)" d="${acento}"/></svg>${escaparHtml(base)}`;
 }
 
 /** Largura (unidades de 1/1000 em) de algumas letras na Cream Candy do designer: serve para avisar se a fonte deste computador é outra versão. */
