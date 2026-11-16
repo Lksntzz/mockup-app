@@ -76,20 +76,18 @@ describe('acentos desenhados por cima (letraHtml)', () => {
     expect(letraHtml('ì')).toBe('ì');
   });
 
-  test('na letra de início (maiúscula) o deslocamento vem da tabela da fonte do designer, e a medida da página só a ajusta se for coerente', () => {
-    const h = letraHtml('Á', true);
-    expect(h).toContain('data-b="A"');
-    expect(h).toMatch(/data-d="9\d\d"/); // tabela: o corpo do A anda ~903 unidades
-    expect(h).toMatch(/style="--dx:9\d\d"/); // já sai certo mesmo se a medição da página falhar
-    expect(letraHtml('Á', false)).not.toContain('data-b');
-    expect(letraHtml('á', true)).not.toContain('data-b'); // minúscula não tem variação de início
+  test('na letra de início (maiúscula) o acento acompanha o corpo da letra pela tabela da fonte do designer', () => {
+    expect(letraHtml('Á', true)).toMatch(/style="--dx:9\d\d"/); // o corpo do A anda ~903 unidades
+    expect(letraHtml('Á', false)).toContain('--dx:0');
+    expect(letraHtml('á', true)).toContain('--dx:0'); // minúscula não tem variação de início
   });
 
-  test('se a medição na página falhar ou for estranha, a página registra o diagnóstico e fica com a tabela', () => {
+  test('a página só mede a fonte para avisar se é de outra versão; não muda a posição dos acentos por conta própria', () => {
     const h = htmlDaPagina({ arteUrl: 'file:///a.jpg' }, 'Ísis', 'I');
-    expect(h).toContain('window.__medicaoSuspeita');
-    expect(h).toContain('window.__erroMedicao');
-    expect(h).toContain('Math.abs(m/d-1)<0.25');
+    expect(h).toContain('window.__fonteDiferente');
+    expect(h).toContain('window.__largurasFonte');
+    expect(h).not.toContain('setProperty(\'--dx\'');
+    expect(h).not.toContain('__escalaFonte');
   });
 
   test('a página usa onda no início e no fim do nome inteiro e acentos nas letras do meio', () => {

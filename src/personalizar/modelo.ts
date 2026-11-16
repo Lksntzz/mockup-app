@@ -111,11 +111,9 @@ export function letraHtml(ch: string, inicio = false): string {
   if (acento === undefined) return escaparHtml(ch);
   const base = ch.normalize('NFD').charAt(0);
   // na variação de início (ss03, só maiúsculas) o corpo da letra anda para a direita, por causa da onda à esquerda:
-  // o quanto anda é MEDIDO na página, com a fonte instalada neste computador (data-b), e não copiado de uma versão da fonte
-  // a tabela (medida na fonte do designer) é a base segura; a medida da página só vale se for coerente com ela (data-d)
-  const tabela = DESLOCA_INICIO[base];
-  const medir = inicio && tabela !== undefined ? ` data-b="${base}" data-d="${tabela}" style="--dx:${tabela}"` : '';
-  return `<svg class="ac" width="1" height="1"${medir}><path d="${acento}"/></svg>${escaparHtml(base)}`;
+  // o quanto anda vem da tabela medida na fonte do designer (DESLOCA_INICIO)
+  const dx = inicio ? (DESLOCA_INICIO[base] ?? 0) : 0;
+  return `<svg class="ac" width="1" height="1" style="--dx:${dx}"><path d="${acento}"/></svg>${escaparHtml(base)}`;
 }
 
 /** Largura (unidades de 1/1000 em) de algumas letras na Cream Candy do designer: serve para avisar se a fonte deste computador é outra versão. */
@@ -168,23 +166,15 @@ html,body{margin:0;padding:0;background:#fff;overflow:hidden}
   tem('NomeFonte','${FONTE_DO_NOME.familia}').then(function(){return tem('InicialFonte','${FONTE_DA_INICIAL.familia}');}).then(function(){return document.fonts.ready;}).then(function(){
     try{if(!falta.length){
       var med=document.createElement('div');med.className='med';document.body.appendChild(med);
-      var larg=function(t,ss){var sp=document.createElement('span');sp.textContent=t;if(ss)sp.style.fontFeatureSettings='"'+ss+'"';med.appendChild(sp);var w=sp.getBoundingClientRect().width;med.removeChild(sp);return w;};
-      var esp=${JSON.stringify(LARGURAS_ESPERADAS)},rs=[];
-      for(var k in esp){rs.push(larg(k)/esp[k]);}
-      rs.sort(function(x,y){return x-y;});
-      // escala da fonte deste computador em relação à do designer (ex.: outra versão com outras unidades por em): os acentos acompanham
-      var r=rs[Math.floor(rs.length/2)];if(!(r>0.5&&r<2))r=1;
-      var dif=[];for(var q in esp){if(Math.abs(larg(q)/esp[q]/r-1)>0.015)dif.push(q);}
-      window.__fonteDiferente=dif;window.__escalaFonte=r;
-      var bs=document.querySelectorAll('svg.ac[data-b]'),diag=[];
-      for(var j=0;j<bs.length;j++){var b=bs[j].getAttribute('data-b'),d=parseFloat(bs[j].getAttribute('data-d')),m=(larg(b,'ss03')-larg(b))/r;
-        if(m>0&&d>0&&Math.abs(m/d-1)<0.25){bs[j].style.setProperty('--dx',String(m));}else{diag.push(b+': medido '+Math.round(m)+', esperado '+Math.round(d));}}
-      window.__medicaoSuspeita=diag;
+      var larg=function(t){var sp=document.createElement('span');sp.textContent=t;med.appendChild(sp);var w=sp.getBoundingClientRect().width;med.removeChild(sp);return w;};
+      var esp=${JSON.stringify(LARGURAS_ESPERADAS)},dif=[],todas=[];
+      for(var k in esp){var q=larg(k)/esp[k];todas.push(k+' '+q.toFixed(2));if(Math.abs(q-1)>0.015)dif.push(k);}
+      window.__fonteDiferente=dif;window.__largurasFonte=todas.join(', ');
       document.body.removeChild(med);
     }}catch(e){window.__erroMedicao=String(e&&e.message||e);}
     var nomeEl=document.getElementById('nome');
     caber(nomeEl,${m.nome.larguraMaxMm},20);
-    nomeEl.style.setProperty('--k',parseFloat(getComputedStyle(nomeEl).fontSize)/1000*(window.__escalaFonte||1));
+    nomeEl.style.setProperty('--k',parseFloat(getComputedStyle(nomeEl).fontSize)/1000);
     caber(document.getElementById('ini'),${m.inicial.larguraMaxMm},60);
     window.__pronto=true;
   }).catch(function(){window.__pronto=true;});
