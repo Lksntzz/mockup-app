@@ -220,8 +220,8 @@ describe('letra grande com acento (por arte)', () => {
     const com = validarEntrada(e, false, true);
     expect(com.ok && com.inicial).toBe('Á');
   });
-  test('só a Delicate deixa acento na letra grande', () => {
+  test('as duas artes deixam acento na letra grande', () => {
     expect(modeloPorId('delicate')?.inicialComAcento).toBe(true);
-    expect(modeloPorId('caderneta-saude')?.inicialComAcento).not.toBe(true);
+    expect(modeloPorId('caderneta-saude')?.inicialComAcento).toBe(true);
   });
 });

@@ -61,6 +61,7 @@ export const MODELOS: readonly ModeloDeArte[] = [
     arte: 'caderneta-saude.jpg',
     fonteNome: CREAM_CANDY,
     fonteInicial: { familia: 'Century751 BT', alternativas: ['Century751 BT', 'Century751 BT Roman', 'Century751BT-RomanB'] },
+    inicialComAcento: true,
     nome: { centroMm: { x: 105.07, y: 193.64 }, tamanhoPt: 87.156, larguraMaxMm: 118.65, cor: '#9A6738' },
     inicial: {
       centroMm: { x: 104.42, y: 133.8 },
