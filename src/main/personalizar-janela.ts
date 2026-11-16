@@ -79,9 +79,13 @@ export function previaDaPersonalizacao(pasta: string | undefined, entrada: { nom
     const r = await comPagina(pasta, v.nome, v.inicial, ESCALA_PREVIA, async (win) => {
       const img = await win.webContents.capturePage();
       const dif = (await win.webContents.executeJavaScript('window.__fonteDiferente || []')) as unknown;
-      const aviso = Array.isArray(dif) && dif.length > 0
-        ? 'Atenção: a fonte Cream Candy deste computador parece ser de outra versão (as letras têm larguras diferentes da fonte do designer). Acentos e ondas podem sair fora do lugar. Instale neste computador a mesma Cream Candy do designer.'
-        : undefined;
+      const sus = (await win.webContents.executeJavaScript('(window.__medicaoSuspeita || []).concat(window.__erroMedicao ? ["erro: " + window.__erroMedicao] : [])')) as unknown;
+      const avisos: string[] = [];
+      if (Array.isArray(dif) && dif.length > 0) {
+        avisos.push('Atenção: a fonte Cream Candy deste computador parece ser de outra versão (as letras têm larguras diferentes da fonte do designer). Acentos e ondas podem sair fora do lugar. Instale neste computador a mesma Cream Candy do designer.');
+      }
+      if (Array.isArray(sus) && sus.length > 0) avisos.push(`Diagnóstico (me mande este texto): ${sus.map(String).join('; ')}.`);
+      const aviso = avisos.length > 0 ? avisos.join(' ') : undefined;
       return { ok: true as const, png: new Uint8Array(img.toPNG()), ...(aviso ? { aviso } : {}) };
     });
     return r;

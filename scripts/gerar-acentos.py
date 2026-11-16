@@ -46,6 +46,11 @@ for cp, g in sorted(cm.items()):
     if not acento: print('sem acento achado:', ch); continue
     res[ch] = ''.join(path(c) for c in acento)
 
+# Letras de início (ss03): a onda fica à esquerda e o corpo da letra é empurrado para a direita; o acento precisa acompanhar.
+# Medida da fonte do designer (diferença de largura entre a letra com onda e a comum; conferida contra os contornos: ±2 unidades).
+hm = f['hmtx']
+inicio = {c: hm[c + '.ss03'][0] - hm[cm[ord(c)]][0] for c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'}
+
 linhas = [
     '// GERADO por scripts/gerar-acentos.py — não editar à mão.',
     '// Desenho (em unidades da fonte, 1000 = 1em, y para cima) de cada acento: sobrepõe-se à letra sem acento, com a mesma origem.',
@@ -53,6 +58,12 @@ linhas = [
 ]
 for ch, d in res.items():
     linhas.append(f"  '{ch}': '{d}',")
+linhas.append('};')
+linhas.append('')
+linhas.append('/** Quanto o corpo da letra maiúscula anda para a direita na variação de início (ss03), em unidades da fonte do designer. */')
+linhas.append('export const DESLOCA_INICIO: Readonly<Record<string, number>> = {')
+for c, v in inicio.items():
+    linhas.append(f"  {c}: {v},")
 linhas.append('};')
 open('src/personalizar/acentos.ts', 'w').write('\n'.join(linhas) + '\n')
 print(len(res), 'letras:', ''.join(res))

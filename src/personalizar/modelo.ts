@@ -1,4 +1,4 @@
-import { ACENTOS } from './acentos';
+import { ACENTOS, DESLOCA_INICIO } from './acentos';
 
 /**
  * Modelo "Caderneta de Saúde personalizada": medidas tiradas do arquivo do Corel (A4, em milímetros a partir do topo/esquerda).
@@ -112,7 +112,9 @@ export function letraHtml(ch: string, inicio = false): string {
   const base = ch.normalize('NFD').charAt(0);
   // na variação de início (ss03, só maiúsculas) o corpo da letra anda para a direita, por causa da onda à esquerda:
   // o quanto anda é MEDIDO na página, com a fonte instalada neste computador (data-b), e não copiado de uma versão da fonte
-  const medir = inicio && /[A-Z]/.test(base) ? ` data-b="${base}"` : '';
+  // a tabela (medida na fonte do designer) é a base segura; a medida da página só vale se for coerente com ela (data-d)
+  const tabela = DESLOCA_INICIO[base];
+  const medir = inicio && tabela !== undefined ? ` data-b="${base}" data-d="${tabela}" style="--dx:${tabela}"` : '';
   return `<svg class="ac" width="1" height="1"${medir}><path d="${acento}"/></svg>${escaparHtml(base)}`;
 }
 
@@ -164,7 +166,7 @@ html,body{margin:0;padding:0;background:#fff;overflow:hidden}
   function tem(f,nome){return document.fonts.load('40pt '+f).then(function(l){if(!(l.length>0&&l[0].status==='loaded'))falta.push(nome);},function(){falta.push(nome);});}
   var falta=window.__fonteFaltando=[];
   tem('NomeFonte','${FONTE_DO_NOME.familia}').then(function(){return tem('InicialFonte','${FONTE_DA_INICIAL.familia}');}).then(function(){return document.fonts.ready;}).then(function(){
-    if(!falta.length){
+    try{if(!falta.length){
       var med=document.createElement('div');med.className='med';document.body.appendChild(med);
       var larg=function(t,ss){var sp=document.createElement('span');sp.textContent=t;if(ss)sp.style.fontFeatureSettings='"'+ss+'"';med.appendChild(sp);var w=sp.getBoundingClientRect().width;med.removeChild(sp);return w;};
       var esp=${JSON.stringify(LARGURAS_ESPERADAS)},rs=[];
@@ -174,10 +176,12 @@ html,body{margin:0;padding:0;background:#fff;overflow:hidden}
       var r=rs[Math.floor(rs.length/2)];if(!(r>0.5&&r<2))r=1;
       var dif=[];for(var q in esp){if(Math.abs(larg(q)/esp[q]/r-1)>0.015)dif.push(q);}
       window.__fonteDiferente=dif;window.__escalaFonte=r;
-      var bs=document.querySelectorAll('svg.ac[data-b]');
-      for(var j=0;j<bs.length;j++){var b=bs[j].getAttribute('data-b');bs[j].style.setProperty('--dx',String((larg(b,'ss03')-larg(b))/r));}
+      var bs=document.querySelectorAll('svg.ac[data-b]'),diag=[];
+      for(var j=0;j<bs.length;j++){var b=bs[j].getAttribute('data-b'),d=parseFloat(bs[j].getAttribute('data-d')),m=(larg(b,'ss03')-larg(b))/r;
+        if(m>0&&d>0&&Math.abs(m/d-1)<0.25){bs[j].style.setProperty('--dx',String(m));}else{diag.push(b+': medido '+Math.round(m)+', esperado '+Math.round(d));}}
+      window.__medicaoSuspeita=diag;
       document.body.removeChild(med);
-    }
+    }}catch(e){window.__erroMedicao=String(e&&e.message||e);}
     var nomeEl=document.getElementById('nome');
     caber(nomeEl,${m.nome.larguraMaxMm},20);
     nomeEl.style.setProperty('--k',parseFloat(getComputedStyle(nomeEl).fontSize)/1000*(window.__escalaFonte||1));

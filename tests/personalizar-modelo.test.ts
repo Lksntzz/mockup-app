@@ -76,11 +76,20 @@ describe('acentos desenhados por cima (letraHtml)', () => {
     expect(letraHtml('ì')).toBe('ì');
   });
 
-  test('na letra de início (maiúscula) o deslocamento do corpo da letra é medido na página, não copiado de uma versão da fonte', () => {
-    expect(letraHtml('Á', true)).toContain('data-b="A"');
+  test('na letra de início (maiúscula) o deslocamento vem da tabela da fonte do designer, e a medida da página só a ajusta se for coerente', () => {
+    const h = letraHtml('Á', true);
+    expect(h).toContain('data-b="A"');
+    expect(h).toMatch(/data-d="9\d\d"/); // tabela: o corpo do A anda ~903 unidades
+    expect(h).toMatch(/style="--dx:9\d\d"/); // já sai certo mesmo se a medição da página falhar
     expect(letraHtml('Á', false)).not.toContain('data-b');
     expect(letraHtml('á', true)).not.toContain('data-b'); // minúscula não tem variação de início
-    expect(letraHtml('Á', true)).not.toMatch(/--dx:\d/);
+  });
+
+  test('se a medição na página falhar ou for estranha, a página registra o diagnóstico e fica com a tabela', () => {
+    const h = htmlDaPagina({ arteUrl: 'file:///a.jpg' }, 'Ísis', 'I');
+    expect(h).toContain('window.__medicaoSuspeita');
+    expect(h).toContain('window.__erroMedicao');
+    expect(h).toContain('Math.abs(m/d-1)<0.25');
   });
 
   test('a página usa onda no início e no fim do nome inteiro e acentos nas letras do meio', () => {
