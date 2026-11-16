@@ -32,7 +32,7 @@ export interface ModeloDeArte {
   inicialComAcento?: boolean;
   /** Medidas tiradas do Corel (A4, milímetros a partir do topo/esquerda). */
   nome: { centroMm: { x: number; y: number }; tamanhoPt: number; larguraMaxMm: number; cor: string };
-  inicial: { centroMm: { x: number; y: number }; tamanhoPt: number; larguraMaxMm: number; corCentro: string; corBorda: string };
+  inicial: { centroMm: { x: number; y: number }; tamanhoPt: number; larguraMaxMm: number; corCentro: string; corBorda: string; /** Esticada na horizontal no Corel (1 = normal). */ escalaX?: number };
 }
 
 const CREAM_CANDY: FonteDoNome = {
@@ -52,6 +52,24 @@ const ANGELINA_MALIKA: FonteDoNome = {
   fim: 'ss06',
   largurasEsperadas: { a: 511, e: 338, o: 334, A: 1188, M: 979, i: 220, l: 264, s: 291 },
 };
+
+const PLAYFAIR_SEMIBOLD: FonteDoTexto = { familia: 'Playfair Display SemiBold', alternativas: ['Playfair Display SemiBold', 'PlayfairDisplay-SemiBold'] };
+
+/** Capa Minimalista: o mesmo desenho em 6 cores; só mudam as cores e um pequeno deslocamento da letra e do nome (em mm, em relação ao verde). */
+function minimalista(id: string, titulo: string, corLetra: string, corNome: string, dx: number, dy: number): ModeloDeArte {
+  return {
+    id: `minimalista-${id}`,
+    titulo: `Minimalista ${titulo}`,
+    arte: `minimalista-${id}.png`,
+    fonteNome: CREAM_CANDY,
+    fonteInicial: PLAYFAIR_SEMIBOLD,
+    inicialComAcento: true,
+    nome: { centroMm: { x: MIN_NOME.x + dx, y: MIN_NOME.y + dy }, tamanhoPt: 86.204, larguraMaxMm: 150, cor: corNome },
+    inicial: { centroMm: { x: MIN_INICIAL.x + dx, y: MIN_INICIAL.y + dy }, tamanhoPt: 314.173, larguraMaxMm: 105, corCentro: corLetra, corBorda: corLetra, escalaX: 1.0145 },
+  };
+}
+const MIN_INICIAL = { x: 104.339, y: 118.713 };
+const MIN_NOME = { x: 98.782, y: 142.724 };
 
 /** As artes que o operador escolhe na lista. A primeira é a padrão. */
 export const MODELOS: readonly ModeloDeArte[] = [
@@ -83,6 +101,12 @@ export const MODELOS: readonly ModeloDeArte[] = [
     nome: { centroMm: { x: 101.74, y: 186.16 }, tamanhoPt: 34.62, larguraMaxMm: 105, cor: '#CC93AD' },
     inicial: { centroMm: { x: 105, y: 133.68 }, tamanhoPt: 266.287, larguraMaxMm: 75, corCentro: '#CC93AD', corBorda: '#CC93AD' },
   },
+  minimalista('verde', 'Verde', '#8CA88A', '#FFFFFF', 0, 0),
+  minimalista('areia', 'Areia', '#F3E6BC', '#FFFFFF', -0.052, 0),
+  minimalista('azul', 'Azul', '#314C7A', '#FFFFFF', 1.208, 2.818),
+  minimalista('marinho', 'Azul-marinho', '#3A668C', '#00040D', 0, 0),
+  minimalista('cinza', 'Cinza', '#FFFFFF', '#231F20', 0, 0),
+  minimalista('offwhite', 'Off-white', '#D2D2C6', '#231F20', 1.277, -4.184),
 ];
 
 export const MODELO_PADRAO: ModeloDeArte = MODELOS[0]!;
@@ -216,7 +240,7 @@ export function htmlDaPagina(r: RecursosDaPagina, nome: string, inicial: string,
 html,body{margin:0;padding:0;background:#fff;overflow:hidden}
 .pg{transform:scale(${escala});transform-origin:0 0;position:relative;width:${m.paginaMm.largura}mm;height:${m.paginaMm.altura}mm;overflow:hidden;background:url("${css(r.arteUrl)}") 0 0/100% 100% no-repeat}
 .fr{position:absolute;left:0;top:0;width:100%;height:100%;background:url("${css(r.frenteUrl ?? '')}") 0 0/100% 100% no-repeat}
-.ini{position:absolute;left:${m.inicial.centroMm.x}mm;top:${m.inicial.centroMm.y}mm;transform:translate(-50%,-50%);font:${m.inicial.tamanhoPt}pt/1 "InicialFonte";white-space:nowrap;color:transparent;background:radial-gradient(ellipse 50% 50% at 50% 53%,${m.inicial.corCentro} 0%,${m.inicial.corBorda} 100%);-webkit-background-clip:text;background-clip:text}
+.ini{position:absolute;left:${m.inicial.centroMm.x}mm;top:${m.inicial.centroMm.y}mm;transform:translate(-50%,-50%)${m.inicial.escalaX ? ` scaleX(${m.inicial.escalaX})` : ''};font:${m.inicial.tamanhoPt}pt/1 "InicialFonte";white-space:nowrap;color:transparent;background:radial-gradient(ellipse 50% 50% at 50% 53%,${m.inicial.corCentro} 0%,${m.inicial.corBorda} 100%);-webkit-background-clip:text;background-clip:text}
 .nome{position:absolute;left:${m.nome.centroMm.x}mm;top:${m.nome.centroMm.y}mm;transform:translate(-50%,-50%);font:${m.nome.tamanhoPt}pt/1 "NomeFonte";color:${m.nome.cor};white-space:nowrap}
 .a{font-feature-settings:"${mod.fonteNome.inicio}"}.z{font-feature-settings:"${mod.fonteNome.fim}"}
 .ac{display:inline-block;width:1em;height:2em;margin:-2em -1em 0 0;overflow:visible;vertical-align:baseline}.ac path{fill:currentColor}

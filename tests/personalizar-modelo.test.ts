@@ -121,8 +121,8 @@ describe('fontes do Windows (sem arquivo de fonte no app)', () => {
 });
 
 describe('catálogo de artes', () => {
-  test('a lista tem a Caderneta de Saúde primeiro e a Delicate; ids únicos', () => {
-    expect(MODELOS.map((m) => m.id)).toEqual(['caderneta-saude', 'delicate']);
+  test('a lista tem a Caderneta de Saúde primeiro, a Delicate e as 6 Minimalistas; ids únicos', () => {
+    expect(MODELOS.map((m) => m.id)).toEqual(['caderneta-saude', 'delicate', 'minimalista-verde', 'minimalista-areia', 'minimalista-azul', 'minimalista-marinho', 'minimalista-cinza', 'minimalista-offwhite']);
     expect(new Set(MODELOS.map((m) => m.id)).size).toBe(MODELOS.length);
   });
   test('modeloPorId: vazio é o padrão; id desconhecido não vira outra arte', () => {
@@ -223,5 +223,34 @@ describe('letra grande com acento (por arte)', () => {
   test('as duas artes deixam acento na letra grande', () => {
     expect(modeloPorId('delicate')?.inicialComAcento).toBe(true);
     expect(modeloPorId('caderneta-saude')?.inicialComAcento).toBe(true);
+  });
+});
+
+describe('capa Minimalista', () => {
+  const minis = MODELOS.filter((m) => m.id.startsWith('minimalista-'));
+  test('as 6 cores usam Playfair na letra grande, Cream Candy no nome e a letra leva acento', () => {
+    expect(minis).toHaveLength(6);
+    for (const m of minis) {
+      expect(m.fonteInicial.familia).toBe('Playfair Display SemiBold');
+      expect(m.fonteNome.familia).toBe('Cream Candy');
+      expect(m.inicialComAcento).toBe(true);
+      expect(m.inicial.escalaX).toBeCloseTo(1.0145, 4);
+      expect(m.arte).toBe(`${m.id}.png`);
+    }
+  });
+  test('a letra grande leva o esticamento horizontal do Corel no CSS', () => {
+    const m = minis[0]!;
+    const html = htmlDaPagina({ arteUrl: 'file:///a.png', modelo: m }, 'Davi', 'D', 1);
+    expect(html).toContain('scaleX(1.0145)');
+    expect(html).toContain('PlayfairDisplay-SemiBold');
+  });
+  test('a azul e a off-white têm o deslocamento que o PDF do designer tem em relação ao verde', () => {
+    const verde = minis.find((m) => m.id === 'minimalista-verde')!;
+    const azul = minis.find((m) => m.id === 'minimalista-azul')!;
+    const off = minis.find((m) => m.id === 'minimalista-offwhite')!;
+    expect(azul.inicial.centroMm.x - verde.inicial.centroMm.x).toBeCloseTo(1.208, 2);
+    expect(azul.inicial.centroMm.y - verde.inicial.centroMm.y).toBeCloseTo(2.818, 2);
+    expect(off.inicial.centroMm.y - verde.inicial.centroMm.y).toBeCloseTo(-4.184, 2);
+    expect(azul.nome.centroMm.x - verde.nome.centroMm.x).toBeCloseTo(1.208, 2);
   });
 });
