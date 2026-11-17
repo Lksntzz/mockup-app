@@ -28,7 +28,7 @@ describe('lerTxtDoAnuncio', () => {
       { capa: 'Rosa', sku: 'AG_ROSA_WIRE', ean: '7891234567895' }, { capa: 'Azul', sku: '', ean: '' }, { capa: 'Verde', sku: 'AG_VERDE_WIRE', ean: '123' }] });
     const r = lerTxtDoAnuncio('﻿' + txt);
     expect(r.titulo).toBe('Agenda 2027 Rosa');
-    expect(r.variacoes).toEqual([{ capa: 'Rosa', sku: 'AG_ROSA_WIRE', ean: '7891234567895' }]);
+    expect(r.variacoes).toEqual([{ capa: 'Rosa', sku: 'AG_ROSA_WIRE', ean: '7891234567895', n: 1 }]);
     expect(r.faltando).toBe(2);
   });
 });
@@ -130,5 +130,44 @@ describe('fila de envio ao NISTI', () => {
     await writeFile(join(pasta, 'arte.txt'), '﻿' + montarTxt({ plataforma: 'S', categoria: 'C', arte: 'arte', titulo: 'Agenda', variacoes: [
       { capa: 'Rosa', sku: 'AG_ROSA_WIRE', ean: '7891234567895' }, { capa: 'Azul', sku: 'AG_AZUL_WIRE', ean: '' }] }), 'utf8');
     expect(await n.enfileirarDaPasta(pasta)).toEqual({ entraram: 1, faltando: 1 });
+  });
+});
+
+describe('foto do produto (mockup da frente)', () => {
+  async function comMockup(arquivoNome: string | null, respostas: Array<number>) {
+    const dir = await mkdtemp(join(tmpdir(), 'nisti-'));
+    const pasta = join(dir, 'arte'); await mkdir(join(pasta, 'Arte', 'MKP'), { recursive: true });
+    await writeFile(join(pasta, 'arte.txt'), '﻿' + montarTxt({ plataforma: 'S', categoria: 'C', arte: 'arte', titulo: 'Agenda', variacoes: [
+      { capa: 'Rosa', sku: 'AG_ROSA_WIRE', ean: '7891234567895' }, { capa: 'Azul', sku: 'AG_AZUL_WIRE', ean: '7891234567896' }] }), 'utf8');
+    if (arquivoNome) await writeFile(join(pasta, 'Arte', 'MKP', arquivoNome), Buffer.from([137, 80, 78, 71]));
+    const chamadas: Array<{ url: string; corpo: unknown }> = [];
+    let k = 0;
+    const buscar = (async (url: string, init: RequestInit) => {
+      chamadas.push({ url, corpo: init.body });
+      const r = respostas[Math.min(k++, respostas.length - 1)]!;
+      return new Response(JSON.stringify(url.endsWith('/image') ? { ok: true } : { ok: true, id: 40 + k }), { status: r });
+    }) as unknown as typeof fetch;
+    const n = criarNisti({ arquivoConfig: join(dir, 'c.json'), arquivoFila: join(dir, 'f.json'), buscar, agora: () => 1_000_000 });
+    await n.configurar('', CHAVE);
+    return { n, pasta, chamadas, dir };
+  }
+  test('envia a foto da variação certa com o id devolvido no cadastro, uma vez só', async () => {
+    const t = await comMockup('arte_capa-02.png', [201, 201, 200]);
+    await t.n.enfileirarDaPasta(t.pasta); await t.n.processar();
+    const fotos = t.chamadas.filter((c) => c.url.includes('/image'));
+    expect(fotos).toHaveLength(1);
+    expect(fotos[0]!.url).toMatch(/\/api\/products\/42\/image$/); // 2ª variação = 2º cadastro = id 42
+    expect(fotos[0]!.corpo).toBeInstanceOf(FormData);
+    await t.n.processar();
+    expect(t.chamadas.filter((c) => c.url.includes('/image'))).toHaveLength(1);
+  });
+  test('ignora mockup de especificação/verso e espera o da frente', async () => {
+    const t = await comMockup('arte_capa-01_verso.png', [201]);
+    await t.n.enfileirarDaPasta(t.pasta); await t.n.processar();
+    expect(t.chamadas.filter((c) => c.url.includes('/image'))).toHaveLength(0);
+    expect((await t.n.resumo()).contagem.enviado).toBe(2);
+    await writeFile(join(t.pasta, 'Arte', 'MKP', 'arte_capa-01.png'), Buffer.from([1]));
+    await t.n.processar();
+    expect(t.chamadas.filter((c) => c.url.includes('/image'))).toHaveLength(1);
   });
 });

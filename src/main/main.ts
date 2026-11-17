@@ -526,6 +526,15 @@ const nisti = criarNisti({
   arquivoConfig: join(app.getPath("userData"), "nisti-config.json"),
   arquivoFila: join(app.getPath("userData"), "nisti-fila.json"),
   proteger: (t) => (safeStorage.isEncryptionAvailable() ? safeStorage.encryptString(t).toString("base64") : undefined),
+  reduzir: (png) => {
+    try {
+      const img = nativeImage.createFromBuffer(png);
+      const { width } = img.getSize();
+      return width > 2000 ? img.resize({ width: 2000, quality: "best" }).toPNG() : undefined;
+    } catch {
+      return undefined;
+    }
+  },
   revelar: (c) => {
     try {
       return safeStorage.decryptString(Buffer.from(c, "base64"));
