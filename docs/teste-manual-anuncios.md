@@ -344,3 +344,14 @@ A arte tem **195 × 255 mm** (o retângulo preto fino) e precisa sair **centrali
 - A porcentagem que o app mostrou na linha "Capa 1: montada, código de barras em …% do tamanho padrão" (basta uma; os números devem ser iguais em todas as capas do mesmo molde).
 - Se apareceu a janela "Importar PDF" (Teste 1, item 7) e quantas vezes.
 - Os prints e arquivos de "Se der errado" para cada ❌.
+
+## Envio automático para o NISTI (v0.20.0)
+
+Só funciona depois que a integração for ligada no NISTI (a chave é criada na Cloudflare pelo Lucas).
+
+1. Aba **Configuração** → bloco **Envio para o NISTI**. Deixe o endereço `https://sistemanistiid.online`, cole a chave e clique **Salvar**. O campo da chave esvazia (ela fica guardada só neste computador, cifrada pelo Windows).
+2. Clique **Testar conexão**. Esperado: "Conexão com o NISTI funcionando". Se disser que a chave não foi aceita, a integração ainda não foi ligada no NISTI ou a chave foi colada errada.
+3. Crie um anúncio de TESTE com SKU no formato `MIOLO_CAPA_ACABAMENTO` e EAN válido em todas as capas. Em até 1 minuto o status mostra "1 enviado(s) ao NISTI" e o produto aparece no NISTI.
+4. Crie um anúncio sem EAN (pendente). Nada é enviado. Complete o EAN/SKU na aba de pendentes: ao faltar zero, o envio acontece sozinho.
+5. Desligue a internet, crie outro anúncio completo: fica "aguardando" e o designer não é travado. Religue a internet: envia sozinho em até ~30 min (ou clique **Enviar pendentes agora**).
+6. SKU fora do formato ou EAN já usado em outro produto: aparece como "com erro" com o motivo do NISTI; corrija no NISTI ou no anúncio e clique **Enviar pendentes agora**.

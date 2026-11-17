@@ -8,6 +8,7 @@ import type { EntradaDoAnuncio } from '../anuncios/tipos';
 import type { CardPendente, ResultadoColocarEan, ResultadoConcluir } from '../main/anuncios-pendentes';
 import type { ResultadoCategoria } from '../main/anuncios-pastas';
 import type { ResultadoMover } from '../main/pasta-fluxo';
+import type { ResumoDoNisti } from '../main/nisti';
 export interface CamadaBruta {
   width: number;
   height: number;
@@ -62,6 +63,11 @@ export interface MockupApi {
   personalizarPreferencias(impressora: string): Promise<{ ok: true } | { ok: false; motivo: string }>;
   personalizarImprimir(modelo: string, nome: string, inicial: string, copias: number, impressora: string): Promise<{ ok: true; preparoMs?: number; envioMs?: number } | { ok: false; motivo: string }>;
   anunciosColocarEan(pasta: string): Promise<ResultadoColocarEan>;
+  nistiResumo(): Promise<ResumoDoNisti>;
+  nistiConfigurar(url: string, chave: string): Promise<{ ok: true } | { ok: false; motivo: string }>;
+  nistiRemoverChave(): Promise<void>;
+  nistiTestar(): Promise<{ ok: true } | { ok: false; motivo: string }>;
+  nistiTentarDeNovo(): Promise<ResumoDoNisti>;
   anunciosConcluirPendente(pasta: string, eans: Record<number, string>, skus: Record<number, string>): Promise<ResultadoConcluir>;
   anunciosAbrirPasta(caminho: string): Promise<{ ok: true } | { ok: false; motivo: string }>;
   anunciosCriar(entrada: EntradaDoAnuncio, montarNoCorel: boolean): Promise<ResultadoAnuncio>;

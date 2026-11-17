@@ -38,6 +38,11 @@ contextBridge.exposeInMainWorld('mockupApi', {
   personalizarImprimir: (modelo: string, nome: string, inicial: string, copias: number, impressora: string) => ipcRenderer.invoke('personalizar-imprimir', { modelo, nome, inicial, copias, impressora }),
   anunciosColocarEan: (pasta: string) => ipcRenderer.invoke('anuncios-colocar-ean', pasta),
   anunciosConcluirPendente: (pasta: string, eans: Record<number, string>, skus: Record<number, string>) => ipcRenderer.invoke('anuncios-concluir-pendente', pasta, eans, skus),
+  nistiResumo: () => ipcRenderer.invoke('nisti-resumo'),
+  nistiConfigurar: (url: string, chave: string) => ipcRenderer.invoke('nisti-configurar', url, chave),
+  nistiRemoverChave: () => ipcRenderer.invoke('nisti-remover-chave'),
+  nistiTestar: () => ipcRenderer.invoke('nisti-testar'),
+  nistiTentarDeNovo: () => ipcRenderer.invoke('nisti-tentar-de-novo'),
   anunciosAbrirPasta: (caminho: string) => ipcRenderer.invoke('anuncios-abrir-pasta', caminho),
   anunciosCriar: (entrada: unknown, montarNoCorel: boolean) => ipcRenderer.invoke('anuncios-criar', entrada, montarNoCorel),
   aoProgredirAnuncio: (cb: (p: { etapa: string; estado: string }) => void) => {

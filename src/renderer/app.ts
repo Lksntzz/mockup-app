@@ -1932,6 +1932,50 @@ $('testar-notificacao').addEventListener('click', () => {
     (e) => mensagem(textoDoErro(e), true),
   );
 });
+// ---- Envio para o NISTI (aba Configuração) ----
+function desenharNisti(r: Awaited<ReturnType<typeof api.nistiResumo>>): void {
+  const c = r.contagem;
+  const partes = [r.configurado ? 'Chave guardada.' : 'Falta colar a chave.'];
+  if (c.enviado) partes.push(`${c.enviado} enviado(s) ao NISTI`);
+  if (c.aguardando) partes.push(`${c.aguardando} aguardando`);
+  if (c.erro) partes.push(`${c.erro} com erro`);
+  $('nisti-status').textContent = partes.join(' · ');
+  const alvo = $('nisti-itens');
+  alvo.textContent = '';
+  for (const i of r.itens.filter((x) => x.estado !== 'enviado').slice(0, 8)) {
+    const linha = document.createElement('div');
+    linha.textContent = `${i.estado === 'erro' ? 'Erro' : 'Aguardando'}: ${i.sku} (${i.nome})${i.aviso ? ' — ' + i.aviso : ''}`;
+    alvo.appendChild(linha);
+  }
+  ($('nisti-url') as HTMLInputElement).value = r.url;
+}
+async function atualizarNisti(): Promise<void> {
+  try { desenharNisti(await api.nistiResumo()); } catch (e) { mensagem(textoDoErro(e), true); }
+}
+$('nisti-salvar').addEventListener('click', () => {
+  const chave = $('nisti-chave') as HTMLInputElement;
+  void api.nistiConfigurar(($('nisti-url') as HTMLInputElement).value, chave.value).then(async (r) => {
+    if (!r.ok) { mensagem(r.motivo, true); return; }
+    chave.value = '';
+    mensagem('Salvo.');
+    await atualizarNisti();
+    void api.nistiTentarDeNovo().then(desenharNisti).catch(() => undefined);
+  }, (e) => mensagem(textoDoErro(e), true));
+});
+$('nisti-testar').addEventListener('click', () => {
+  void api.nistiTestar().then(
+    (r) => mensagem(r.ok ? 'Conexão com o NISTI funcionando: a chave foi aceita.' : r.motivo, !r.ok),
+    (e) => mensagem(textoDoErro(e), true),
+  );
+});
+$('nisti-reenviar').addEventListener('click', () => {
+  void api.nistiTentarDeNovo().then(desenharNisti, (e) => mensagem(textoDoErro(e), true));
+});
+$('nisti-remover').addEventListener('click', () => {
+  void api.nistiRemoverChave().then(atualizarNisti, (e) => mensagem(textoDoErro(e), true));
+});
+void atualizarNisti();
+window.setInterval(() => { if (!$('config').hidden) void atualizarNisti(); }, 15_000);
 $('atualizar-pasta1').addEventListener('click', () => void desenharPasta1());
 // a lista se atualiza sozinha enquanto a aba está aberta
 window.setInterval(() => {

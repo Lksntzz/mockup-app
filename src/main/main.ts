@@ -8,6 +8,7 @@ import {
   nativeImage,
   Notification,
   powerMonitor,
+  safeStorage,
   shell,
   Tray,
 } from "electron";
@@ -83,6 +84,7 @@ import {
 } from "./segundo-plano";
 import { caminhoPermitido, pastaMkp } from "./paths";
 import { criarAtualizador, type AtualizadorLike } from "./updater";
+import { criarNisti } from "./nisti";
 
 export interface CamadaBruta {
   width: number;
@@ -519,6 +521,33 @@ const progressoPara = (sender: Electron.WebContents) => (etapa: string, estado: 
     /* ignora */
   }
 };
+// ---- NISTI: cada produto do anúncio completo vai para o sistema NISTI ID (fila em disco, nunca trava o designer) ----
+const nisti = criarNisti({
+  arquivoConfig: join(app.getPath("userData"), "nisti-config.json"),
+  arquivoFila: join(app.getPath("userData"), "nisti-fila.json"),
+  proteger: (t) => (safeStorage.isEncryptionAvailable() ? safeStorage.encryptString(t).toString("base64") : undefined),
+  revelar: (c) => {
+    try {
+      return safeStorage.decryptString(Buffer.from(c, "base64"));
+    } catch {
+      return undefined;
+    }
+  },
+});
+const enviarAoNisti = (pasta: string | undefined) => {
+  if (!pasta) return;
+  void nisti.enfileirarDaPasta(pasta).then(() => nisti.processar()).catch(() => undefined);
+};
+setInterval(() => void nisti.processar().catch(() => undefined), 60 * 1000);
+setTimeout(() => void nisti.processar().catch(() => undefined), 15 * 1000);
+ipcMain.handle("nisti-resumo", () => nisti.resumo());
+ipcMain.handle("nisti-configurar", (_e, url: unknown, chave: unknown) => nisti.configurar(url, chave));
+ipcMain.handle("nisti-remover-chave", () => nisti.removerChave());
+ipcMain.handle("nisti-testar", () => nisti.testar());
+ipcMain.handle("nisti-tentar-de-novo", async () => {
+  await nisti.tentarDeNovo();
+  return nisti.resumo();
+});
 ipcMain.handle("anuncios-criar", (e0, entrada: unknown, montarNoCorel: unknown) =>
   marcarCorel(async () => {
     const r = await raizDosAnuncios();
@@ -529,7 +558,9 @@ ipcMain.handle("anuncios-criar", (e0, entrada: unknown, montarNoCorel: unknown) 
     const e = entrada as EntradaDoAnuncio;
     const fontes = await validarFontes(e.fontes);
     if (fontes) return recusa(fontes);
-    return criarEMontar({ ...e, raiz: r.pasta }, montarNoCorel === true, undefined, progressoPara(e0.sender));
+    const res = await criarEMontar({ ...e, raiz: r.pasta }, montarNoCorel === true, undefined, progressoPara(e0.sender));
+    if (res.ok) enviarAoNisti(res.pasta);
+    return res;
   }),
 );
 // segundo clique: monta no Corel uma pasta de anúncio que já foi criada (nunca apaga nada)
@@ -574,7 +605,9 @@ ipcMain.handle("anuncios-concluir-pendente", async (_e, pasta: unknown, eans: un
       listaSkus[Number(k)] = v;
     }
   }
-  return concluirPendente(r.pasta, pasta, lista, listaSkus);
+  const concluido = await concluirPendente(r.pasta, pasta, lista, listaSkus);
+  if (concluido.ok) enviarAoNisti(pasta);
+  return concluido;
 });
 ipcMain.handle("anuncios-colocar-ean", async (_e, pasta: unknown) => {
   const r = await raizDosAnuncios();

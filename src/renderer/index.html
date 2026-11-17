@@ -236,6 +236,17 @@
                 <label class="iniciar-windows"><input id="iniciar-windows" type="checkbox" /> Iniciar o app junto com o Windows (escondido, para não perder o alerta)</label>
               </div>
             </div>
+            <div class="config-pastas" id="nisti-config">
+              <h3 class="config-titulo">Envio para o NISTI</h3>
+              <div class="pastas-config">
+                <div class="caminho">Quando um anúncio fica completo (título, SKU e EAN de todas as capas), o produto é cadastrado sozinho no NISTI ID. Se a internet cair, o app tenta de novo sozinho.</div>
+                <div><label for="nisti-url" class="caminho">Endereço do NISTI</label> <input id="nisti-url" type="text" autocomplete="off" spellcheck="false" placeholder="https://sistemanistiid.online" /></div>
+                <div><label for="nisti-chave" class="caminho">Chave de integração</label> <input id="nisti-chave" type="password" autocomplete="off" spellcheck="false" placeholder="Cole a chave aqui (fica guardada só neste computador)" /></div>
+                <div><button id="nisti-salvar" class="primario" type="button">Salvar</button> <button id="nisti-testar" class="secundario" type="button">Testar conexão</button> <button id="nisti-reenviar" class="secundario" type="button">Enviar pendentes agora</button> <button id="nisti-remover" class="discreto" type="button">Apagar a chave</button></div>
+                <div id="nisti-status" class="caminho" role="status" aria-live="polite"></div>
+                <div id="nisti-itens" class="caminho"></div>
+              </div>
+            </div>
           </section>
       <section id="historico" class="pagina estreita" hidden>
             <div class="pagina-topo"><h2 class="pagina-titulo">Histórico de <span id="historico-operador"></span></h2></div>
