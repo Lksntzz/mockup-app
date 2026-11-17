@@ -25,10 +25,10 @@ const v = (sku: string, ean: string, capa = 'Rosa') => ({ sku, ean, capa });
 describe('lerTxtDoAnuncio', () => {
   test('lê título e só as variações completas; conta as que faltam', () => {
     const txt = montarTxt({ plataforma: 'Shopee', categoria: 'Agenda', arte: 'X', titulo: 'Agenda 2027 Rosa', variacoes: [
-      { capa: 'Rosa', sku: 'AG_ROSA_WIRE', ean: '7891234567895' }, { capa: 'Azul', sku: '', ean: '' }, { capa: 'Verde', sku: 'AG_VERDE_WIRE', ean: '123' }] });
+      { capa: 'Rosa', sku: 'AG_ROSA_PXA', ean: '7891234567895' }, { capa: 'Azul', sku: '', ean: '' }, { capa: 'Verde', sku: 'AG_VERDE_PXA', ean: '123' }] });
     const r = lerTxtDoAnuncio('﻿' + txt);
     expect(r.titulo).toBe('Agenda 2027 Rosa');
-    expect(r.variacoes).toEqual([{ capa: 'Rosa', sku: 'AG_ROSA_WIRE', ean: '7891234567895', n: 1 }]);
+    expect(r.variacoes).toEqual([{ capa: 'Rosa', sku: 'AG_ROSA_PXA', ean: '7891234567895', n: 1 }]);
     expect(r.faltando).toBe(2);
   });
 });
@@ -46,26 +46,26 @@ describe('fila de envio ao NISTI', () => {
   test('envia com a chave, no formato do cadastro, e marca como enviado', async () => {
     const { n, chamadas } = await montar([201]);
     expect(await n.configurar('', CHAVE)).toEqual({ ok: true });
-    await n.enfileirar('Agenda 2027', [v('AG_ROSA_WIRE', '7891234567895')]);
+    await n.enfileirar('Agenda 2027', [v('AG_ROSA_PXA', '7891234567895')]);
     await n.processar();
     expect(chamadas).toHaveLength(1);
     expect(chamadas[0]!.url).toBe('https://sistemanistiid.online/api/products');
     expect(chamadas[0]!.auth).toBe(`Bearer ${CHAVE}`);
-    expect(chamadas[0]!.corpo).toEqual({ sku: 'AG_ROSA_WIRE', gtin: '7891234567895', nome: 'Agenda 2027', variacao: 'Rosa' });
+    expect(chamadas[0]!.corpo).toEqual({ sku: 'AG_ROSA_PXA', gtin: '7891234567895', nome: 'Agenda 2027', variacao: 'Rosa' });
     expect((await n.resumo()).contagem).toEqual({ aguardando: 0, enviado: 1, erro: 0 });
   });
   test('não reenvia o que já foi enviado e igual; reenvia se mudou', async () => {
     const { n, chamadas } = await montar([201]);
     await n.configurar('', CHAVE);
-    await n.enfileirar('A', [v('S1', '7891234567895')]); await n.processar();
-    expect(await n.enfileirar('A', [v('S1', '7891234567895')])).toBe(0);
-    expect(await n.enfileirar('A novo', [v('S1', '7891234567895')])).toBe(1);
+    await n.enfileirar('A', [v('S1_C_PXA', '7891234567895')]); await n.processar();
+    expect(await n.enfileirar('A', [v('S1_C_PXA', '7891234567895')])).toBe(0);
+    expect(await n.enfileirar('A novo', [v('S1_C_PXA', '7891234567895')])).toBe(1);
     await n.processar();
     expect(chamadas).toHaveLength(2);
   });
   test('sem chave: fica aguardando e não chama a rede', async () => {
     const { n, chamadas } = await montar([201]);
-    await n.enfileirar('A', [v('S1', '7891234567895')]); await n.processar();
+    await n.enfileirar('A', [v('S1_C_PXA', '7891234567895')]); await n.processar();
     expect(chamadas).toHaveLength(0);
     const r = await n.resumo();
     expect(r.configurado).toBe(false);
@@ -74,7 +74,7 @@ describe('fila de envio ao NISTI', () => {
   test('sem internet: tenta de novo mais tarde, sem perder o item', async () => {
     const { n, chamadas, relogio } = await montar(['cai', 201]);
     await n.configurar('', CHAVE);
-    await n.enfileirar('A', [v('S1', '7891234567895')]);
+    await n.enfileirar('A', [v('S1_C_PXA', '7891234567895')]);
     await n.processar();
     expect((await n.resumo()).contagem.aguardando).toBe(1);
     await n.processar(); // ainda não é hora
@@ -86,7 +86,7 @@ describe('fila de envio ao NISTI', () => {
   test('erro do NISTI (ex.: GTIN já usado) vira erro permanente com a mensagem; tentarDeNovo reenvia', async () => {
     const { n, chamadas } = await montar([409, 201]);
     await n.configurar('', CHAVE);
-    await n.enfileirar('A', [v('S1', '7891234567895')]); await n.processar();
+    await n.enfileirar('A', [v('S1_C_PXA', '7891234567895')]); await n.processar();
     const r = await n.resumo();
     expect(r.contagem.erro).toBe(1);
     expect(r.itens[0]!.aviso).toBe('motivo 409');
@@ -97,7 +97,7 @@ describe('fila de envio ao NISTI', () => {
   test('chave recusada (401): para tudo e espera, sem marcar erro permanente', async () => {
     const { n, chamadas } = await montar([401]);
     await n.configurar('', CHAVE);
-    await n.enfileirar('A', [v('S1', '7891234567895'), v('S2', '7891234567896')]); await n.processar();
+    await n.enfileirar('A', [v('S1_C_PXA', '7891234567895'), v('S2_C_PXA', '7891234567901')]); await n.processar();
     expect(chamadas).toHaveLength(1);
     const r = await n.resumo();
     expect(r.contagem).toEqual({ aguardando: 2, enviado: 0, erro: 0 });
@@ -128,7 +128,7 @@ describe('fila de envio ao NISTI', () => {
     const { n, dir } = await montar([201]);
     const pasta = join(dir, 'arte'); await mkdir(pasta);
     await writeFile(join(pasta, 'arte.txt'), '﻿' + montarTxt({ plataforma: 'S', categoria: 'C', arte: 'arte', titulo: 'Agenda', variacoes: [
-      { capa: 'Rosa', sku: 'AG_ROSA_WIRE', ean: '7891234567895' }, { capa: 'Azul', sku: 'AG_AZUL_WIRE', ean: '' }] }), 'utf8');
+      { capa: 'Rosa', sku: 'AG_ROSA_PXA', ean: '7891234567895' }, { capa: 'Azul', sku: 'AG_AZUL_PXA', ean: '' }] }), 'utf8');
     expect(await n.enfileirarDaPasta(pasta)).toEqual({ entraram: 1, faltando: 1 });
   });
 });
@@ -138,7 +138,7 @@ describe('foto do produto (mockup da frente)', () => {
     const dir = await mkdtemp(join(tmpdir(), 'nisti-'));
     const pasta = join(dir, 'arte'); await mkdir(join(pasta, 'Arte', 'MKP'), { recursive: true });
     await writeFile(join(pasta, 'arte.txt'), '﻿' + montarTxt({ plataforma: 'S', categoria: 'C', arte: 'arte', titulo: 'Agenda', variacoes: [
-      { capa: 'Rosa', sku: 'AG_ROSA_WIRE', ean: '7891234567895' }, { capa: 'Azul', sku: 'AG_AZUL_WIRE', ean: '7891234567896' }] }), 'utf8');
+      { capa: 'Rosa', sku: 'AG_ROSA_PXA', ean: '7891234567895' }, { capa: 'Azul', sku: 'AG_AZUL_PXA', ean: '7891234567901' }] }), 'utf8');
     if (arquivoNome) await writeFile(join(pasta, 'Arte', 'MKP', arquivoNome), Buffer.from([137, 80, 78, 71]));
     const chamadas: Array<{ url: string; corpo: unknown }> = [];
     let k = 0;
@@ -169,5 +169,28 @@ describe('foto do produto (mockup da frente)', () => {
     await writeFile(join(t.pasta, 'Arte', 'MKP', 'arte_capa-01.png'), Buffer.from([1]));
     await t.n.processar();
     expect(t.chamadas.filter((c) => c.url.includes('/image'))).toHaveLength(1);
+  });
+});
+
+describe('validação local antes de enviar', () => {
+  test('SKU fora do formato ou EAN com dígito errado vira erro na hora, sem chamar a rede', async () => {
+    const { n, chamadas } = await montar([201]);
+    await n.configurar('', CHAVE);
+    await n.enfileirar('A', [v('SKU-ERRADO', '7891234567895'), v('AG_X_PXA', '7891234567896')]);
+    await n.processar();
+    expect(chamadas).toHaveLength(0);
+    const r = await n.resumo();
+    expect(r.contagem.erro).toBe(2);
+    expect(r.itens.map((i) => i.aviso).join(' ')).toMatch(/SKU inválido.*EAN inválido/);
+  });
+  test('corrigir o SKU da mesma variação troca o erro antigo pelo item novo', async () => {
+    const { n, dir } = await montar([201]);
+    await n.configurar('', CHAVE);
+    const pasta = join(dir, 'arte'); await mkdir(pasta);
+    const escreve = (sku: string) => writeFile(join(pasta, 'arte.txt'), '﻿' + montarTxt({ plataforma: 'S', categoria: 'C', arte: 'arte', titulo: 'Agenda', variacoes: [{ capa: 'Rosa', sku, ean: '7891234567895' }] }), 'utf8');
+    await escreve('ERRADO'); await n.enfileirarDaPasta(pasta);
+    expect((await n.resumo()).contagem.erro).toBe(1);
+    await escreve('AG_ROSA_PXA'); await n.enfileirarDaPasta(pasta); await n.processar();
+    expect((await n.resumo()).contagem).toEqual({ aguardando: 0, enviado: 1, erro: 0 });
   });
 });

@@ -1948,6 +1948,13 @@ function desenharNisti(r: Awaited<ReturnType<typeof api.nistiResumo>>): void {
     alvo.appendChild(linha);
   }
   ($('nisti-url') as HTMLInputElement).value = r.url;
+  // aviso fora da aba Configuração: quem cria anúncios precisa ver que um produto não foi cadastrado
+  const badge = $('badge-anuncios');
+  badge.textContent = String(c.erro);
+  badge.hidden = c.erro === 0;
+  const faixa = $('an-nisti');
+  faixa.hidden = c.erro === 0;
+  $('an-nisti-texto').textContent = c.erro === 0 ? '' : `NISTI: ${c.erro} produto(s) não foram cadastrados. ${r.itens.find((x) => x.estado === 'erro')?.aviso ?? ''}`;
 }
 async function atualizarNisti(): Promise<void> {
   try { desenharNisti(await api.nistiResumo()); } catch (e) { mensagem(textoDoErro(e), true); }
@@ -1974,8 +1981,12 @@ $('nisti-reenviar').addEventListener('click', () => {
 $('nisti-remover').addEventListener('click', () => {
   void api.nistiRemoverChave().then(atualizarNisti, (e) => mensagem(textoDoErro(e), true));
 });
+$('an-nisti-ver').addEventListener('click', () => {
+  mostrarAba('config');
+  $('nisti-config').scrollIntoView({ block: 'start', behavior: 'smooth' });
+});
 void atualizarNisti();
-window.setInterval(() => { if (!$('config').hidden) void atualizarNisti(); }, 15_000);
+window.setInterval(() => void atualizarNisti(), 30_000);
 $('atualizar-pasta1').addEventListener('click', () => void desenharPasta1());
 // a lista se atualiza sozinha enquanto a aba está aberta
 window.setInterval(() => {

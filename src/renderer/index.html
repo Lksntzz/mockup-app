@@ -16,7 +16,7 @@
         <button id="tab-novo" type="button" aria-pressed="true">MKP</button>
         <button id="tab-historico" type="button" aria-pressed="false">Histórico</button>
         <button id="tab-pasta1" type="button" aria-pressed="false" hidden>Cliente <span id="badge-cliente" class="badge" hidden></span></button>
-        <button id="tab-anuncios" type="button" aria-pressed="false" hidden>Anúncios</button>
+        <button id="tab-anuncios" type="button" aria-pressed="false" hidden>Anúncios <span id="badge-anuncios" class="badge" hidden></span></button>
         <button id="tab-personalizar" type="button" aria-pressed="false">Personalizar</button>
         <button id="tab-config" type="button" class="so-icone" aria-pressed="false" aria-label="Configuração" title="Configuração" hidden><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
       </nav>
@@ -155,6 +155,10 @@
       <section id="anuncios" class="pagina estreita" hidden>
         <div class="pagina-topo"><h2 class="pagina-titulo">Anúncios 2027</h2></div>
         <div id="an-aviso" class="an-aviso" role="status" hidden></div>
+        <div id="an-nisti" class="an-aviso" role="status" hidden>
+          <span id="an-nisti-texto"></span>
+          <button id="an-nisti-ver" class="secundario" type="button">Ver e tentar de novo</button>
+        </div>
         <div id="an-pendentes" class="an-pendentes an-pendentes-topo-pagina">
           <div class="an-pendentes-topo">
             <h3 id="an-pend-titulo" class="config-titulo">Pendentes</h3>
@@ -218,7 +222,7 @@
             <button id="an-abrir-existente" class="secundario" type="button">Abrir a existente</button>
             <button id="an-outro-nome" class="secundario" type="button">Escolher outro nome</button>
           </div>
-          <div class="an-botoes"><button id="an-novo" class="discreto" type="button">Fazer outro anúncio</button></div>
+          <div class="an-botoes"><button id="an-novo" class="discreto" type="button">Fazer outro anúncio</button> <button id="an-voltar-lista" class="secundario" type="button">← Voltar para a lista de pendentes</button></div>
         </div>
       </section>
       <section id="config" class="pagina estreita" hidden>

@@ -356,3 +356,9 @@ Só funciona depois que a integração for ligada no NISTI (a chave é criada na
 5. Desligue a internet, crie outro anúncio completo: fica "aguardando" e o designer não é travado. Religue a internet: envia sozinho em até ~30 min (ou clique **Enviar pendentes agora**).
 6. SKU fora do formato ou EAN já usado em outro produto: aparece como "com erro" com o motivo do NISTI; corrija no NISTI ou no anúncio e clique **Enviar pendentes agora**.
 7. **Foto do produto:** exporte o mockup da frente do anúncio (o app grava `NOME_capa-01.png` na pasta MKP, dentro de `Arte`). Em até 1 minuto a foto vai para o produto no NISTI, uma por variação (capa 1 = variação 1). Mockups de verso/especificação não são enviados. Se você exportar de novo depois, a foto NÃO é trocada (envia uma vez só por produto). Sem o arquivo, o status mostra "Aguardando você exportar o mockup da frente"; depois de 14 dias o app desiste.
+
+## Avisos novos (v0.20.1)
+
+- No formulário do anúncio, um SKU fora do formato `MIOLO_CAPA_ACABAMENTO` (acabamento = 3 letras: wire-o P/B/R, tassel e elástico P/B/A/R/V/L ou X) mostra um aviso amarelo em "Será criado". Não bloqueia: a pasta é criada, mas esse produto não será cadastrado no NISTI.
+- Produto que o NISTI recusa (ou SKU/EAN inválido) aparece numa faixa vermelha no topo da aba **Anúncios** e num número vermelho na aba. O botão "Ver e tentar de novo" leva à Configuração.
+- Na tela de resultado do anúncio há agora o botão **← Voltar para a lista de pendentes**.

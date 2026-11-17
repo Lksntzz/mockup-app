@@ -140,4 +140,10 @@ describe('anuncios-form', () => {
     expect(validar(com).podeCriarSoPasta).toBe(true);
     expect(validar({ ...ok, temSubcategorias: false, subcategoria: '' }).podeCriar).toBe(true);
   });
+  test('SKU fora do formato do NISTI vira aviso (não bloqueia a criação)', () => {
+    const v = validar(comLinhas({ sku: ['AG27_ROSA_PXA', 'ERRADO'] }));
+    expect(v.podeCriar).toBe(true);
+    expect(v.avisos.some((a) => /Variação 2: o NISTI não vai cadastrar/.test(a))).toBe(true);
+    expect(v.avisos.some((a) => /Variação 1/.test(a))).toBe(false);
+  });
 });

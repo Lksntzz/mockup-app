@@ -876,6 +876,14 @@ export function iniciarAnuncios(): void {
     $<HTMLInputElement>('an-arte').select();
   });
   $('an-novo').addEventListener('click', () => { novoAnuncio(); mostrarForm(true); });
+  $('an-voltar-lista').addEventListener('click', () => {
+    if (rodando || lendo) return;
+    $('an-resultado').hidden = true;
+    $('an-passos').hidden = true;
+    mostrarForm(false);
+    void carregarPendentes();
+    $('an-pendentes').scrollIntoView({ block: 'start', behavior: 'smooth' });
+  });
   $('an-novo-anuncio').addEventListener('click', () => {
     if (rodando || lendo) return;
     if (formAberto) mostrarForm(false);

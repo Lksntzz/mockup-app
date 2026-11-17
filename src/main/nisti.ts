@@ -1,5 +1,7 @@
 import { mkdir, readFile, readdir, rename, stat, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { isValidGtin13 } from '../anuncios/gtin';
+import { motivoDoSkuInvalido } from '../anuncios/sku';
 
 /**
  * Envio dos produtos dos anúncios para o NISTI ID (POST /api/products com a chave de integração).
@@ -152,8 +154,14 @@ export function criarNisti(op: OpcoesDoNisti) {
         const sku = v.sku.trim().toUpperCase();
         const dados = { sku, gtin: v.ean, nome: titulo, variacao: v.capa.trim() || sku, ...(v.n ? { n: v.n } : {}) };
         const atual = fila.find((i) => i.sku === sku);
+        const defeito = (() => {
+          const m = motivoDoSkuInvalido(sku);
+          if (m) return `SKU inválido para o NISTI: ${m}.`;
+          return isValidGtin13(v.ean) ? undefined : 'EAN inválido (confira os 13 dígitos).';
+        })();
         if (!atual) {
-          fila.push({ ...dados, estado: 'aguardando', tentativas: 0, criadoEm: agora(), ...(pasta ? { pasta } : {}) });
+          if (pasta && v.n) for (let k = fila.length - 1; k >= 0; k -= 1) if (fila[k]!.estado === 'erro' && fila[k]!.pasta === pasta && fila[k]!.n === v.n) fila.splice(k, 1);
+          fila.push({ ...dados, estado: defeito ? 'erro' : 'aguardando', tentativas: 0, criadoEm: agora(), ...(defeito ? { aviso: defeito } : {}), ...(pasta ? { pasta } : {}) });
           novos += 1;
           continue;
         }
@@ -161,8 +169,8 @@ export function criarNisti(op: OpcoesDoNisti) {
         if (dados.n) atual.n = dados.n;
         const igual = atual.gtin === dados.gtin && atual.nome === dados.nome && atual.variacao === dados.variacao;
         if (atual.estado === 'enviado' && igual) continue;
-        Object.assign(atual, dados, { estado: 'aguardando', tentativas: 0, proximaTentativa: 0 });
-        delete atual.aviso;
+        Object.assign(atual, dados, { estado: defeito ? 'erro' : 'aguardando', tentativas: 0, proximaTentativa: 0 });
+        if (defeito) atual.aviso = defeito; else delete atual.aviso;
         novos += 1;
       }
       return novos;

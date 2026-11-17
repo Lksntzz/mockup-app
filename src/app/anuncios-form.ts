@@ -2,6 +2,7 @@ import { capasDoPdf } from '../anuncios/capas';
 import type { FonteDaCapa, Variacao } from '../anuncios/tipos';
 import { isValidGtin13, normalizarEan } from '../anuncios/gtin';
 import { nomeDePastaSeguro } from '../anuncios/nomes';
+import { EXEMPLO_DE_SKU, motivoDoSkuInvalido } from '../anuncios/sku';
 
 export interface FormAnuncio {
   plataforma: string; categoria: string; subcategoria: string; temSubcategorias: boolean;
@@ -105,6 +106,10 @@ export function validar(f: FormAnuncio): Validacao {
 
   const skus = f.variacoes.map((v) => v.sku.trim()).filter(Boolean);
   if (new Set(skus).size !== skus.length) avisos.push('Há SKU repetido entre as variações');
+  f.variacoes.forEach((v, i) => {
+    const motivo = v.sku.trim() ? motivoDoSkuInvalido(v.sku) : undefined;
+    if (motivo) avisos.push(`Variação ${i + 1}: o NISTI não vai cadastrar este SKU: ${motivo}. Exemplo: ${EXEMPLO_DE_SKU}`);
+  });
 
   return { erros, pendentes, avisos, podeCriar: ok, podeCriarSoPasta: ok };
 }
