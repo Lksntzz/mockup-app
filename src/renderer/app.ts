@@ -5,6 +5,19 @@ import { copyToAll, createState, select, setAjuste, setColor, type AppState, typ
 import { abasVisiveis, ROTULOS, vizinha, type Modo } from '../app/abas';
 import { escolhasDoVerso, paraRazao } from '../app/verso';
 import { fontesDaArte, frenteEVersoPadrao, rotuloDaFonte, type Fonte } from '../app/frente-verso';
+
+/** Quantas páginas cada PDF do cliente tem (lido uma vez por arquivo), para o seletor só mostrar páginas que existem. */
+const paginasDosPdfs = new Map<string, number>();
+async function lerPaginasDosPdfs(caminhos: string[]): Promise<void> {
+  for (const c of caminhos) {
+    if (!/\.pdf$/i.test(c) || paginasDosPdfs.has(c)) continue;
+    try {
+      const doc = await openPdf((await api.lerPdf(c)).bytes);
+      paginasDosPdfs.set(c, doc.pageCount);
+      await doc.close().catch(() => undefined);
+    } catch { /* não deu para ler agora: continua supondo 2 páginas */ }
+  }
+}
 import { compose, isAvailable } from '../engine/compose';
 import { pacoteDeRascunho } from '../engine/rascunho';
 import { arrastarCanto, arrastarCorpo, cantoPerto, cantosDoAjuste, criarMapa, pontoDentro, zoomDaRoda } from '../app/guia';
@@ -1492,9 +1505,10 @@ function linhaDoCliente(c: Cliente): HTMLElement {
       }
       if (doCliente.length > 0) {
         // frente e verso: o chute inicial vem dos nomes e do PDF (página 1 frente, página 2 verso); dá para trocar
-        const fontes = fontesDaArte(doCliente);
-        const padrao = frenteEVersoPadrao(doCliente);
-        const seletor = (rotulo: string, inicial: Fonte | undefined, vazio: string) => {
+        let fontes = fontesDaArte(doCliente, paginasDosPdfs);
+        let padrao = frenteEVersoPadrao(doCliente, paginasDosPdfs);
+        const preenchedores: Array<() => void> = [];
+        const seletor = (rotulo: string, inicial: () => Fonte | undefined, vazio: string) => {
           const caixa = document.createElement('label');
           caixa.className = 'cc-fonte';
           caixa.append(`${rotulo}: `);
@@ -1504,20 +1518,39 @@ function linhaDoCliente(c: Cliente): HTMLElement {
           sem.value = '';
           sem.textContent = vazio;
           lista.append(sem);
-          fontes.forEach((f, i) => {
-            const o = document.createElement('option');
-            o.value = String(i);
-            o.textContent = rotuloDaFonte(f);
-            lista.append(o);
+          const atual = (): Fonte | undefined => (lista.value === '' ? undefined : fontes[Number(lista.value)]);
+          const preencher = (alvo: Fonte | undefined) => {
+            lista.replaceChildren(sem);
+            fontes.forEach((f, i) => {
+              const o = document.createElement('option');
+              o.value = String(i);
+              o.textContent = rotuloDaFonte(f);
+              lista.append(o);
+            });
+            const ini = alvo ? fontes.findIndex((f) => f.caminho === alvo.caminho && f.pagina === alvo.pagina) : -1;
+            lista.value = ini >= 0 ? String(ini) : '';
+          };
+          preencher(inicial());
+          // depois de ler os PDFs: tira as páginas que não existem, mantendo a escolha quando ela ainda vale
+          preenchedores.push(() => {
+            const escolhida = atual();
+            const existe = escolhida && fontes.some((f) => f.caminho === escolhida.caminho && f.pagina === escolhida.pagina);
+            preencher(existe ? escolhida : inicial());
           });
-          const ini = inicial ? fontes.findIndex((f) => f.caminho === inicial.caminho && f.pagina === inicial.pagina) : -1;
-          lista.value = ini >= 0 ? String(ini) : '';
           caixa.append(lista);
           grupoCorel.append(caixa);
-          return () => (lista.value === '' ? undefined : fontes[Number(lista.value)]);
+          return atual;
         };
-        const frenteEscolhida = seletor('Frente do molde', padrao.frente, '(sem arte)');
-        const versoEscolhido = seletor('Verso do molde', padrao.verso, '(sem arte: criar depois)');
+        const frenteEscolhida = seletor('Frente do molde', () => padrao.frente, '(sem arte)');
+        const versoEscolhido = seletor('Verso do molde', () => padrao.verso, '(sem arte: criar depois)');
+        if (doCliente.some((a) => /\.pdf$/i.test(a) && !paginasDosPdfs.has(a))) {
+          void lerPaginasDosPdfs(doCliente).then(() => {
+            if (!grupoCorel.isConnected) return;
+            fontes = fontesDaArte(doCliente, paginasDosPdfs);
+            padrao = frenteEVersoPadrao(doCliente, paginasDosPdfs);
+            preenchedores.forEach((p) => p());
+          });
+        }
         botao('Abrir no molde (Corel)', 'secundario', 'Abre o CorelDRAW com a frente (página 1) e o verso (página 2) já encaixados no molde', (ev) => {
           const frente = frenteEscolhida();
           const verso = versoEscolhido();

@@ -367,3 +367,7 @@ Só funciona depois que a integração for ligada no NISTI (a chave é criada na
 ## Letra grande cortada (v0.20.2)
 
 Teste no Personalizar: Minimalista Azul com o nome "Julio" (letra J). O J deve aparecer inteiro, com a curva de baixo (o "gancho") visível. Repita com Q, Y e G em qualquer modelo. Nos modelos com degradê (Caderneta, Delicate) a letra pode mudar menos de 1 pixel de posição na prévia.
+
+## Seletor Frente/Verso do molde com PDF de 1 página (v0.21.1)
+
+Na pasta de um cliente com `capa (1).pdf` e `contracapa (1).pdf` (cada um com 1 página): os seletores "Frente do molde" e "Verso do molde" mostram só **capa (1).pdf — página 1** e **contracapa (1).pdf — página 1**, sem "página 2". Num PDF de 2 páginas continuam aparecendo as páginas 1 e 2. Logo que a pasta abre a lista pode mostrar a "página 2" por uma fração de segundo, até o app ler o PDF.
