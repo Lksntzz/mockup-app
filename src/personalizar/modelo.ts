@@ -27,12 +27,14 @@ export interface ModeloDeArte {
   arte: string;
   frente?: string;
   fonteNome: FonteDoNome;
-  fonteInicial: FonteDoTexto;
+  /** Só nas artes com letra grande (junto com `inicial`). */
+  fonteInicial?: FonteDoTexto;
   /** A letra grande leva o acento do nome ("Ágata" → Á)? Nas artes em que a fonte da letra grande tem as letras acentuadas. Padrão: não. */
   inicialComAcento?: boolean;
   /** Medidas tiradas do Corel (A4, milímetros a partir do topo/esquerda). */
   nome: { centroMm: { x: number; y: number }; tamanhoPt: number; larguraMaxMm: number; cor: string };
-  inicial: { centroMm: { x: number; y: number }; tamanhoPt: number; larguraMaxMm: number; corCentro: string; corBorda: string; /** Esticada na horizontal no Corel (1 = normal). */ escalaX?: number };
+  /** Ausente nas artes que levam só o nome (sem letra grande). */
+  inicial?: { centroMm: { x: number; y: number }; tamanhoPt: number; larguraMaxMm: number; corCentro: string; corBorda: string; /** Esticada na horizontal no Corel (1 = normal). */ escalaX?: number };
 }
 
 const CREAM_CANDY: FonteDoNome = {
@@ -107,6 +109,14 @@ export const MODELOS: readonly ModeloDeArte[] = [
   minimalista('marinho', 'Azul-marinho', '#3A668C', '#00040D', 0, 0),
   minimalista('cinza', 'Cinza', '#FFFFFF', '#231F20', 0, 0),
   minimalista('offwhite', 'Off-white', '#D2D2C6', '#231F20', 1.277, -4.184),
+  // Manicure: só o nome (sem letra grande). Medidas do PDF exportado do Corel (página A4, 195 → 190,5 × 250,5 mm de arte).
+  {
+    id: 'manicure',
+    titulo: 'Manicure',
+    arte: 'manicure.jpg',
+    fonteNome: CREAM_CANDY,
+    nome: { centroMm: { x: 104.788, y: 209.375 }, tamanhoPt: 50.575, larguraMaxMm: 130, cor: '#373435' },
+  },
 ];
 
 export const MODELO_PADRAO: ModeloDeArte = MODELOS[0]!;
@@ -145,19 +155,22 @@ export interface EntradaPersonalizar {
 export type ValidacaoEntrada = { ok: true; nome: string; inicial: string; copias: number } | { ok: false; motivo: string };
 
 /** Valida o que o operador digitou (usada na tela e de novo no processo principal). */
-export function validarEntrada(e: { nome: unknown; inicial: unknown; copias?: unknown }, exigirCopias = false, comAcento = false): ValidacaoEntrada {
+export function validarEntrada(e: { nome: unknown; inicial: unknown; copias?: unknown }, exigirCopias = false, comAcento = false, semInicial = false): ValidacaoEntrada {
   if (typeof e.nome !== 'string') return { ok: false, motivo: 'Digite o nome.' };
   const nome = e.nome.replace(/\s+/g, ' ').trim();
   if (nome === '') return { ok: false, motivo: 'Digite o nome.' };
   if ([...nome].length > MAX_NOME) return { ok: false, motivo: `O nome tem mais de ${MAX_NOME} letras.` };
   // eslint-disable-next-line no-control-regex
   if (/[\u0000-\u001f\u007f<>]/.test(nome)) return { ok: false, motivo: 'O nome tem um caractere que não pode ser usado.' };
-  if (typeof e.inicial !== 'string') return { ok: false, motivo: 'A letra grande é inválida.' };
-  const inicial = comAcento ? e.inicial.trim().normalize('NFC') : semAcento(e.inicial.trim());
-  if (inicial === '') return { ok: false, motivo: 'A letra grande está vazia.' };
-  if ([...inicial].length > 2) return { ok: false, motivo: 'A letra grande deve ter 1 ou 2 letras.' };
-  // eslint-disable-next-line no-control-regex
-  if (/[\u0000-\u001f\u007f<>]/.test(inicial)) return { ok: false, motivo: 'A letra grande tem um caractere que não pode ser usado.' };
+  let inicial = '';
+  if (!semInicial) {
+    if (typeof e.inicial !== 'string') return { ok: false, motivo: 'A letra grande é inválida.' };
+    inicial = comAcento ? e.inicial.trim().normalize('NFC') : semAcento(e.inicial.trim());
+    if (inicial === '') return { ok: false, motivo: 'A letra grande está vazia.' };
+    if ([...inicial].length > 2) return { ok: false, motivo: 'A letra grande deve ter 1 ou 2 letras.' };
+    // eslint-disable-next-line no-control-regex
+    if (/[\u0000-\u001f\u007f<>]/.test(inicial)) return { ok: false, motivo: 'A letra grande tem um caractere que não pode ser usado.' };
+  }
   let copias = 1;
   if (exigirCopias || e.copias !== undefined) {
     if (typeof e.copias !== 'number' || !Number.isInteger(e.copias) || e.copias < 1 || e.copias > MAX_COPIAS) {
@@ -235,23 +248,25 @@ export function corDaInicial(i: { corCentro: string; corBorda: string }): string
 
 export function htmlDaPagina(r: RecursosDaPagina, nome: string, inicial: string, escala = 1): string {
   const mod = r.modelo ?? MODELO_PADRAO;
-  const m = { paginaMm: PAGINA_MM, nome: mod.nome, inicial: mod.inicial };
+  const m = { paginaMm: PAGINA_MM, nome: mod.nome };
+  const ini = mod.inicial;
+  const fonteIni = mod.fonteInicial;
   const css = (u: string) => u.replace(/["\\\n\r]/g, '');
   const locais = (nomes: readonly string[]) => nomes.map((n) => `local("${css(n)}")`).join(',');
   const frente = r.frenteUrl ? `<div class="fr"></div>` : '';
   return `<!doctype html><html><head><meta charset="utf-8"><style>
 @font-face{font-family:"NomeFonte";src:${locais(mod.fonteNome.alternativas)}}
-@font-face{font-family:"InicialFonte";src:${locais(mod.fonteInicial.alternativas)}}
+${ini && fonteIni ? `@font-face{font-family:"InicialFonte";src:${locais(fonteIni.alternativas)}}` : ''}
 @page{size:${m.paginaMm.largura}mm ${m.paginaMm.altura}mm;margin:0}
 html,body{margin:0;padding:0;background:#fff;overflow:hidden}
 .pg{transform:scale(${escala});transform-origin:0 0;position:relative;width:${m.paginaMm.largura}mm;height:${m.paginaMm.altura}mm;overflow:hidden;background:url("${css(r.arteUrl)}") 0 0/100% 100% no-repeat}
 .fr{position:absolute;left:0;top:0;width:100%;height:100%;background:url("${css(r.frenteUrl ?? '')}") 0 0/100% 100% no-repeat}
-.ini{position:absolute;left:${m.inicial.centroMm.x}mm;top:${m.inicial.centroMm.y}mm;transform:translate(-50%,-50%)${m.inicial.escalaX ? ` scaleX(${m.inicial.escalaX})` : ''};font:${m.inicial.tamanhoPt}pt/1 "InicialFonte";white-space:nowrap;${corDaInicial(m.inicial)}}
+${ini ? `.ini{position:absolute;left:${ini.centroMm.x}mm;top:${ini.centroMm.y}mm;transform:translate(-50%,-50%)${ini.escalaX ? ` scaleX(${ini.escalaX})` : ''};font:${ini.tamanhoPt}pt/1 "InicialFonte";white-space:nowrap;${corDaInicial(ini)}}` : ''}
 .nome{position:absolute;left:${m.nome.centroMm.x}mm;top:${m.nome.centroMm.y}mm;transform:translate(-50%,-50%);font:${m.nome.tamanhoPt}pt/1 "NomeFonte";color:${m.nome.cor};white-space:nowrap}
 .a{font-feature-settings:"${mod.fonteNome.inicio}"}.z{font-feature-settings:"${mod.fonteNome.fim}"}
 .ac{display:inline-block;width:1em;height:2em;margin:-2em -1em 0 0;overflow:visible;vertical-align:baseline}.ac path{fill:currentColor}
 .med{position:absolute;left:-99999px;top:0;font-size:1000px;line-height:1;white-space:nowrap;font-family:"NomeFonte"}
-</style></head><body><div class="pg"><div class="ini" id="ini">${escaparHtml(inicial)}</div>${frente}<div class="nome" id="nome">${nomeHtml(nome, mod)}</div></div>
+</style></head><body><div class="pg">${ini ? `<div class="ini" id="ini">${escaparHtml(inicial)}</div>` : ''}${frente}<div class="nome" id="nome">${nomeHtml(nome, mod)}</div></div>
 <script>
 (function(){
   var MM=96/25.4*${escala};
@@ -261,7 +276,7 @@ html,body{margin:0;padding:0;background:#fff;overflow:hidden}
   }
   function tem(f,nome){return document.fonts.load('40pt '+f).then(function(l){if(!(l.length>0&&l[0].status==='loaded'))falta.push(nome);},function(){falta.push(nome);});}
   var falta=window.__fonteFaltando=[];
-  tem('NomeFonte','${css(mod.fonteNome.familia)}').then(function(){return tem('InicialFonte','${css(mod.fonteInicial.familia)}');}).then(function(){return document.fonts.ready;}).then(function(){
+  tem('NomeFonte','${css(mod.fonteNome.familia)}').then(function(){return ${ini && fonteIni ? `tem('InicialFonte','${css(fonteIni.familia)}')` : 'null'};}).then(function(){return document.fonts.ready;}).then(function(){
     try{if(!falta.length){
       var med=document.createElement('div');med.className='med';document.body.appendChild(med);
       var larg=function(t){var sp=document.createElement('span');sp.textContent=t;med.appendChild(sp);var w=sp.getBoundingClientRect().width;med.removeChild(sp);return w;};
@@ -272,14 +287,14 @@ html,body{margin:0;padding:0;background:#fff;overflow:hidden}
     }}catch(e){window.__erroMedicao=String(e&&e.message||e);}
     window.__ajustar=function(){
       var nomeEl=document.getElementById('nome'),iniEl=document.getElementById('ini');
-      nomeEl.style.fontSize='';iniEl.style.fontSize='';
+      nomeEl.style.fontSize='';if(iniEl)iniEl.style.fontSize='';
       caber(nomeEl,${m.nome.larguraMaxMm},20);
-      caber(iniEl,${m.inicial.larguraMaxMm},60);
+${ini ? `      caber(iniEl,${ini.larguraMaxMm},60);` : ''}
     };
     /* troca só o nome e a letra grande numa página já carregada (a prévia reaproveita a janela: arte e fontes não recarregam) */
     window.__atualizar=function(nomeInterno,ini){
       document.getElementById('nome').innerHTML=nomeInterno;
-      document.getElementById('ini').textContent=ini;
+      var iniEl=document.getElementById('ini');if(iniEl)iniEl.textContent=ini;
       window.__ajustar();
       return new Promise(function(r){requestAnimationFrame(function(){requestAnimationFrame(function(){r(true);});});});
     };

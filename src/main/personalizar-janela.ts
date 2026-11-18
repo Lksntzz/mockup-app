@@ -161,8 +161,14 @@ export function aquecerPrevia(modeloId: unknown): void {
   }).catch(() => undefined);
 }
 
+/** A arte escolhida leva só o nome (sem letra grande)? */
+function semInicialNaArte(modelo: unknown): boolean {
+  const m = modeloPorId(modelo);
+  return m !== undefined && m.inicial === undefined;
+}
+
 export function previaDaPersonalizacao(entrada: { modelo: unknown; nome: unknown; inicial: unknown }): Promise<ResultadoPrevia> {
-  const v = validarEntrada(entrada, false, modeloPorId(entrada.modelo)?.inicialComAcento === true);
+  const v = validarEntrada(entrada, false, modeloPorId(entrada.modelo)?.inicialComAcento === true, semInicialNaArte(entrada.modelo));
   if (!v.ok) return Promise.resolve(v);
   return naFila(async () => {
     try {
@@ -203,7 +209,7 @@ export async function listarImpressoras(): Promise<ImpressoraInfo[]> {
 export async function imprimirPersonalizacao(
   entrada: { modelo: unknown; nome: unknown; inicial: unknown; copias: unknown; impressora: unknown },
 ): Promise<ResultadoImpressao> {
-  const v = validarEntrada(entrada, true, modeloPorId(entrada.modelo)?.inicialComAcento === true);
+  const v = validarEntrada(entrada, true, modeloPorId(entrada.modelo)?.inicialComAcento === true, semInicialNaArte(entrada.modelo));
   if (!v.ok) return v;
   if (typeof entrada.impressora !== 'string' || entrada.impressora === '') return { ok: false, motivo: 'Escolha a impressora.' };
   const impressora = entrada.impressora;

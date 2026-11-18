@@ -19,9 +19,11 @@ let urlPrevia: string | undefined;
 const modeloEscolhido = (): string => $<HTMLSelectElement>('pz-arte').value;
 /** A arte escolhida deixa acento na letra grande? */
 const comAcento = (): boolean => modeloPorId(modeloEscolhido())?.inicialComAcento === true;
+/** A arte escolhida leva só o nome (sem letra grande)? */
+const semInicial = (): boolean => { const m = modeloPorId(modeloEscolhido()); return m !== undefined && m.inicial === undefined; };
 
 function entradaDaTela() {
-  return validarEntrada({ nome: $<HTMLInputElement>('pz-nome').value, inicial: $<HTMLInputElement>('pz-inicial').value }, false, comAcento());
+  return validarEntrada({ nome: $<HTMLInputElement>('pz-nome').value, inicial: $<HTMLInputElement>('pz-inicial').value }, false, comAcento(), semInicial());
 }
 
 function atualizarBotao(): void {
@@ -144,6 +146,8 @@ export async function mostrarPersonalizar(): Promise<void> {
 
 /** O título da página mostra o nome da arte escolhida. */
 function titulo(): void {
+  const rotulo = document.getElementById('pz-rotulo-inicial');
+  if (rotulo) rotulo.hidden = semInicial();
   const t = modeloPorId(modeloEscolhido())?.titulo;
   const h = document.getElementById('pz-titulo');
   if (t && h) h.textContent = `Personalizar — ${t}`;

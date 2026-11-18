@@ -121,8 +121,8 @@ describe('fontes do Windows (sem arquivo de fonte no app)', () => {
 });
 
 describe('catálogo de artes', () => {
-  test('a lista tem a Caderneta de Saúde primeiro, a Delicate e as 6 Minimalistas; ids únicos', () => {
-    expect(MODELOS.map((m) => m.id)).toEqual(['caderneta-saude', 'delicate', 'minimalista-verde', 'minimalista-areia', 'minimalista-azul', 'minimalista-marinho', 'minimalista-cinza', 'minimalista-offwhite']);
+  test('a lista tem a Caderneta de Saúde primeiro, a Delicate, as 6 Minimalistas e a Manicure; ids únicos', () => {
+    expect(MODELOS.map((m) => m.id)).toEqual(['caderneta-saude', 'delicate', 'minimalista-verde', 'minimalista-areia', 'minimalista-azul', 'minimalista-marinho', 'minimalista-cinza', 'minimalista-offwhite', 'manicure']);
     expect(new Set(MODELOS.map((m) => m.id)).size).toBe(MODELOS.length);
   });
   test('modeloPorId: vazio é o padrão; id desconhecido não vira outra arte', () => {
@@ -231,10 +231,10 @@ describe('capa Minimalista', () => {
   test('as 6 cores usam Playfair na letra grande, Cream Candy no nome e a letra leva acento', () => {
     expect(minis).toHaveLength(6);
     for (const m of minis) {
-      expect(m.fonteInicial.familia).toBe('Playfair Display SemiBold');
+      expect(m.fonteInicial!.familia).toBe('Playfair Display SemiBold');
       expect(m.fonteNome.familia).toBe('Cream Candy');
       expect(m.inicialComAcento).toBe(true);
-      expect(m.inicial.escalaX).toBeCloseTo(1.0145, 4);
+      expect(m.inicial!.escalaX).toBeCloseTo(1.0145, 4);
       expect(m.arte).toBe(`${m.id}.png`);
     }
   });
@@ -248,9 +248,9 @@ describe('capa Minimalista', () => {
     const verde = minis.find((m) => m.id === 'minimalista-verde')!;
     const azul = minis.find((m) => m.id === 'minimalista-azul')!;
     const off = minis.find((m) => m.id === 'minimalista-offwhite')!;
-    expect(azul.inicial.centroMm.x - verde.inicial.centroMm.x).toBeCloseTo(1.208, 2);
-    expect(azul.inicial.centroMm.y - verde.inicial.centroMm.y).toBeCloseTo(2.818, 2);
-    expect(off.inicial.centroMm.y - verde.inicial.centroMm.y).toBeCloseTo(-4.184, 2);
+    expect(azul.inicial!.centroMm.x - verde.inicial!.centroMm.x).toBeCloseTo(1.208, 2);
+    expect(azul.inicial!.centroMm.y - verde.inicial!.centroMm.y).toBeCloseTo(2.818, 2);
+    expect(off.inicial!.centroMm.y - verde.inicial!.centroMm.y).toBeCloseTo(-4.184, 2);
     expect(azul.nome.centroMm.x - verde.nome.centroMm.x).toBeCloseTo(1.208, 2);
   });
 });
@@ -267,7 +267,32 @@ describe('corDaInicial (a letra grande não pode ter o gancho cortado)', () => {
   });
   test('todos os modelos do Minimalista usam cor lisa na letra', () => {
     for (const m of MODELOS.filter((x) => x.id.startsWith('minimalista-'))) {
-      expect(m.inicial.corCentro).toBe(m.inicial.corBorda);
+      expect(m.inicial!.corCentro).toBe(m.inicial!.corBorda);
     }
   });
 });
+
+describe('arte só com nome (Manicure)', () => {
+  const m = modeloPorId('manicure')!;
+  test('está na lista, sem letra grande, com a cor e o tamanho do Corel', () => {
+    expect(m).toBeDefined();
+    expect(m.inicial).toBeUndefined();
+    expect(m.fonteInicial).toBeUndefined();
+    expect(m.nome.tamanhoPt).toBeCloseTo(50.575, 3);
+    expect(m.nome.cor).toBe('#373435');
+    expect(m.fonteNome.familia).toBe('Cream Candy');
+  });
+  test('validarEntrada não exige a letra grande quando a arte não tem', () => {
+    const v = validarEntrada({ nome: 'Flávia Silva', inicial: undefined }, false, false, true);
+    expect(v).toEqual({ ok: true, nome: 'Flávia Silva', inicial: '', copias: 1 });
+    expect(validarEntrada({ nome: 'Flávia', inicial: undefined }).ok).toBe(false); // com letra grande continua exigindo
+  });
+  test('a página não tem o elemento da letra grande nem pede a fonte dela', () => {
+    const h = htmlDaPagina({ arteUrl: 'file:///a/manicure.jpg', modelo: m }, 'Flávia Silva', '');
+    expect(h).not.toContain('id="ini"');
+    expect(h).not.toContain('InicialFonte');
+    expect(h).toContain('id="nome"');
+    expect(h).toContain('#373435');
+  });
+});
+

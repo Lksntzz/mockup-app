@@ -362,6 +362,7 @@ Só funciona depois que a integração for ligada no NISTI (a chave é criada na
 - No formulário do anúncio, um SKU fora do formato `MIOLO_CAPA_ACABAMENTO` (acabamento = 3 letras: wire-o P/B/R, tassel e elástico P/B/A/R/V/L ou X) mostra um aviso amarelo em "Será criado". Não bloqueia: a pasta é criada, mas esse produto não será cadastrado no NISTI.
 - Produto que o NISTI recusa (ou SKU/EAN inválido) aparece numa faixa vermelha no topo da aba **Anúncios** e num número vermelho na aba. O botão "Ver e tentar de novo" leva à Configuração.
 - Na tela de resultado do anúncio há agora o botão **← Voltar para a lista de pendentes**.
+2d. **Manicure (só o nome):** na lista aparece **Manicure**, por último. Ao escolhê-la, o campo **"Letra grande" some**, porque esta arte leva só o nome. Digite **Flávia Silva**. **Resultado esperado:** o nome em cinza-grafite, centralizado abaixo do círculo "Manicure agendamentos", com a linha na primeira letra e o floreio na última, no mesmo lugar do seu PDF `manicure-com-nome.pdf` (diferença menor que 0,1 mm). Teste também **Ana** (curto), **Ísis Conceição** (acentos) e **Maria Eduarda dos Santos Oliveira** (a fonte diminui sozinha até caber em 13 cm; pode encostar nas flores do canto). Troque para outra arte e volte: o campo "Letra grande" reaparece nas outras.
 
 ## Letra grande cortada (v0.20.2)
 
