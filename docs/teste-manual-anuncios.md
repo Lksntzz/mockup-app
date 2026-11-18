@@ -362,3 +362,7 @@ Só funciona depois que a integração for ligada no NISTI (a chave é criada na
 - No formulário do anúncio, um SKU fora do formato `MIOLO_CAPA_ACABAMENTO` (acabamento = 3 letras: wire-o P/B/R, tassel e elástico P/B/A/R/V/L ou X) mostra um aviso amarelo em "Será criado". Não bloqueia: a pasta é criada, mas esse produto não será cadastrado no NISTI.
 - Produto que o NISTI recusa (ou SKU/EAN inválido) aparece numa faixa vermelha no topo da aba **Anúncios** e num número vermelho na aba. O botão "Ver e tentar de novo" leva à Configuração.
 - Na tela de resultado do anúncio há agora o botão **← Voltar para a lista de pendentes**.
+
+## Letra grande cortada (v0.20.2)
+
+Teste no Personalizar: Minimalista Azul com o nome "Julio" (letra J). O J deve aparecer inteiro, com a curva de baixo (o "gancho") visível. Repita com Q, Y e G em qualquer modelo. Nos modelos com degradê (Caderneta, Delicate) a letra pode mudar menos de 1 pixel de posição na prévia.

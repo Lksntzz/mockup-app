@@ -227,6 +227,12 @@ export function nomeHtml(nome: string, modelo: ModeloDeArte = MODELO_PADRAO): st
  * A primeira letra do nome usa a variação de início e a última a de fim: são as linhas ao lado do nome, que vêm da própria fonte. Os acentos são desenhados por cima (letraHtml).
  * Um pequeno script diminui a fonte do nome (e da letra) até caber na largura máxima do modelo e avisa quando terminou (window.__pronto).
  */
+/** Cor da letra grande. Cor lisa: pinta o texto direto (nada corta o gancho de letras como J, Q ou Y). Degradê: pinta o fundo recortado no texto; o fundo só existe dentro da caixa, por isso a caixa ganha folga em cima e embaixo (simétrica, o centro não muda). */
+export function corDaInicial(i: { corCentro: string; corBorda: string }): string {
+  if (i.corCentro === i.corBorda) return `color:${i.corCentro}`;
+  return `padding:.3em 0;color:transparent;background:radial-gradient(ellipse 50% .5em at 50% .83em,${i.corCentro} 0%,${i.corBorda} 100%);-webkit-background-clip:text;background-clip:text`;
+}
+
 export function htmlDaPagina(r: RecursosDaPagina, nome: string, inicial: string, escala = 1): string {
   const mod = r.modelo ?? MODELO_PADRAO;
   const m = { paginaMm: PAGINA_MM, nome: mod.nome, inicial: mod.inicial };
@@ -240,7 +246,7 @@ export function htmlDaPagina(r: RecursosDaPagina, nome: string, inicial: string,
 html,body{margin:0;padding:0;background:#fff;overflow:hidden}
 .pg{transform:scale(${escala});transform-origin:0 0;position:relative;width:${m.paginaMm.largura}mm;height:${m.paginaMm.altura}mm;overflow:hidden;background:url("${css(r.arteUrl)}") 0 0/100% 100% no-repeat}
 .fr{position:absolute;left:0;top:0;width:100%;height:100%;background:url("${css(r.frenteUrl ?? '')}") 0 0/100% 100% no-repeat}
-.ini{position:absolute;left:${m.inicial.centroMm.x}mm;top:${m.inicial.centroMm.y}mm;transform:translate(-50%,-50%)${m.inicial.escalaX ? ` scaleX(${m.inicial.escalaX})` : ''};font:${m.inicial.tamanhoPt}pt/1 "InicialFonte";white-space:nowrap;color:transparent;background:radial-gradient(ellipse 50% 50% at 50% 53%,${m.inicial.corCentro} 0%,${m.inicial.corBorda} 100%);-webkit-background-clip:text;background-clip:text}
+.ini{position:absolute;left:${m.inicial.centroMm.x}mm;top:${m.inicial.centroMm.y}mm;transform:translate(-50%,-50%)${m.inicial.escalaX ? ` scaleX(${m.inicial.escalaX})` : ''};font:${m.inicial.tamanhoPt}pt/1 "InicialFonte";white-space:nowrap;${corDaInicial(m.inicial)}}
 .nome{position:absolute;left:${m.nome.centroMm.x}mm;top:${m.nome.centroMm.y}mm;transform:translate(-50%,-50%);font:${m.nome.tamanhoPt}pt/1 "NomeFonte";color:${m.nome.cor};white-space:nowrap}
 .a{font-feature-settings:"${mod.fonteNome.inicio}"}.z{font-feature-settings:"${mod.fonteNome.fim}"}
 .ac{display:inline-block;width:1em;height:2em;margin:-2em -1em 0 0;overflow:visible;vertical-align:baseline}.ac path{fill:currentColor}

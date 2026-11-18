@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { escaparHtml, htmlDaPagina, inicialDoNome, DESCE_CIRCUNFLEXO, letraHtml, MODELOS, modeloPorId, nomeHtml, semAcento, validarEntrada } from '../src/personalizar/modelo';
+import { corDaInicial, escaparHtml, htmlDaPagina, inicialDoNome, DESCE_CIRCUNFLEXO, letraHtml, MODELOS, modeloPorId, nomeHtml, semAcento, validarEntrada } from '../src/personalizar/modelo';
 import { FONTES_ACENTOS } from '../src/personalizar/acentos';
 
 describe('inicialDoNome', () => {
@@ -252,5 +252,22 @@ describe('capa Minimalista', () => {
     expect(azul.inicial.centroMm.y - verde.inicial.centroMm.y).toBeCloseTo(2.818, 2);
     expect(off.inicial.centroMm.y - verde.inicial.centroMm.y).toBeCloseTo(-4.184, 2);
     expect(azul.nome.centroMm.x - verde.nome.centroMm.x).toBeCloseTo(1.208, 2);
+  });
+});
+
+describe('corDaInicial (a letra grande não pode ter o gancho cortado)', () => {
+  test('cor lisa pinta o texto direto, sem recorte de fundo (J, Q e Y não perdem a curva de baixo)', () => {
+    expect(corDaInicial({ corCentro: '#314C7A', corBorda: '#314C7A' })).toBe('color:#314C7A');
+  });
+  test('degradê ganha folga simétrica em cima e embaixo e mantém o centro do degradê no mesmo lugar', () => {
+    const c = corDaInicial({ corCentro: '#CC93AD', corBorda: '#E0B8C9' });
+    expect(c).toContain('padding:.3em 0');
+    expect(c).toContain('ellipse 50% .5em at 50% .83em');
+    expect(c).toContain('background-clip:text');
+  });
+  test('todos os modelos do Minimalista usam cor lisa na letra', () => {
+    for (const m of MODELOS.filter((x) => x.id.startsWith('minimalista-'))) {
+      expect(m.inicial.corCentro).toBe(m.inicial.corBorda);
+    }
   });
 });
