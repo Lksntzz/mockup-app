@@ -371,3 +371,13 @@ Teste no Personalizar: Minimalista Azul com o nome "Julio" (letra J). O J deve a
 ## Seletor Frente/Verso do molde com PDF de 1 página (v0.21.1)
 
 Na pasta de um cliente com `capa (1).pdf` e `contracapa (1).pdf` (cada um com 1 página): os seletores "Frente do molde" e "Verso do molde" mostram só **capa (1).pdf — página 1** e **contracapa (1).pdf — página 1**, sem "página 2". Num PDF de 2 páginas continuam aparecendo as páginas 1 e 2. Logo que a pasta abre a lista pode mostrar a "página 2" por uma fração de segundo, até o app ler o PDF.
+
+## Arte com proporção diferente: encaixe inteiro (v0.21.2)
+
+Antes, uma arte quase quadrada numa capa alta era **ampliada e cortada nos lados**. Agora o app faz o mesmo que o Corel: a arte aparece **inteira, centralizada, sem cortar**, e a sobra em cima e embaixo fica **branca**.
+
+1. Na aba **MKP**, abra de novo (feche o PDF antes; não use "Retomando") o PDF `CAPAS GRACHIS DIVERSOS.pdf`.
+2. Selecione a **Capa 2** (a do Snoopy e Charlie Brown, que tem o aviso amarelo "proporção diferente do normal").
+   - **Resultado esperado:** o desenho aparece **inteiro** (cabeça do Charlie e orelha do Snoopy sem cortes), **menor** e centralizado, com faixa branca em cima e embaixo. Compare com o molde no Corel: mesmo tamanho e mesma posição.
+3. Selecione a **Capa 1** e a **Capa 3** (proporção normal).
+   - **Resultado esperado:** iguais ao que eram antes, sem faixas.

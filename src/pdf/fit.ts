@@ -21,6 +21,32 @@ export function coverCrop(art: Raster, ratio: number): Raster {
   return out;
 }
 
+/**
+ * Encaixa a arte INTEIRA na proporção `ratio` (largura/altura) da capa, centralizada, sem cortar nem esticar:
+ * o que sobra em volta vira papel branco. É o que o macro do Corel faz (`ColocarArte`: cabe dentro de 150 × 210 mm
+ * e centraliza), então o mockup mostra a arte do mesmo tamanho e no mesmo lugar do molde. Pixel transparente vira branco.
+ */
+export function containPad(art: Raster, ratio: number): Raster {
+  const atual = art.width / art.height;
+  if (Math.abs(atual - ratio) < 1e-9) return art;
+  let w = art.width;
+  let h = art.height;
+  if (atual > ratio) h = Math.max(art.height, Math.round(art.width / ratio));
+  else w = Math.max(art.width, Math.round(art.height * ratio));
+  const x0 = Math.floor((w - art.width) / 2);
+  const y0 = Math.floor((h - art.height) / 2);
+  const out: Raster = { width: w, height: h, data: new Uint8ClampedArray(w * h * 4).fill(255) };
+  for (let y = 0; y < art.height; y++) {
+    for (let x = 0; x < art.width; x++) {
+      const de = (y * art.width + x) * 4;
+      const a = (art.data[de + 3] as number) / 255;
+      const para = ((y0 + y) * w + x0 + x) * 4;
+      for (let c = 0; c < 3; c++) out.data[para + c] = Math.round((art.data[de + c] as number) * a + 255 * (1 - a));
+    }
+  }
+  return out;
+}
+
 /** Versão menor da imagem (média de cada bloco de pixels), com a mesma proporção. Imagem já pequena volta como está. */
 export function reduzir(r: Raster, largura: number): Raster {
   if (r.width <= largura) return r;

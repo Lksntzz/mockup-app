@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { newRaster } from '../../src/engine/blend';
-import { coverCrop, reduzir } from '../../src/pdf/fit';
+import { containPad, coverCrop, reduzir } from '../../src/pdf/fit';
 import type { Raster } from '../../src/engine/types';
 
 function faixas(w: number, h: number): Raster {
@@ -55,5 +55,34 @@ describe('reduzir', () => {
   test('proporção que não divide certinho: altura acompanha a largura', () => {
     const r = reduzir(quadro(100, 150, () => [9, 9, 9, 255]), 40);
     expect([r.width, r.height]).toEqual([40, 60]);
+  });
+});
+
+describe('containPad (igual ao macro do Corel: arte inteira, centralizada, sobra branca)', () => {
+  test('arte quase quadrada numa capa alta ganha faixas brancas em cima e embaixo, sem perder pixel', () => {
+    const out = containPad(faixas(711, 736), 148 / 210);
+    expect(out.width).toBe(711);
+    expect(out.height).toBe(Math.round(711 / (148 / 210)));
+    const topo = Math.floor((out.height - 736) / 2);
+    expect([...out.data.subarray(0, 4)]).toEqual([255, 255, 255, 255]); // faixa de cima é branca
+    const i = (topo * out.width + 10) * 4; // primeira linha da arte, coluna 10
+    expect(out.data[i]).toBe(10);
+    expect(out.data[i + 1]).toBe(0);
+  });
+  test('arte mais alta que a capa ganha faixas brancas dos lados', () => {
+    const out = containPad(faixas(100, 200), 1);
+    expect([out.width, out.height]).toEqual([200, 200]);
+    expect(out.data[0]).toBe(255);
+    expect(out.data[(50 * 4)]).toBe(0); // coluna 50 = primeira coluna da arte (valor 0)
+  });
+  test('mesma proporção devolve a mesma arte', () => {
+    const a = faixas(143, 200);
+    expect(containPad(a, 143 / 200)).toBe(a);
+  });
+  test('pixel transparente vira branco', () => {
+    const a = newRaster(2, 2); // tudo transparente
+    const out = containPad(a, 0.5); // 2 × 4: a arte fica nas linhas 1 e 2
+    expect([out.width, out.height]).toEqual([2, 4]);
+    expect([...out.data.subarray(2 * 4, 2 * 4 + 4)]).toEqual([255, 255, 255, 255]); // linha 1 (da arte)
   });
 });
