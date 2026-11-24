@@ -26,7 +26,7 @@ import { exportAll, type ExportCapa, type ExportExtra } from '../export/exporter
 import type { Accessory, Choices, Pack, Raster } from '../engine/types';
 import { cropMargins, cropToBox, widthForArt } from '../pdf/crop';
 import { caixaDoMolde, ehArteDoMoldeDoCorel, ehPaginaA4 } from '../pdf/molde';
-import { encaixarNoQuadro, reduzir } from '../pdf/fit';
+import { containPad, reduzir } from '../pdf/fit';
 import { capaPageNumbers } from '../pdf/pages';
 import { openPdf, PdfError } from '../pdf/reader';
 import { iniciarPersonalizar, mostrarPersonalizar } from './personalizar';
@@ -703,7 +703,7 @@ async function abrirPdf(arquivo: ArquivoPdf, retomada?: Retomada): Promise<void>
     if (ehImagem(nome)) {
       mensagem('Lendo a imagem…');
       const img = await lerImagem(bytes);
-      artes.push(reduzir(encaixarNoQuadro(img, razaoDaCapa, TOLERANCIA_DE_PROPORCAO), 1200));
+      artes.push(reduzir(containPad(img, razaoDaCapa), 1200));
       versos.push(null);
       novaInfo.push({
         pagina: 1,
@@ -732,11 +732,11 @@ async function abrirPdf(arquivo: ArquivoPdf, retomada?: Retomada): Promise<void>
           semVerso: n + 1 > doc.pageCount,
           avisoProporcao: Math.abs(proporcao / razaoDaCapa - 1) > TOLERANCIA_DE_PROPORCAO,
         });
-        artes.push(encaixarNoQuadro(recortada, razaoDaCapa, TOLERANCIA_DE_PROPORCAO));
+        artes.push(containPad(recortada, razaoDaCapa));
         // a página par seguinte é o verso: vai para a contra capa
         // (guardada na proporção da capa: serve de face grande no mockup do verso e é recortada para a contra capa na frente)
         if (temContraCapa && n + 1 <= doc.pageCount) {
-          versos.push(encaixarNoQuadro(await lerArteDaPagina(doc, n + 1), razaoDaCapa, TOLERANCIA_DE_PROPORCAO));
+          versos.push(containPad(await lerArteDaPagina(doc, n + 1), razaoDaCapa));
         } else {
           versos.push(null);
         }
