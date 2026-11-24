@@ -1,4 +1,5 @@
 import type { Raster } from '../engine/types';
+import { cropToBox } from './crop';
 
 /**
  * Corta a arte (centralizado) para ter a proporção `ratio` (largura/altura) da capa, sem esticar nada.
@@ -45,6 +46,25 @@ export function containPad(art: Raster, ratio: number): Raster {
     }
   }
   return out;
+}
+
+/** O quadro da arte (com dobra e sobra) e o miolo que vira a capa, em mm: os mesmos do molde do Corel. */
+export const QUADRO_MM = { w: 195, h: 255 };
+export const MIOLO_MM = { w: 150, h: 210 };
+
+/**
+ * Arte de proporção diferente da capa: ela é encaixada INTEIRA no quadro de 195 × 255 mm (centralizada, sobra branca)
+ * e a capa é só o miolo de 150 × 210 mm no centro desse quadro, igual ao molde. Em arte quase quadrada os lados
+ * saem da capa; o zoom e a posição ajustam depois no MKP. Arte que já tem a proporção da capa (dentro da
+ * `tolerancia`) só é encaixada inteira na capa, sem passar pelo quadro.
+ */
+export function encaixarNoQuadro(art: Raster, razaoDaCapa: number, tolerancia: number): Raster {
+  if (Math.abs(art.width / art.height / razaoDaCapa - 1) <= tolerancia) return containPad(art, razaoDaCapa);
+  const quadro = containPad(art, QUADRO_MM.w / QUADRO_MM.h);
+  const w = MIOLO_MM.w / QUADRO_MM.w;
+  const h = MIOLO_MM.h / QUADRO_MM.h;
+  const miolo = cropToBox(quadro, { x: (1 - w) / 2, y: (1 - h) / 2, w, h });
+  return containPad(miolo, razaoDaCapa); // acerto de décimos de milímetro até a proporção exata da capa
 }
 
 /** Versão menor da imagem (média de cada bloco de pixels), com a mesma proporção. Imagem já pequena volta como está. */

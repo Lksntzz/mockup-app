@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { newRaster } from '../../src/engine/blend';
-import { containPad, coverCrop, reduzir } from '../../src/pdf/fit';
+import { containPad, coverCrop, encaixarNoQuadro, reduzir } from '../../src/pdf/fit';
 import type { Raster } from '../../src/engine/types';
 
 function faixas(w: number, h: number): Raster {
@@ -84,5 +84,29 @@ describe('containPad (igual ao macro do Corel: arte inteira, centralizada, sobra
     const out = containPad(a, 0.5); // 2 × 4: a arte fica nas linhas 1 e 2
     expect([out.width, out.height]).toEqual([2, 4]);
     expect([...out.data.subarray(2 * 4, 2 * 4 + 4)]).toEqual([255, 255, 255, 255]); // linha 1 (da arte)
+  });
+});
+
+describe('encaixarNoQuadro (quadro 195 × 255, capa = miolo 150 × 210)', () => {
+  const RAZAO = 148 / 210;
+  test('arte quase quadrada: cabe inteira no quadro e a capa é o miolo (perde ~23% da largura, mantém a altura)', () => {
+    const out = encaixarNoQuadro(faixas(711, 736), RAZAO, 0.1);
+    expect(Math.abs(out.width / out.height - RAZAO)).toBeLessThan(0.005);
+    // quadro = 711 × 929; miolo = 547 × 765; a arte (736 de altura) cabe quase toda nele
+    expect(out.height).toBeGreaterThanOrEqual(760);
+    expect(out.height).toBeLessThanOrEqual(780);
+    // coluna do meio da capa = coluna do meio da arte (valor ~355)
+    const meio = Math.floor(out.width / 2);
+    const linhaArte = Math.floor(out.height / 2);
+    expect(Math.abs((out.data[(linhaArte * out.width + meio) * 4] as number) - (355 % 256))).toBeLessThan(3);
+  });
+  test('arte na proporção da capa não passa pelo quadro (não é ampliada nem cortada)', () => {
+    const a = faixas(148, 210);
+    expect(encaixarNoQuadro(a, RAZAO, 0.1)).toBe(a);
+  });
+  test('arte dentro da tolerância só ganha faixas pequenas, sem cortar', () => {
+    const out = encaixarNoQuadro(faixas(195, 255), RAZAO, 0.1); // 0,765 vs 0,705: 8,5% de diferença
+    expect(out.width).toBe(195);
+    expect(out.height).toBeGreaterThan(255);
   });
 });

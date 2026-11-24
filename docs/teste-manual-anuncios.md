@@ -372,12 +372,12 @@ Teste no Personalizar: Minimalista Azul com o nome "Julio" (letra J). O J deve a
 
 Na pasta de um cliente com `capa (1).pdf` e `contracapa (1).pdf` (cada um com 1 página): os seletores "Frente do molde" e "Verso do molde" mostram só **capa (1).pdf — página 1** e **contracapa (1).pdf — página 1**, sem "página 2". Num PDF de 2 páginas continuam aparecendo as páginas 1 e 2. Logo que a pasta abre a lista pode mostrar a "página 2" por uma fração de segundo, até o app ler o PDF.
 
-## Arte com proporção diferente: encaixe inteiro (v0.21.2)
+## Arte com proporção diferente: quadro 195 × 255, capa 150 × 210 (v0.21.3)
 
-Antes, uma arte quase quadrada numa capa alta era **ampliada e cortada nos lados**. Agora o app faz o mesmo que o Corel: a arte aparece **inteira, centralizada, sem cortar**, e a sobra em cima e embaixo fica **branca**.
+Artes com a proporção da capa (as que **não** têm o aviso amarelo) ficam como estavam. Artes com o aviso **"proporção diferente do normal"** agora seguem o molde do Corel: a arte é encaixada **inteira** no quadro de **195 × 255 mm** (centralizada, sobra branca) e a capa mostra só o **miolo de 150 × 210 mm** do centro.
 
-1. Na aba **MKP**, abra de novo (feche o PDF antes; não use "Retomando") o PDF `CAPAS GRACHIS DIVERSOS.pdf`.
-2. Selecione a **Capa 2** (a do Snoopy e Charlie Brown, que tem o aviso amarelo "proporção diferente do normal").
-   - **Resultado esperado:** o desenho aparece **inteiro** (cabeça do Charlie e orelha do Snoopy sem cortes), **menor** e centralizado, com faixa branca em cima e embaixo. Compare com o molde no Corel: mesmo tamanho e mesma posição.
+1. Na aba **MKP**, feche o PDF e abra `CAPAS GRACHIS DIVERSOS.pdf` de novo (não use "Retomando").
+2. Selecione a **Capa 2** (Snoopy e Charlie Brown).
+   - **Resultado esperado:** a arte ocupa quase toda a altura da capa e **os lados saem um pouco** (é o miolo do quadro). Se quiser ver tudo, use o **zoom** (roda do mouse na prévia) ou arraste os cantos para diminuir e centralizar.
 3. Selecione a **Capa 1** e a **Capa 3** (proporção normal).
-   - **Resultado esperado:** iguais ao que eram antes, sem faixas.
+   - **Resultado esperado:** iguais ao que eram antes.
