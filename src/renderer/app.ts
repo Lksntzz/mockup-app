@@ -1494,7 +1494,11 @@ function linhaDoCliente(c: Cliente): HTMLElement {
           o.textContent = doCorel.includes(a) ? `${nomeDoCaminho(a)} (PDF do Corel)` : nomeDoCaminho(a);
           lista.append(o);
         }
-        lista.addEventListener('change', () => (escolhida = lista.value));
+        lista.addEventListener('change', () => {
+          escolhida = lista.value;
+          lista.title = lista.selectedOptions[0]?.textContent ?? '';
+        });
+        lista.title = lista.selectedOptions[0]?.textContent ?? '';
         rotuloMkp.append(lista);
         grupoMkp.append(rotuloMkp);
       } else {
@@ -1529,6 +1533,7 @@ function linhaDoCliente(c: Cliente): HTMLElement {
             });
             const ini = alvo ? fontes.findIndex((f) => f.caminho === alvo.caminho && f.pagina === alvo.pagina) : -1;
             lista.value = ini >= 0 ? String(ini) : '';
+            lista.title = lista.selectedOptions[0]?.textContent ?? ''; // nome inteiro ao passar o mouse (a lista corta nomes longos)
           };
           preencher(inicial());
           // depois de ler os PDFs: tira as páginas que não existem, mantendo a escolha quando ela ainda vale
@@ -1537,6 +1542,7 @@ function linhaDoCliente(c: Cliente): HTMLElement {
             const existe = escolhida && fontes.some((f) => f.caminho === escolhida.caminho && f.pagina === escolhida.pagina);
             preencher(existe ? escolhida : inicial());
           });
+          lista.addEventListener('change', () => (lista.title = lista.selectedOptions[0]?.textContent ?? ''));
           caixa.append(lista);
           grupoCorel.append(caixa);
           return atual;

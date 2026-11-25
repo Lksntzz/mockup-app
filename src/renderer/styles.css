@@ -480,6 +480,9 @@ button.secundario:hover:not(:disabled) { background: #f3f4f6; border-color: #c3c
 
 /* grupos do card (1. molde no Corel, 2. fazer o MKP) */
 .cc-grupo { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--borda); border-radius: 10px; background: #fafbff; }
+.cliente-linha > *, .cc-acoes, .cc-grupo, .cc-fonte { min-width: 0; max-width: 100%; }
+/* a largura natural do select é a do nome mais longo da lista; com width:0 ele só ocupa o que o card dá e não estoura a borda */
+.cc-select { width: 0; }
 .cc-grupo-titulo { flex: 1 1 100%; font-size: 12px; font-weight: 700; color: var(--acento-escuro, #3730a3); }
 
 /* aba Personalizar */

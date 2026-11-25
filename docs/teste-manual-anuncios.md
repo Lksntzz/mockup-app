@@ -380,3 +380,11 @@ Uma arte quase quadrada numa capa alta aparece **inteira, centralizada, sem cort
 2. Selecione a **Capa 2** (Snoopy e Charlie Brown, com o aviso amarelo).
    - **Resultado esperado:** o desenho aparece **inteiro**, menor e centralizado, com faixa branca em cima e embaixo. Compare com o molde no Corel. Se precisar, ajuste com o zoom (roda do mouse) ou arrastando os cantos.
 3. Selecione a **Capa 1** e a **Capa 3**: iguais ao que eram antes.
+
+## Card do cliente cabe na janela (v0.21.4)
+
+Antes, com nomes de arquivo compridos (ex.: `MODELOS DE CAPA E CONTRACAPA.pdf — página 1`), os blocos "Ajustar a arte no molde" e "Fazer o MKP" e a barra de etapas **passavam da borda direita do card**.
+
+1. Na aba **Cliente**, abra uma pasta em "1 · Aguarda arte" que tenha um PDF de nome comprido.
+2. **Resultado esperado:** tudo fica **dentro do card**, inclusive "4 Finalizado" e o botão "Fazer MKP". Diminua a largura da janela: os botões descem para a linha de baixo, nada sai do card.
+3. Passe o mouse sobre um seletor ("Frente do molde", "Verso do molde", "Arquivo do MKP"): aparece o **nome completo**, com "página 1" ou "página 2".
