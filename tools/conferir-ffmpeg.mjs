@@ -2,7 +2,6 @@
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { dirname, join } from 'node:path';
 
 const caminho = createRequire(import.meta.url)('ffmpeg-static');
 if (!caminho) {
@@ -10,7 +9,7 @@ if (!caminho) {
   process.exit(1);
 }
 for (const extra of ['.LICENSE', '.README']) {
-  if (!existsSync(join(dirname(caminho), `ffmpeg${extra}`))) {
+  if (!existsSync(`${caminho}${extra}`)) {
     console.log(`ERRO: falta o arquivo ffmpeg${extra} do pacote (a licença GPL precisa acompanhar o instalador).`);
     process.exit(3);
   }
