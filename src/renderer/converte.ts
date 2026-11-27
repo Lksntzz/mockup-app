@@ -1,3 +1,5 @@
+import { LINKS_DE_LICENCA } from '../converte/licencas';
+import ffmpegStatic from '../../node_modules/ffmpeg-static/package.json';
 import { formatarBytes, formatarTempo, rotuloDoFormato, rotuloDoVideo } from '../app/converte-ui';
 import type { InfoDoVideo } from '../converte/info';
 import type { MockupApi } from './global';
@@ -179,5 +181,24 @@ export function iniciarConverte(): void {
   });
   $('cv-abrir-pasta').addEventListener('click', () => {
     if (saidaFinal) void api.converteAbrirPasta(saidaFinal);
+  });
+
+  // ---- painel "Licenças": o link só abre os endereços combinados (a lista é a mesma que o programa principal confere) ----
+  $('cv-licencas-versao').textContent = ffmpegStatic.version;
+  const links = $('cv-licencas-links');
+  for (const l of LINKS_DE_LICENCA) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'secundario';
+    b.textContent = l.texto;
+    b.title = l.url;
+    b.addEventListener('click', () => void api.abrirLinkDeLicenca(l.url));
+    links.append(b);
+  }
+  $('cv-licencas').addEventListener('click', () => {
+    const painel = $('cv-licencas-painel');
+    painel.hidden = !painel.hidden;
+    $('cv-licencas').setAttribute('aria-expanded', String(!painel.hidden));
+    if (!painel.hidden) painel.scrollIntoView({ block: 'nearest' });
   });
 }

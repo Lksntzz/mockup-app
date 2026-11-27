@@ -553,3 +553,6 @@ body.arrastando .cv-soltar { border-color: var(--acento); background: var(--acen
 .cv-pronto { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 10px 12px; border-radius: 8px; background: var(--verde-fundo); color: var(--verde); font-weight: 600; }
 .cv-pronto span { min-width: 0; overflow-wrap: anywhere; }
 .cv-rodape { width: 100%; max-width: 640px; display: flex; justify-content: flex-end; margin-top: auto; }
+.cv-licencas p { margin: 0; overflow-wrap: anywhere; }
+.cv-licencas code { font-size: 12px; background: #f1f2f8; padding: 1px 5px; border-radius: 4px; }
+.cv-licencas .cv-opcoes button { max-width: 100%; text-align: left; }

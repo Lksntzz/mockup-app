@@ -42,6 +42,7 @@ import { criarRascunhos } from "./rascunhos";
 import { criarConfigDesigner, type ConfigDesigner } from "./config-designer";
 import { criarConversor, type Conversor } from "./converte";
 import { pedidoValido } from "./converte-ipc";
+import { linkDeLicencaPermitido } from "../converte/licencas";
 import { caminhoDoFfmpeg } from "./ffmpeg-caminho";
 import {
   ehPasta,
@@ -319,6 +320,11 @@ ipcMain.handle("converte-iniciar", async (e, caminho: unknown, pedido: unknown) 
 app.on("before-quit", () => conversaoEmAndamento?.cancelar());
 ipcMain.handle("converte-cancelar", () => {
   conversaoEmAndamento?.cancelar();
+});
+ipcMain.handle("abrir-link-de-licenca", async (_e, url: unknown) => {
+  if (!linkDeLicencaPermitido(url)) return { ok: false, motivo: "Endereço não permitido." };
+  await shell.openExternal(url as string);
+  return { ok: true };
 });
 ipcMain.handle("converte-abrir-pasta", (_e, saida: unknown) => {
   if (typeof saida !== "string" || !isAbsolute(saida) || !existsSync(saida)) return { ok: false, motivo: "Arquivo não encontrado." };
