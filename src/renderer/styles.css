@@ -178,6 +178,23 @@ body:not([data-estado="pronto"]) #coluna-capas { display: none; }
 .nav button[aria-pressed="true"] { color: var(--acento-escuro); border-bottom-color: var(--acento); }
 .nav .badge { margin-left: 4px; }
 .topo .secundario { padding: 6px 12px; font-size: 13px; }
+/* seletor das duas ferramentas (MKP | Converte): segmentado, para não ser confundido com as abas */
+.ferramentas { display: inline-flex; align-self: center; padding: 3px; gap: 2px; background: #eef0f7; border-radius: 10px; }
+.ferramentas button { border: 0; background: none; border-radius: 8px; padding: 6px 14px; font-weight: 700; color: var(--suave); }
+.ferramentas button:hover:not(:disabled):not([aria-pressed="true"]) { background: #e2e5f1; color: var(--texto); }
+.ferramentas button[aria-pressed="true"] { background: var(--superficie); color: var(--acento-escuro); box-shadow: 0 1px 2px rgba(20, 24, 31, .15); }
+.ferramentas + .nav { padding-left: 14px; border-left: 1px solid var(--borda); }
+body[data-ferramenta="converte"] .faixa-arquivo { display: none !important; }
+/* janela estreita (modo designer liga todas as abas): só o ícone da marca e botões mais justos, para a barra caber */
+@media (max-width: 900px) {
+  .topo { gap: 10px; padding: 0 12px; flex-wrap: wrap; }
+  .operador { white-space: nowrap; }
+  .marca-nome { display: none; }
+  .marca { padding-right: 10px; }
+  .ferramentas button { padding: 6px 10px; }
+  .ferramentas + .nav { padding-left: 10px; }
+  .nav button { padding: 0 10px; }
+}
 
 .centro { justify-content: flex-start; }
 .centro > .vazio, .centro > .previa { margin-block: auto; }

@@ -12,7 +12,11 @@
   <body data-estado="carregando-pacote">
     <header class="topo">
       <div class="marca" aria-hidden="true"><svg class="marca-icone" viewBox="0 0 96 96" aria-hidden="true"><rect x="4" y="4" width="88" height="88" rx="22" fill="#14181f"/><path d="M24 70V26H34L48 46L62 26H66L72 32V70H62V44L50 62H46L34 44V70Z" fill="#fff"/><path d="M66 26L72 32H66Z" fill="#1f4fb8"/></svg><span class="marca-nome">Mockup da Agenda</span></div>
-      <nav class="nav" aria-label="Seções">
+      <nav id="ferramentas" class="ferramentas" aria-label="Ferramentas">
+        <button id="ferr-mkp" type="button" aria-pressed="true">MKP</button>
+        <button id="ferr-converte" type="button" aria-pressed="false">Converte</button>
+      </nav>
+      <nav id="abas-mkp" class="nav" aria-label="Seções do MKP">
         <button id="tab-novo" type="button" aria-pressed="true">MKP</button>
         <button id="tab-historico" type="button" aria-pressed="false">Histórico</button>
         <button id="tab-pasta1" type="button" aria-pressed="false" hidden>Cliente <span id="badge-cliente" class="badge" hidden></span></button>
@@ -257,6 +261,7 @@
             <div id="historico-lista"></div>
           </section>
     </main>
+    <main id="converte" class="converte" aria-label="Converte vídeo" hidden></main>
     <div id="tela-designer" class="tela-designer" role="status" aria-live="polite" hidden>
       <svg class="designer-logo" viewBox="0 0 96 96" aria-hidden="true"><rect x="4" y="4" width="88" height="88" rx="22" fill="#fff"/><path d="M24 70V26H34L48 46L62 26H66L72 32V70H62V44L50 62H46L34 44V70Z" fill="#14181f"/><path d="M66 26L72 32H66Z" fill="#1f4fb8"/></svg>
       <div id="designer-giro" class="giro" aria-hidden="true"></div>

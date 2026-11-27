@@ -1,3 +1,4 @@
+import { ferramentaValida, visibilidade, type Ferramenta } from '../app/ferramentas';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { createPreviewScheduler } from '../app/scheduler';
 import { aplicarAjustes, ajustesDoEstado, aplicarEscolhas, contarIgnoradas, descreverSaidas, formatarData, situacaoDoTrabalho, type EntradaHistorico, type Saidas } from '../app/historico';
@@ -981,6 +982,7 @@ async function iniciar(): Promise<void> {
     }
     pacote = { pack: JSON.parse(json) as Pack, layers };
     void api.designerEstado().then(aplicarDesigner, () => undefined);
+    void api.ferramentaLer().then((f) => mostrarFerramenta(ferramentaValida(f), false), () => undefined);
     void api.operador().then((nome) => {
       $('historico-operador').textContent = nome;
     });
@@ -1113,8 +1115,34 @@ async function desenharHistorico(): Promise<void> {
   }
 }
 
-function mostrarAba(aba: 'novo' | 'historico' | 'pasta1' | 'config' | 'anuncios' | 'personalizar'): void {
+// ---- barra de ferramentas: MKP (as abas de sempre) e Converte ----
+let ferramentaAtual: Ferramenta = 'mkp';
+type AbaDoMkp = 'novo' | 'historico' | 'pasta1' | 'config' | 'anuncios' | 'personalizar';
+/** A aba do MKP que estava aberta: ao voltar do Converte, o MKP reaparece do jeito que ficou. */
+let abaDoMkp: AbaDoMkp = 'novo';
+
+function mostrarFerramenta(f: Ferramenta, gravar = true): void {
+  ferramentaAtual = f;
+  const v = visibilidade(f);
+  document.body.dataset.ferramenta = f;
+  $('ferr-mkp').setAttribute('aria-pressed', String(f === 'mkp'));
+  $('ferr-converte').setAttribute('aria-pressed', String(f === 'converte'));
+  $('abas-mkp').hidden = !v.abasDoMkp;
+  $('converte').hidden = !v.converte;
+  if (v.conteudoDoMkp) mostrarAba(abaDoMkp);
+  else {
+    document.querySelector<HTMLElement>('.area')!.hidden = true;
+    $('paginas').hidden = true;
+  }
+  if (gravar) void api.ferramentaGravar(f).catch(() => undefined);
+}
+$('ferr-mkp').addEventListener('click', () => mostrarFerramenta('mkp'));
+$('ferr-converte').addEventListener('click', () => mostrarFerramenta('converte'));
+
+function mostrarAba(aba: AbaDoMkp): void {
   if ((aba === 'pasta1' || aba === 'config' || aba === 'anuncios') && !designer.designer) aba = 'novo';
+  abaDoMkp = aba;
+  if (ferramentaAtual !== 'mkp') return; // dentro do Converte nada do MKP aparece; a aba fica guardada para a volta
   const pagina = aba !== 'novo';
   document.querySelector<HTMLElement>('.area')!.hidden = pagina;
   $('paginas').hidden = !pagina;
@@ -2216,6 +2244,8 @@ document.addEventListener('drop', async (e) => {
   e.preventDefault();
   // com a aba Anúncios na tela, um PDF solto fora da área dela não pode ir parar escondido na aba MKP
   if (!$('anuncios').hidden) return;
+  // dentro do Converte o arquivo solto é tratado pela tela do Converte (Tarefa 8), nunca como PDF do MKP
+  if (ferramentaAtual === 'converte') return;
   const arquivo = e.dataTransfer?.files[0];
   if (!arquivo) return;
   if (document.body.dataset.estado !== 'vazio') {
