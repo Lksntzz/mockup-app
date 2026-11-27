@@ -37,6 +37,9 @@ jobs:
           cache: npm
       - if: steps.versao.outputs.publicar == 'sim'
         run: npm ci
+      - name: Conferir o ffmpeg do Converte (programa e codificadores)
+        if: steps.versao.outputs.publicar == 'sim'
+        run: node tools/conferir-ffmpeg.mjs
       - if: steps.versao.outputs.publicar == 'sim'
         run: npx vitest run --exclude "tests/engine/fidelity.test.ts"
       - name: Criar a tag desta versão

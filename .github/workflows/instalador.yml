@@ -12,6 +12,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Conferir o ffmpeg do Converte (programa e codificadores)
+        run: node tools/conferir-ffmpeg.mjs
       - run: npx vitest run --exclude "tests/engine/fidelity.test.ts"
         # a fidelidade usa fixtures/ (PSD/PDF da empresa), que não vão para o repositório
       - run: npm run dist
