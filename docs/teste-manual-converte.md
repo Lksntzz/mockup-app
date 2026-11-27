@@ -1,4 +1,4 @@
-# Teste manual: ferramenta Converte (v0.22.0)
+# Teste manual: ferramenta Converte (v0.22.1)
 
 Este teste é no computador de verdade (Windows), com o app instalado. Leva uns 20 minutos. Anote ao lado de cada passo se deu certo.
 
@@ -105,6 +105,13 @@ O instalador não é assinado. Por isso o Windows pode mostrar um aviso na insta
 ## 17. Vídeo de iPhone em HDR
 
 1. Se tiver um vídeo do iPhone gravado em HDR (Dolby Vision), converta para MP4 e compare as cores com o original. **Anote** se ficaram desbotadas: é uma limitação conhecida ainda não tratada.
+
+## 18. Card de informações com miniatura (v0.22.1)
+
+1. Solte o `IMG_6040.MOV` no Converte.
+   - **Resultado esperado:** o card mostra, à esquerda, uma **miniatura do vídeo** (um quadro de 1 segundo, em pé, como o vídeo é) e, à direita, a lista: Arquivo, Formato, Vídeo (codec, medidas, quadros por segundo), Áudio, Duração e Tamanho. Enquanto a miniatura não chega aparece "carregando…".
+2. Solte um MP3: **Resultado esperado:** no lugar da miniatura aparece "Só áudio" e a lista não tem a linha "Vídeo".
+3. Estreite a janela: a miniatura passa para cima da lista, sem nada sair do card.
 
 ## Se algo falhar
 

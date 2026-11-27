@@ -1,6 +1,6 @@
 import { LINKS_DE_LICENCA } from '../converte/licencas';
 import ffmpegStatic from '../../node_modules/ffmpeg-static/package.json';
-import { formatarBytes, formatarTempo, rotuloDoFormato, rotuloDoVideo } from '../app/converte-ui';
+import { detalhesDoVideo, formatarBytes, formatarTempo, rotuloDoFormato } from '../app/converte-ui';
 import type { InfoDoVideo } from '../converte/info';
 import type { MockupApi } from './global';
 import { formatosPossiveis, planejar, type Formato, type Nivel, type Pedido } from '../converte/plano';
@@ -85,6 +85,43 @@ export function iniciarConverte(): void {
     }
   }
 
+  let fichaAtual = 0;
+  /** Card de informações: miniatura (um quadro do vídeo, que chega um instante depois) e a lista de dados. */
+  function desenharInfo(nome: string, lido: InfoDoVideo, origem: string): void {
+    const lista = $('cv-detalhes');
+    lista.replaceChildren();
+    for (const [titulo, valor] of detalhesDoVideo(nome, lido)) {
+      const dt = document.createElement('dt');
+      dt.textContent = titulo;
+      const dd = document.createElement('dd');
+      dd.textContent = valor;
+      lista.append(dt, dd);
+    }
+    const imagem = $<HTMLImageElement>('cv-miniatura-img');
+    const texto = $('cv-miniatura-texto');
+    imagem.hidden = true;
+    imagem.removeAttribute('src');
+    if (!lido.video) {
+      texto.textContent = 'Só áudio';
+      return;
+    }
+    texto.textContent = 'carregando…';
+    const minha = ++fichaAtual;
+    void api.converteMiniatura(origem, lido.duracaoS).then(
+      (url) => {
+        if (minha !== fichaAtual) return; // já abriram outro vídeo
+        if (url) {
+          imagem.src = url;
+          imagem.hidden = false;
+          texto.textContent = '';
+        } else texto.textContent = 'sem miniatura';
+      },
+      () => {
+        if (minha === fichaAtual) texto.textContent = 'sem miniatura';
+      },
+    );
+  }
+
   function limparResultado(): void {
     $('cv-pronto').hidden = true;
     $('cv-andamento').hidden = true;
@@ -112,7 +149,7 @@ export function iniciarConverte(): void {
     caminho = escolhido;
     info = lido;
     formato = formatosPossiveis(lido).includes('mp4') ? 'mp4' : 'mp3';
-    mostrar($('cv-rotulo'), rotuloDoVideo(nomeDoArquivo(escolhido), lido));
+    desenharInfo(nomeDoArquivo(escolhido), lido, escolhido);
     desenharFormatos();
     cartao.hidden = false;
     atualizar();

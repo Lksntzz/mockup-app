@@ -25,6 +25,8 @@ export interface Conversor {
   ocupado(): boolean;
   /** Versão do ffmpeg que está sendo usado (para o painel de Licenças); null se não deu para ler. */
   versao(): Promise<string | null>;
+  /** Um quadro do vídeo como JPEG (para a miniatura); null se não der. */
+  miniatura(caminho: string, duracaoS: number): Promise<Buffer | null>;
 }
 
 export interface OpcoesDoConversor {
@@ -175,5 +177,33 @@ export function criarConversor(o: OpcoesDoConversor): Conversor {
     return /^ffmpeg version (\S+)/m.exec(texto)?.[1] ?? null;
   }
 
-  return { ler, converter, ocupado: () => emUso, versao };
+  async function miniatura(caminho: string, duracaoS: number): Promise<Buffer | null> {
+    const ss = duracaoS > 2 ? 1 : duracaoS > 0 ? Math.round((duracaoS / 2) * 100) / 100 : 0;
+    const bytes = await new Promise<Buffer | null>((resolve) => {
+      const p = spawn(
+        o.ffmpeg,
+        ['-hide_banner', '-nostdin', '-v', 'error', '-ss', String(ss), '-i', caminho, '-frames:v', '1', '-vf', 'scale=480:-2', '-f', 'image2pipe', '-vcodec', 'mjpeg', '-q:v', '4', 'pipe:1'],
+        { windowsHide: true },
+      );
+      const partes: Buffer[] = [];
+      let total = 0;
+      const prazo = setTimeout(() => p.kill(), 20_000);
+      p.stdout?.on('data', (d: Buffer) => {
+        total += d.length;
+        if (total <= 3_000_000) partes.push(d);
+      });
+      p.on('error', () => {
+        clearTimeout(prazo);
+        resolve(null);
+      });
+      p.on('close', (codigo: number | null) => {
+        clearTimeout(prazo);
+        resolve(codigo === 0 && total <= 3_000_000 ? Buffer.concat(partes) : null);
+      });
+    });
+    // só serve se for mesmo um JPEG (começa com FF D8)
+    return bytes && bytes.length > 4 && bytes[0] === 0xff && bytes[1] === 0xd8 ? bytes : null;
+  }
+
+  return { ler, converter, ocupado: () => emUso, versao, miniatura };
 }

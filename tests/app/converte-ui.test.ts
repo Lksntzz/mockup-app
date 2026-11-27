@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { formatarBytes, formatarTempo, rotuloDoFormato, rotuloDoVideo } from '../../src/app/converte-ui';
+import { detalhesDoVideo, formatarBytes, formatarTempo, rotuloDoFormato, rotuloDoVideo } from '../../src/app/converte-ui';
 import type { InfoDoVideo } from '../../src/converte/info';
 
 const IPHONE: InfoDoVideo = { contenedor: 'mov', duracaoS: 26.17, tamanhoBytes: 37_254_613, video: { codec: 'hevc', largura: 1440, altura: 2560, fps: 30, rotacao: 0 }, audio: { codec: 'aac' } };
@@ -57,5 +57,30 @@ describe('rotuloDoFormato', () => {
     expect(rotuloDoFormato('webm', IPHONE)).toBe('WebM (VP9)');
     expect(rotuloDoFormato('mov', IPHONE)).toBe('MOV (H.264)');
     expect(rotuloDoFormato('mp3', IPHONE)).toBe('MP3 — só o áudio');
+  });
+});
+
+describe('detalhesDoVideo', () => {
+  test('vídeo com áudio: uma linha para cada informação', () => {
+    expect(detalhesDoVideo('IMG_6040.MOV', { ...IPHONE, contenedor: 'mov,mp4,m4a,3gp,3g2,mj2' })).toEqual([
+      ['Arquivo', 'IMG_6040.MOV'],
+      ['Formato', 'MOV'],
+      ['Vídeo', 'HEVC · 1440×2560 · 30 quadros/s'],
+      ['Áudio', 'AAC'],
+      ['Duração', '26 s'],
+      ['Tamanho', '35,5 MB'],
+    ]);
+  });
+  test('sem áudio, duração desconhecida e só áudio', () => {
+    const semAudio = detalhesDoVideo('a.mkv', { ...IPHONE, contenedor: 'matroska,webm', audio: null, duracaoS: 0 });
+    expect(semAudio).toContainEqual(['Áudio', 'sem áudio']);
+    expect(semAudio).toContainEqual(['Duração', 'desconhecida']);
+    expect(semAudio).toContainEqual(['Formato', 'MATROSKA']);
+    const soAudio = detalhesDoVideo('m.mp3', { contenedor: 'mp3', duracaoS: 182, tamanhoBytes: 4_400_000, video: null, audio: { codec: 'mp3' } });
+    expect(soAudio.map((l) => l[0])).toEqual(['Arquivo', 'Formato', 'Áudio', 'Duração', 'Tamanho']);
+  });
+  test('vídeo girado 90° mostra as medidas como aparecem; fps com vírgula', () => {
+    const r = detalhesDoVideo('a.mov', { ...IPHONE, video: { ...IPHONE.video!, largura: 1920, altura: 1080, rotacao: 90, fps: 29.97 } });
+    expect(r).toContainEqual(['Vídeo', 'HEVC · 1080×1920 · 29,97 quadros/s']);
   });
 });

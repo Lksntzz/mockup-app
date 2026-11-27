@@ -50,6 +50,7 @@ export interface MockupApi {
   converteAbrirPasta(saida: string): Promise<{ ok: true } | { ok: false; motivo: string }>;
   /** Devolve a função que para de escutar. */
   aoProgredirConverte(cb: (p: { fracao: number; restanteS: number | null }) => void): () => void;
+  converteMiniatura(caminho: string, duracaoS: number): Promise<string | null>;
   converteVersao(): Promise<string | null>;
   abrirLinkDeLicenca(url: string): Promise<{ ok: true } | { ok: false; motivo: string }>;
   ferramentaLer(): Promise<'mkp' | 'converte'>;

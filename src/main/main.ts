@@ -328,6 +328,12 @@ app.on("before-quit", (e) => {
 ipcMain.handle("converte-cancelar", () => {
   conversaoEmAndamento?.cancelar();
 });
+ipcMain.handle("converte-miniatura", async (_e, caminho: unknown, duracaoS: unknown) => {
+  if (typeof caminho !== "string" || !isAbsolute(caminho)) return null;
+  const d = typeof duracaoS === "number" && Number.isFinite(duracaoS) ? duracaoS : 0;
+  const bytes = await conversor()?.miniatura(caminho, d);
+  return bytes ? `data:image/jpeg;base64,${bytes.toString("base64")}` : null;
+});
 ipcMain.handle("converte-versao", async () => (await conversor()?.versao()) ?? null);
 ipcMain.handle("abrir-link-de-licenca", async (_e, url: unknown) => {
   if (!linkDeLicencaPermitido(url)) return { ok: false, motivo: "Endereço não permitido." };

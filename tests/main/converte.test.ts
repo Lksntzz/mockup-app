@@ -96,6 +96,42 @@ describe('ler', () => {
   });
 });
 
+describe('miniatura', () => {
+  function criarComSaida(saida: Buffer | null, codigo = 0) {
+    const chamadas: string[][] = [];
+    const spawn = ((_e: string, args: string[]) => {
+      chamadas.push(args);
+      const p = new EventEmitter() as Processo;
+      p.stdout = new EventEmitter();
+      p.stderr = new EventEmitter();
+      p.kill = () => undefined;
+      setImmediate(() => {
+        if (saida) p.stdout.emit('data', saida);
+        p.emit('close', codigo);
+      });
+      return p;
+    }) as unknown as Spawn;
+    return { conv: criarConversor({ ffmpeg: '/bin/ffmpeg', spawn }), chamadas };
+  }
+  const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 0xff, 0xd9]);
+  test('devolve os bytes do quadro e pede só um quadro, a 1 s (ou no meio de um vídeo curto)', async () => {
+    const { conv, chamadas } = criarComSaida(JPEG);
+    expect(await conv.miniatura('/v/a.mov', 26)).toEqual(JPEG);
+    const a = chamadas[0]!;
+    expect(a[a.indexOf('-ss') + 1]).toBe('1');
+    expect(a[a.indexOf('-frames:v') + 1]).toBe('1');
+    expect(a[a.indexOf('-i') + 1]).toBe('/v/a.mov');
+    const curto = criarComSaida(JPEG);
+    await curto.conv.miniatura('/v/b.mov', 0.6);
+    expect(curto.chamadas[0]![curto.chamadas[0]!.indexOf('-ss') + 1]).toBe('0.3');
+  });
+  test('falha, saída vazia ou que não é JPEG: null', async () => {
+    expect(await criarComSaida(null, 1).conv.miniatura('/v/a.mov', 10)).toBeNull();
+    expect(await criarComSaida(Buffer.from('texto'), 0).conv.miniatura('/v/a.mov', 10)).toBeNull();
+    expect(await criarComSaida(JPEG, 1).conv.miniatura('/v/a.mov', 10)).toBeNull();
+  });
+});
+
 describe('versao', () => {
   test('lê a versão da primeira linha de "ffmpeg -version"', async () => {
     const { conv, chamadas } = criar({ info: 'ffmpeg version 6.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2023 the FFmpeg developers\nbuilt with gcc 12.2.0\n' });
@@ -263,4 +299,19 @@ describe.skipIf(!process.env.FFMPEG_PATH)('com o ffmpeg real', () => {
       rmSync(pasta, { recursive: true, force: true });
     }
   }, 240000);
+
+  test('miniatura de verdade: um JPEG, mesmo com acento, & e colchetes no nome', async () => {
+    const ffmpeg = process.env.FFMPEG_PATH!;
+    const pasta = mkdtempSync(join(tmpdir(), 'converte-'));
+    try {
+      const entrada = join(pasta, 'Meu & Vídeo [1].mp4');
+      execFileSync(ffmpeg, ['-v', 'error', '-f', 'lavfi', '-i', 'testsrc=size=320x240:rate=25:duration=2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', entrada]);
+      const b = await criarConversor({ ffmpeg }).miniatura(entrada, 2);
+      expect(b).not.toBeNull();
+      expect(b![0]).toBe(0xff);
+      expect(b![1]).toBe(0xd8);
+    } finally {
+      rmSync(pasta, { recursive: true, force: true });
+    }
+  }, 60000);
 });

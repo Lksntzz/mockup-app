@@ -556,3 +556,12 @@ body.arrastando .cv-soltar { border-color: var(--acento); background: var(--acen
 .cv-licencas p { margin: 0; overflow-wrap: anywhere; }
 .cv-licencas code { font-size: 12px; background: #f1f2f8; padding: 1px 5px; border-radius: 4px; }
 .cv-licencas .cv-opcoes button { max-width: 100%; text-align: left; }
+.cv-info { display: grid; grid-template-columns: minmax(0, 150px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.cv-miniatura { display: grid; place-items: center; min-height: 90px; max-height: 240px; overflow: hidden; border-radius: 10px; background: #14181f; color: #aab0c4; }
+.cv-miniatura img { display: block; width: 100%; height: auto; max-height: 240px; object-fit: contain; }
+.cv-miniatura-texto { padding: 18px 8px; font-size: 12px; text-align: center; }
+.cv-miniatura-texto:empty { display: none; }
+.cv-detalhes { margin: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 14px; align-content: start; }
+.cv-detalhes dt { color: var(--suave); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; padding-top: 2px; }
+.cv-detalhes dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+@media (max-width: 560px) { .cv-info { grid-template-columns: minmax(0, 1fr); } .cv-miniatura { max-width: 200px; } }

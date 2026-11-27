@@ -56,3 +56,24 @@ export function rotuloDoFormato(f: Formato, _info: InfoDoVideo): string {
     case 'mp3': return 'MP3 — só o áudio';
   }
 }
+
+const quadros = (fps: number): string => (Number.isInteger(fps) ? String(fps) : String(Math.round(fps * 100) / 100).replace('.', ','));
+
+/** As linhas do card de informações do vídeo: [título, valor]. Só aparece o que o arquivo tem. */
+export function detalhesDoVideo(nome: string, info: InfoDoVideo): Array<[string, string]> {
+  const linhas: Array<[string, string]> = [
+    ['Arquivo', nome],
+    ['Formato', (info.contenedor.split(',')[0] ?? info.contenedor).toUpperCase()],
+  ];
+  if (info.video) {
+    const { codec, largura, altura, rotacao, fps } = info.video;
+    const deLado = Math.abs(rotacao) % 180 === 90;
+    const medidas = `${deLado ? altura : largura}×${deLado ? largura : altura}`;
+    linhas.push(['Vídeo', [nomeDoCodec(codec), medidas, ...(fps > 0 ? [`${quadros(fps)} quadros/s`] : [])].join(' · ')]);
+  }
+  linhas.push(['Áudio', info.audio ? nomeDoCodec(info.audio.codec) : 'sem áudio']);
+  if (!info.video && !info.audio) linhas.pop();
+  linhas.push(['Duração', info.duracaoS > 0 ? formatarTempo(info.duracaoS) : 'desconhecida']);
+  linhas.push(['Tamanho', formatarBytes(info.tamanhoBytes)]);
+  return linhas;
+}
