@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld('mockupApi', {
     ipcRenderer.on('converte-progresso', f);
     return () => ipcRenderer.removeListener('converte-progresso', f);
   },
+  converteVersao: () => ipcRenderer.invoke('converte-versao'),
   abrirLinkDeLicenca: (url: string) => ipcRenderer.invoke('abrir-link-de-licenca', url),
   ferramentaLer: () => ipcRenderer.invoke('ferramenta-ler'),
   ferramentaGravar: (f: 'mkp' | 'converte') => ipcRenderer.invoke('ferramenta-gravar', f),

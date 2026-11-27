@@ -328,6 +328,7 @@ app.on("before-quit", (e) => {
 ipcMain.handle("converte-cancelar", () => {
   conversaoEmAndamento?.cancelar();
 });
+ipcMain.handle("converte-versao", async () => (await conversor()?.versao()) ?? null);
 ipcMain.handle("abrir-link-de-licenca", async (_e, url: unknown) => {
   if (!linkDeLicencaPermitido(url)) return { ok: false, motivo: "Endereço não permitido." };
   await shell.openExternal(url as string);

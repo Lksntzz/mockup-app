@@ -96,6 +96,18 @@ describe('ler', () => {
   });
 });
 
+describe('versao', () => {
+  test('lê a versão da primeira linha de "ffmpeg -version"', async () => {
+    const { conv, chamadas } = criar({ info: 'ffmpeg version 6.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2023 the FFmpeg developers\nbuilt with gcc 12.2.0\n' });
+    expect(await conv.versao()).toBe('6.1.1-essentials_build-www.gyan.dev');
+    expect(chamadas[0]).toEqual(['-hide_banner', '-version']);
+  });
+  test('saída que não parece versão: null', async () => {
+    const { conv } = criar({ info: 'lixo\n' });
+    expect(await conv.versao()).toBeNull();
+  });
+});
+
 describe('converter', () => {
   test('mostra o progresso e termina com a saída ao lado do original', async () => {
     const eventos: Array<{ fracao: number; restanteS: number | null }> = [];

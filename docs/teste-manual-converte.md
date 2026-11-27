@@ -79,7 +79,8 @@ O instalador não é assinado. Por isso o Windows pode mostrar um aviso na insta
 ## 12. Licenças
 
 1. No rodapé do Converte, clique em **Licenças**.
-   - **Resultado esperado:** painel dizendo que o ffmpeg é software livre (GPL), aberto como programa separado, com a versão do pacote (**5.3.0**) e três botões. Cada botão abre o site correspondente no navegador.
+   - **Resultado esperado:** painel dizendo que o ffmpeg é software livre (GPL), aberto como programa separado, com a **versão do ffmpeg** (deve aparecer um número, não "lendo…" nem "não consegui ler"), o pacote (**5.3.0**) e quatro botões (site, código-fonte, página Legal e o pacote). Cada botão abre o site correspondente no navegador.
+2. Na pasta de instalação do app (`resources\ffmpeg`), confira que existem `ffmpeg.exe`, `ffmpeg.LICENSE` e `ffmpeg.README`.
 
 ## 13. Atualização não interrompe a conversão
 

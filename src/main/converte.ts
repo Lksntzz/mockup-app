@@ -23,6 +23,8 @@ export interface Conversor {
     destino?: string,
   ): { cancelar(): void; fim: Promise<ResultadoDaConversao> };
   ocupado(): boolean;
+  /** Versão do ffmpeg que está sendo usado (para o painel de Licenças); null se não deu para ler. */
+  versao(): Promise<string | null>;
 }
 
 export interface OpcoesDoConversor {
@@ -161,5 +163,17 @@ export function criarConversor(o: OpcoesDoConversor): Conversor {
     };
   }
 
-  return { ler, converter, ocupado: () => emUso };
+  async function versao(): Promise<string | null> {
+    const texto = await new Promise<string>((resolve) => {
+      const p = spawn(o.ffmpeg, ['-hide_banner', '-version'], { windowsHide: true });
+      let t = '';
+      p.stdout?.on('data', (d: Buffer) => (t += d.toString()));
+      p.stderr?.on('data', (d: Buffer) => (t += d.toString()));
+      p.on('error', () => resolve(''));
+      p.on('close', () => resolve(t));
+    });
+    return /^ffmpeg version (\S+)/m.exec(texto)?.[1] ?? null;
+  }
+
+  return { ler, converter, ocupado: () => emUso, versao };
 }

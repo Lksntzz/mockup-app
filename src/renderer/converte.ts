@@ -185,6 +185,7 @@ export function iniciarConverte(): void {
 
   // ---- painel "Licenças": o link só abre os endereços combinados (a lista é a mesma que o programa principal confere) ----
   $('cv-licencas-versao').textContent = ffmpegStatic.version;
+  void api.converteVersao().then((v) => ($('cv-licencas-ffmpeg').textContent = v ?? 'não consegui ler'), () => ($('cv-licencas-ffmpeg').textContent = 'não consegui ler'));
   const links = $('cv-licencas-links');
   for (const l of LINKS_DE_LICENCA) {
     const b = document.createElement('button');

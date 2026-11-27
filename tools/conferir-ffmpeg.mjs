@@ -1,11 +1,19 @@
 // Confere se o ffmpeg do pacote ffmpeg-static tem os codificadores que a ferramenta Converte usa.
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 
 const caminho = createRequire(import.meta.url)('ffmpeg-static');
 if (!caminho) {
   console.log('ERRO: o pacote ffmpeg-static não trouxe o programa (o download falhou?).');
   process.exit(1);
+}
+for (const extra of ['.LICENSE', '.README']) {
+  if (!existsSync(join(dirname(caminho), `ffmpeg${extra}`))) {
+    console.log(`ERRO: falta o arquivo ffmpeg${extra} do pacote (a licença GPL precisa acompanhar o instalador).`);
+    process.exit(3);
+  }
 }
 const lista = execFileSync(caminho, ['-hide_banner', '-encoders'], { encoding: 'utf8' });
 const precisa = ['libx264', 'libvpx-vp9', 'libopus', 'libmp3lame', 'aac'];
