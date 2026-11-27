@@ -1,7 +1,7 @@
 import { spawn as spawnReal } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { stat, statfs, unlink } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { dirname, join, parse } from 'node:path';
 import { lerProgresso, montarArgumentos, nomeLivre } from '../converte/argumentos';
 import { lerInfoDoFfmpeg, type InfoDoVideo } from '../converte/info';
 import { planejar, type Pedido } from '../converte/plano';
@@ -19,6 +19,8 @@ export interface Conversor {
     caminho: string,
     pedido: Pedido,
     aoProgredir: (p: { fracao: number; restanteS: number | null }) => void,
+    /** Caminho escolhido pela pessoa quando a pasta do original não aceita gravação. */
+    destino?: string,
   ): { cancelar(): void; fim: Promise<ResultadoDaConversao> };
   ocupado(): boolean;
 }
@@ -68,7 +70,7 @@ export function criarConversor(o: OpcoesDoConversor): Conversor {
     return { ok: true, info };
   }
 
-  function converter(caminho: string, pedido: Pedido, aoProgredir: (p: { fracao: number; restanteS: number | null }) => void) {
+  function converter(caminho: string, pedido: Pedido, aoProgredir: (p: { fracao: number; restanteS: number | null }) => void, destino?: string) {
     if (emUso) return { cancelar: () => undefined, fim: Promise.resolve<ResultadoDaConversao>({ ok: false, motivo: 'Já existe uma conversão em andamento.' }) };
     emUso = true;
     let cancelado = false;
@@ -82,7 +84,10 @@ export function criarConversor(o: OpcoesDoConversor): Conversor {
         if (cancelado) return cancelou;
         const plano = planejar(lido.info, pedido);
         if (!plano.ok) return plano;
-        const saida = nomeLivre(caminho, pedido.formato, existe);
+        // com destino: usa a pasta e o nome escolhidos (a "entrada" de mentira só garante que nada é sobrescrito)
+        const saida = destino
+          ? nomeLivre(join(dirname(destino), `${parse(destino).name}.__destino__`), pedido.formato, existe)
+          : nomeLivre(caminho, pedido.formato, existe);
         const livre = await espacoLivre(dirname(saida)).catch(() => Infinity);
         if (plano.estimativaBytes !== null && livre < plano.estimativaBytes * 1.1) {
           return { ok: false, motivo: `Não há espaço livre suficiente nesta pasta para o resultado (cerca de ${Math.ceil(plano.estimativaBytes / MB)} MB).` };

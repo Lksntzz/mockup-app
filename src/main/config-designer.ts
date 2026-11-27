@@ -22,6 +22,8 @@ export interface ConfigDesigner {
   etapas?: Record<string, number>;
   /** Pastas que voltaram de etapa e ainda não foram dispensadas ("Já vi"). */
   voltas?: Record<string, { de: number; para: number; em: number }>;
+  /** Ferramenta aberta por último na barra de cima (MKP ou Converte). Sem valor = MKP. */
+  ferramenta?: 'mkp' | 'converte';
 }
 
 const instancias = new Map<string, ReturnType<typeof montar>>();
@@ -51,6 +53,7 @@ function montar(arquivo: string) {
       if (typeof b.pastaAnuncios === 'string') c.pastaAnuncios = b.pastaAnuncios;
       if (typeof b.artePersonalizada === 'string') c.artePersonalizada = b.artePersonalizada;
       if (typeof b.arteImagem === 'string') c.arteImagem = b.arteImagem;
+      if (b.ferramenta === 'mkp' || b.ferramenta === 'converte') c.ferramenta = b.ferramenta;
       if (Array.isArray(b.vistos) && b.vistos.every((v) => typeof v === 'string')) c.vistos = b.vistos as string[];
       if (b.enviados && typeof b.enviados === 'object' && !Array.isArray(b.enviados)) {
         const ok = Object.entries(b.enviados as Record<string, unknown>).filter(([, v]) => typeof v === 'number' && Number.isFinite(v));

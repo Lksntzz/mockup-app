@@ -110,3 +110,17 @@ describe('pastaAnuncios', () => {
     expect(await c.ler()).toEqual({ designer: true });
   });
 });
+
+describe('ferramenta ativa', () => {
+  test('guarda e devolve a ferramenta escolhida', async () => {
+    const c = criarConfigDesigner(arquivo);
+    await c.salvar({ designer: false, ferramenta: 'converte' });
+    expect((await criarConfigDesigner(arquivo).ler()).ferramenta).toBe('converte');
+  });
+  test('valor inválido no arquivo é ignorado (fica sem ferramenta, o app usa MKP)', async () => {
+    const { mkdir } = await import('node:fs/promises');
+    await mkdir(join(pasta, 'dados'), { recursive: true });
+    await writeFile(arquivo, JSON.stringify({ designer: false, ferramenta: 'outra' }), 'utf-8');
+    expect((await criarConfigDesigner(arquivo).ler()).ferramenta).toBeUndefined();
+  });
+});

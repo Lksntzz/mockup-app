@@ -23,6 +23,18 @@ contextBridge.exposeInMainWorld('mockupApi', {
   corelGerarPdf: (caminho: string) => ipcRenderer.invoke('corel-gerar-pdf', caminho),
   notificacaoTestar: () => ipcRenderer.invoke('notificacao-testar'),
   designerProcurarPastas: (substituir: boolean, somenteAnuncios?: boolean) => ipcRenderer.invoke('designer-procurar-pastas', substituir, somenteAnuncios),
+  converteEscolher: () => ipcRenderer.invoke('converte-escolher'),
+  converteLer: (caminho: string) => ipcRenderer.invoke('converte-ler', caminho),
+  converteIniciar: (caminho: string, pedido: unknown) => ipcRenderer.invoke('converte-iniciar', caminho, pedido),
+  converteCancelar: () => ipcRenderer.invoke('converte-cancelar'),
+  converteAbrirPasta: (saida: string) => ipcRenderer.invoke('converte-abrir-pasta', saida),
+  aoProgredirConverte: (cb: (p: { fracao: number; restanteS: number | null }) => void) => {
+    const f = (_e: unknown, p: { fracao: number; restanteS: number | null }) => cb(p);
+    ipcRenderer.on('converte-progresso', f);
+    return () => ipcRenderer.removeListener('converte-progresso', f);
+  },
+  ferramentaLer: () => ipcRenderer.invoke('ferramenta-ler'),
+  ferramentaGravar: (f: 'mkp' | 'converte') => ipcRenderer.invoke('ferramenta-gravar', f),
   designerLigar: (ligado: boolean, pin?: string) => ipcRenderer.invoke('designer-ligar', ligado, pin),
   designerEscolherPasta: (qual: 'pasta1' | 'pasta2' | 'pasta3' | 'pasta4' | 'pastaAnuncios') => ipcRenderer.invoke('designer-escolher-pasta', qual),
   anunciosPastas: () => ipcRenderer.invoke('anuncios-pastas'),

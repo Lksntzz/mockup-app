@@ -9,6 +9,8 @@ import type { CardPendente, ResultadoColocarEan, ResultadoConcluir } from '../ma
 import type { ResultadoCategoria } from '../main/anuncios-pastas';
 import type { ResultadoMover } from '../main/pasta-fluxo';
 import type { ResumoDoNisti } from '../main/nisti';
+import type { ResultadoDaConversao, ResultadoDaLeitura } from '../main/converte';
+import type { Pedido } from '../converte/plano';
 export interface CamadaBruta {
   width: number;
   height: number;
@@ -41,6 +43,15 @@ export interface MockupApi {
   salvarRascunho(r: Rascunho): Promise<void>;
   removerRascunho(caminho: string): Promise<void>;
   designerEstado(): Promise<ConfigDesigner>;
+  converteEscolher(): Promise<string | null>;
+  converteLer(caminho: string): Promise<ResultadoDaLeitura>;
+  converteIniciar(caminho: string, pedido: Pedido): Promise<ResultadoDaConversao>;
+  converteCancelar(): Promise<void>;
+  converteAbrirPasta(saida: string): Promise<{ ok: true } | { ok: false; motivo: string }>;
+  /** Devolve a função que para de escutar. */
+  aoProgredirConverte(cb: (p: { fracao: number; restanteS: number | null }) => void): () => void;
+  ferramentaLer(): Promise<'mkp' | 'converte'>;
+  ferramentaGravar(f: 'mkp' | 'converte'): Promise<void>;
   fluxoConferido(caminho: string): Promise<boolean>;
   ocupado(ocupado: boolean): Promise<void>;
   fluxoVoltouVisto(caminho: string): Promise<boolean>;

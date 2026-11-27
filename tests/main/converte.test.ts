@@ -160,6 +160,12 @@ describe('converter', () => {
     const r = await conv.converter('/v/a.mov', MP4, () => undefined).fim;
     expect(r).toMatchObject({ ok: false, pastaSemPermissao: true });
   });
+  test('destino escolhido (pasta sem permissão): grava ali e nunca sobrescreve', async () => {
+    const { conv, chamadas } = criar({ info: INFO_IPHONE, conversao: (p) => saidaOk(p, 'progress=end\n') }, { existe: (c) => c === '/outra/Filme.mp4' });
+    const r = await conv.converter('/v/a.mov', MP4, () => undefined, '/outra/Filme.mp4').fim;
+    expect(r).toMatchObject({ ok: true, saida: '/outra/Filme (1).mp4' });
+    expect(chamadas.find((a) => a.includes('-progress'))!.at(-1)).toBe('/outra/Filme (1).mp4');
+  });
   test('arquivo que não é vídeo: não cria saída e explica', async () => {
     const { conv, chamadas } = criar({ info: NAO_VIDEO });
     const r = await conv.converter('/v/falso.mov', MP4, () => undefined).fim;

@@ -40,6 +40,9 @@ import { criarHistorico, nomeSeguro } from "./historico";
 import { rascunhoValido } from "../app/rascunhos";
 import { criarRascunhos } from "./rascunhos";
 import { criarConfigDesigner, type ConfigDesigner } from "./config-designer";
+import { criarConversor, type Conversor } from "./converte";
+import { pedidoValido } from "./converte-ipc";
+import { caminhoDoFfmpeg } from "./ffmpeg-caminho";
 import {
   ehPasta,
   moverParaAprovar,
@@ -236,6 +239,91 @@ ipcMain.handle("ocupado", (_e, ocupado: unknown) => {
   appOcupado = ocupado === true;
 });
 
+// ---- Converte: conversor de vídeo (um vídeo por vez; o ffmpeg roda como programa separado) ----
+let conversorAtual: Conversor | null | undefined;
+function conversor(): Conversor | null {
+  if (conversorAtual === undefined) {
+    const exe = caminhoDoFfmpeg({
+      empacotado: app.isPackaged,
+      resourcesPath: process.resourcesPath,
+      modoDev: () => {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          return (require("ffmpeg-static") as string | null) ?? null;
+        } catch {
+          return null;
+        }
+      },
+    });
+    conversorAtual = exe ? criarConversor({ ffmpeg: exe }) : null;
+  }
+  return conversorAtual;
+}
+const SEM_CONVERSOR = "O programa de conversão (ffmpeg) não foi encontrado. Reinstale o app.";
+let conversaoEmAndamento: { cancelar(): void } | null = null;
+ipcMain.handle("converte-escolher", async () => {
+  const r = await dialog.showOpenDialog({
+    title: "Escolher o vídeo para converter",
+    properties: ["openFile"],
+    filters: [
+      {
+        name: "Vídeos",
+        extensions: ["mov", "mp4", "m4v", "mkv", "avi", "webm", "wmv", "flv", "mpg", "mpeg", "3gp", "ts", "mts", "m2ts"],
+      },
+      { name: "Todos os arquivos", extensions: ["*"] },
+    ],
+  });
+  const caminho = r.filePaths[0];
+  return r.canceled || !caminho ? null : caminho;
+});
+ipcMain.handle("converte-ler", async (_e, caminho: unknown) => {
+  if (typeof caminho !== "string" || !isAbsolute(caminho)) return { ok: false, motivo: "Caminho inválido." };
+  const c = conversor();
+  if (!c) return { ok: false, motivo: SEM_CONVERSOR };
+  return c.ler(caminho);
+});
+ipcMain.handle("converte-iniciar", async (e, caminho: unknown, pedido: unknown) => {
+  if (typeof caminho !== "string" || !isAbsolute(caminho)) return { ok: false, motivo: "Caminho inválido." };
+  const p = pedidoValido(pedido);
+  if (!p) return { ok: false, motivo: "Pedido de conversão inválido." };
+  const c = conversor();
+  if (!c) return { ok: false, motivo: SEM_CONVERSOR };
+  if (c.ocupado()) return { ok: false, motivo: "Já existe uma conversão em andamento." };
+  const aoProgredir = (prog: { fracao: number; restanteS: number | null }) => {
+    if (!e.sender.isDestroyed()) e.sender.send("converte-progresso", prog);
+  };
+  const rodar = async (destino?: string) => {
+    const h = c.converter(caminho, p, aoProgredir, destino);
+    conversaoEmAndamento = h;
+    try {
+      return await h.fim;
+    } finally {
+      conversaoEmAndamento = null;
+    }
+  };
+  let r = await rodar();
+  if (!r.ok && r.pastaSemPermissao) {
+    // a pasta do original não aceita gravação: pergunta onde salvar e refaz ali
+    const nome = `${basename(caminho, extname(caminho))}.${p.formato}`;
+    const escolha = await dialog.showSaveDialog({
+      title: "Esta pasta não aceita gravação. Onde salvar o vídeo convertido?",
+      defaultPath: join(app.getPath("videos"), nome),
+      filters: [{ name: p.formato.toUpperCase(), extensions: [p.formato] }],
+    });
+    if (escolha.canceled || !escolha.filePath) return { ok: false, motivo: "Conversão cancelada.", cancelado: true };
+    r = await rodar(escolha.filePath);
+  }
+  return r;
+});
+ipcMain.handle("converte-cancelar", () => {
+  conversaoEmAndamento?.cancelar();
+});
+ipcMain.handle("converte-abrir-pasta", (_e, saida: unknown) => {
+  if (typeof saida !== "string" || !isAbsolute(saida) || !existsSync(saida)) return { ok: false, motivo: "Arquivo não encontrado." };
+  shell.showItemInFolder(saida);
+  return { ok: true };
+});
+
 const atualizador = criarAtualizador({
   updater: obterAtualizador(),
   ativo: app.isPackaged,
@@ -251,7 +339,7 @@ const atualizador = criarAtualizador({
         (w) => w.isVisible() && !w.isMinimized(),
       ),
       segundosParado: powerMonitor.getSystemIdleTime(),
-      ocupado: appOcupado || corelOcupado > 0,
+      ocupado: appOcupado || corelOcupado > 0 || (conversorAtual?.ocupado() ?? false),
     }),
 });
 setInterval(() => atualizador.instalarSeOcioso(), 10 * 1000);
@@ -310,6 +398,12 @@ async function exigirDesigner() {
 const normalizar = (p: string) =>
   process.platform === "win32" ? resolve(p).toLowerCase() : resolve(p);
 ipcMain.handle("designer-estado", () => configDoDesigner().ler());
+/** Ferramenta aberta por último (MKP ou Converte); vale para todos, não só para o designer. */
+ipcMain.handle("ferramenta-ler", async () => (await configDoDesigner().ler()).ferramenta ?? "mkp");
+ipcMain.handle("ferramenta-gravar", async (_e, f: unknown) => {
+  if (f !== "mkp" && f !== "converte") throw new Error("Ferramenta inválida.");
+  await configDoDesigner().salvar({ ferramenta: f });
+});
 // o fechar da janela não pode esperar uma leitura de arquivo: guarda o estado do Modo designer na memória
 let designerLigado = false;
 let saindo = false;
