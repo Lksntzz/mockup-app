@@ -53,6 +53,12 @@
         <button id="tela-corel-ok" class="primario" type="button">OK</button>
       </div>
     </div>
+    <div id="tela-aberta" class="tela-corel" role="dialog" aria-modal="true" aria-label="Prévia da agenda aberta" hidden>
+      <div class="tela-aberta-caixa">
+        <canvas id="aberta-canvas" class="aberta-canvas"></canvas>
+        <button id="aberta-fechar" class="primario" type="button">Fechar</button>
+      </div>
+    </div>
     <div id="atualizacao" class="faixa-atualizacao" role="status" hidden>
       <span id="texto-atualizacao"></span>
       <button id="reiniciar" class="primario" type="button" hidden>Reiniciar e atualizar</button>
@@ -94,6 +100,18 @@
           <label><input id="saida-vt" type="checkbox" /> Especificação VT (com envelope)</label>
           <label><input id="saida-sem-canguru" type="checkbox" /> Especificação sem canguru</label>
           <label><input id="saida-verso" type="checkbox" /> Verso (página par do PDF)</label>
+          <label><input id="saida-aberta" type="checkbox" /> Agenda aberta (miolo)</label>
+          <div id="aberta-opcoes" class="aberta-opcoes" hidden>
+            <div class="aberta-linha">
+              <button id="aberta-escolher" class="secundario" type="button">Escolher PDF do miolo…</button>
+              <span id="aberta-arquivo" class="aberta-arquivo">Nenhum PDF escolhido</span>
+            </div>
+            <label class="aberta-campo">Página com as duas páginas lado a lado <input id="aberta-pagina" type="number" min="1" value="2" /></label>
+            <label class="aberta-campo">Título <input id="aberta-titulo" type="text" maxlength="60" placeholder="sem título" /></label>
+            <label class="aberta-marca"><input id="aberta-seta" type="checkbox" checked /> Seta apontando para a agenda</label>
+            <p class="dica">Sai com wire-o preto. O miolo é recuado para o conteúdo não ficar debaixo dos furos.</p>
+            <button id="aberta-previa" class="secundario" type="button">Ver prévia da agenda aberta</button>
+          </div>
         </fieldset>
         <div class="acoes">
           <button id="copiar" class="secundario" type="button">Copiar estas cores para todas as capas</button>

@@ -33,6 +33,7 @@ import { capaPageNumbers } from '../pdf/pages';
 import { openPdf, PdfError } from '../pdf/reader';
 import { iniciarPersonalizar, mostrarPersonalizar } from './personalizar';
 import { iniciarAnuncios, limparSucessoPendentes, mostrarAnuncios } from './anuncios';
+import { iniciarAgendaAberta } from './aberta';
 import type { ArquivoPdf, EstadoAtualizacao, MockupApi } from './global';
 import { criarTrabalhos } from '../app/trabalhos';
 import type { Rascunho } from '../app/rascunhos';
@@ -159,6 +160,9 @@ const razaoDaFaixa = (p: Pack): number => (p.backArt ? p.backArt.size.width / p.
 /** A página par é guardada na proporção da capa; a contra capa da frente pede a proporção dela. */
 const versoDaFrente = (back: Raster | undefined): Raster | undefined =>
   back && pacote ? paraRazao(back, razaoDaFaixa(pacote.pack)) : back;
+
+/** Agenda aberta: a saída feita do PDF do miolo (uma por trabalho, não uma por capa). */
+const agendaAberta = iniciarAgendaAberta({ api, carregarVerso: () => carregarPacoteNomeado('verso'), mensagem, textoDoErro });
 
 function abasAgora(): Modo[] {
   const capa = estado?.capas[estado.selecionada];
@@ -2127,7 +2131,7 @@ async function codificarPng(r: Raster): Promise<Uint8Array> {
 
 const caixa = (id: string) => $<HTMLInputElement>(id);
 // Sempre fica ao menos uma imagem marcada: desmarcar a última não faz nada.
-const IDS_SAIDAS = ['saida-frente', 'saida-vt', 'saida-sem-canguru', 'saida-verso'];
+const IDS_SAIDAS = ['saida-frente', 'saida-vt', 'saida-sem-canguru', 'saida-verso', 'saida-aberta'];
 const nenhumaMarcada = () => IDS_SAIDAS.every((id) => !caixa(id).checked);
 for (const id of IDS_SAIDAS) {
   caixa(id).addEventListener('change', () => {
@@ -2159,6 +2163,14 @@ $('salvar-app').addEventListener('click', async () => {
 $('exportar').addEventListener('click', async () => {
   if (!estado || !pacote) return;
   const botao = $<HTMLButtonElement>('exportar');
+  if (agendaAberta.marcada()) {
+    // avisa antes de criar a pasta MKP: sem o PDF do miolo a agenda aberta não sai
+    const falta = agendaAberta.faltando();
+    if (falta) {
+      mensagem(falta, true);
+      return;
+    }
+  }
   try {
     const pasta = await api.prepararMkp(caminhoDoPdf);
     const variantes = [
@@ -2166,8 +2178,9 @@ $('exportar').addEventListener('click', async () => {
       { marcada: caixa('saida-sem-canguru').checked, suffix: 'especificacao-sem-canguru', variant: 'sem-canguru' },
     ].filter((v) => v.marcada);
     const querVerso = caixa('saida-verso').checked;
+    const querAberta = agendaAberta.marcada();
     const extras: ExportExtra[] = [];
-    if (variantes.length > 0 || querVerso) {
+    if (variantes.length > 0 || querVerso || querAberta) {
       botao.disabled = true;
       mensagem('Preparando as imagens extras…');
     }
@@ -2205,6 +2218,7 @@ $('exportar').addEventListener('click', async () => {
       layers: pacote.layers,
       capas: capasParaFrente,
       extras,
+      ...(querAberta ? { avulsas: [{ suffix: 'agenda-aberta', gerar: () => agendaAberta.gerar() }] } : {}),
       semFrente: !caixa('saida-frente').checked,
       encodePng: codificarPng,
       write: (c, b) => api.gravarArquivo(c, b),

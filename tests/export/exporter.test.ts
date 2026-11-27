@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
 import { describe, expect, test } from 'vitest';
 import { newRaster } from '../../src/engine/blend';
-import { exportAll, exportName, type ExportOptions } from '../../src/export/exporter';
+import { exportAll, exportName, nomeAvulso, type ExportOptions } from '../../src/export/exporter';
 import type { Choices, Pack, Raster } from '../../src/engine/types';
 import { loadPackNode, lerPng } from '../support/loadPackNode';
 
@@ -37,6 +37,16 @@ describe('exportName', () => {
   });
   test('tira pontos e espaços do fim do nome, que o Windows também recusa', () => {
     expect(exportName('colecao. .pdf', 1)).toBe('colecao_capa-01.png');
+  });
+});
+
+describe('nomeAvulso', () => {
+  test('usa o nome do PDF e o sufixo, sem número de capa', () => {
+    expect(nomeAvulso('CAPAS.pdf', 'agenda-aberta')).toBe('CAPAS_agenda-aberta.png');
+    expect(nomeAvulso('Agenda Coleção.PDF', 'agenda-aberta')).toBe('Agenda_Coleção_agenda-aberta.png');
+  });
+  test('nome vazio vira "mockup", como nas capas', () => {
+    expect(nomeAvulso('???.pdf', 'agenda-aberta')).toBe('mockup_agenda-aberta.png');
   });
 });
 
@@ -156,6 +166,60 @@ describe('exportAll', () => {
     const disco = discoFalso();
     const r = await exportAll(opcoes(disco, { capas: [] }));
     expect(r.written).toEqual([]);
+  });
+});
+
+describe('imagens avulsas (uma por trabalho, não por capa)', () => {
+  test('grava a avulsa depois das capas, no mesmo contador de progresso', async () => {
+    const disco = discoFalso();
+    const progresso: Array<[number, number]> = [];
+    let gerou = 0;
+    const r = await exportAll(
+      opcoes(disco, {
+        avulsas: [{ suffix: 'agenda-aberta', gerar: () => ((gerou += 1), solido(2, 2, 90)) }],
+        onProgress: (a, b) => progresso.push([a, b]),
+      }),
+    );
+    expect(gerou).toBe(1);
+    expect(r.written).toEqual(['/saida/colecao_capa-01.png', '/saida/colecao_capa-02.png', '/saida/colecao_capa-03.png', '/saida/colecao_agenda-aberta.png']);
+    expect(progresso[progresso.length - 1]).toEqual([4, 4]);
+    const png = PNG.sync.read(Buffer.from(disco.arquivos.get('/saida/colecao_agenda-aberta.png') as Uint8Array));
+    expect([png.width, png.height]).toEqual([2, 2]);
+  });
+
+  test('com semFrente, só a avulsa é gravada', async () => {
+    const disco = discoFalso();
+    const r = await exportAll(opcoes(disco, { semFrente: true, avulsas: [{ suffix: 'agenda-aberta', gerar: () => solido(2, 2, 90) }] }));
+    expect(r.written).toEqual(['/saida/colecao_agenda-aberta.png']);
+  });
+
+  test('a avulsa já existente entra na pergunta de sobrescrever; recusando, nada é gerado nem gravado', async () => {
+    const disco = discoFalso(['/saida/colecao_agenda-aberta.png']);
+    let perguntou: string[] = [];
+    let gerou = 0;
+    const r = await exportAll(
+      opcoes(disco, {
+        avulsas: [{ suffix: 'agenda-aberta', gerar: () => ((gerou += 1), solido(2, 2, 90)) }],
+        confirmOverwrite: async (f) => ((perguntou = f), false),
+      }),
+    );
+    expect(perguntou).toEqual(['/saida/colecao_agenda-aberta.png']);
+    expect(r.written).toEqual([]);
+    expect(gerou).toBe(0);
+  });
+
+  test('falha ao gerar: erro com o nome do arquivo e sem sobra de arquivo parcial', async () => {
+    const disco = discoFalso();
+    await expect(
+      exportAll(opcoes(disco, { semFrente: true, avulsas: [{ suffix: 'agenda-aberta', gerar: () => { throw new Error('miolo sem páginas'); } }] })),
+    ).rejects.toThrow(/colecao_agenda-aberta\.png.*miolo sem páginas/);
+    expect([...disco.arquivos.keys()]).toEqual([]);
+  });
+
+  test('a avulsa também é gerada de forma assíncrona', async () => {
+    const disco = discoFalso();
+    const r = await exportAll(opcoes(disco, { semFrente: true, avulsas: [{ suffix: 'agenda-aberta', gerar: async () => solido(3, 3, 10) }] }));
+    expect(r.written).toEqual(['/saida/colecao_agenda-aberta.png']);
   });
 });
 

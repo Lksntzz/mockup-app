@@ -20,6 +20,14 @@ export interface ExportExtra {
   montar?: (capa: ExportCapa) => ExportCapa | null;
 }
 
+/** Imagem que sai uma vez por trabalho (não uma por capa), como a agenda aberta feita do miolo. Vai depois das capas. */
+export interface ExportAvulsa {
+  /** "agenda-aberta" → "CAPAS_agenda-aberta.png". */
+  suffix: string;
+  /** Só é chamada depois de o usuário confirmar a sobrescrita, e uma vez. */
+  gerar: () => Raster | Promise<Raster>;
+}
+
 export interface ExportOptions {
   pdfName: string;
   pasta: string;
@@ -30,6 +38,8 @@ export interface ExportOptions {
   extras?: ExportExtra[];
   /** Não gera o mockup da frente. */
   semFrente?: boolean;
+  /** Imagens que não dependem das capas (uma por trabalho). */
+  avulsas?: ExportAvulsa[];
   encodePng: (r: Raster) => Promise<Uint8Array>;
   write: (path: string, bytes: Uint8Array) => Promise<void>;
   rename: (from: string, to: string) => Promise<void>;
@@ -40,14 +50,22 @@ export interface ExportOptions {
   onProgress: (done: number, total: number) => void;
 }
 
-/** "CAPAS.pdf", 1 → "CAPAS_capa-01.png". Mantém acentos; remove o que o Windows recusa. */
-export function exportName(pdfName: string, index: number, suffix?: string): string {
+function baseDoNome(pdfName: string): string {
   let base = pdfName.replace(/\.(pdf|png|jpe?g)$/i, '');
   base = base.replace(/[:*?"<>|/\\]/g, '').replace(/\s+/g, '_');
   // Windows recusa nomes terminando em ponto ou espaço
   base = base.replace(/[. _]+$/g, '').replace(/^_+/, '');
-  if (!base) base = 'mockup';
-  return `${base}_capa-${String(index).padStart(2, '0')}${suffix ? `_${suffix}` : ''}.png`;
+  return base || 'mockup';
+}
+
+/** "CAPAS.pdf", 1 → "CAPAS_capa-01.png". Mantém acentos; remove o que o Windows recusa. */
+export function exportName(pdfName: string, index: number, suffix?: string): string {
+  return `${baseDoNome(pdfName)}_capa-${String(index).padStart(2, '0')}${suffix ? `_${suffix}` : ''}.png`;
+}
+
+/** "CAPAS.pdf", "agenda-aberta" → "CAPAS_agenda-aberta.png" (imagem do trabalho todo, sem número de capa). */
+export function nomeAvulso(pdfName: string, suffix: string): string {
+  return `${baseDoNome(pdfName)}_${suffix}.png`;
 }
 
 function join(pasta: string, nome: string): string {
@@ -57,10 +75,12 @@ function join(pasta: string, nome: string): string {
 
 interface Tarefa {
   destino: string;
-  capa: ExportCapa;
-  pack: Pack;
-  layers: Map<string, Raster>;
+  /** Imagem de capa (compose) ou avulsa (gerada por quem pediu). */
+  capa?: ExportCapa;
+  pack?: Pack;
+  layers?: Map<string, Raster>;
   variant?: string;
+  gerar?: () => Raster | Promise<Raster>;
 }
 
 export async function exportAll(opts: ExportOptions): Promise<{ written: string[] }> {
@@ -80,6 +100,7 @@ export async function exportAll(opts: ExportOptions): Promise<{ written: string[
       });
     }
   });
+  for (const a of opts.avulsas ?? []) tarefas.push({ destino: join(opts.pasta, nomeAvulso(opts.pdfName, a.suffix)), gerar: a.gerar });
   const total = tarefas.length;
   if (total === 0) return { written: [] };
 
@@ -89,10 +110,10 @@ export async function exportAll(opts: ExportOptions): Promise<{ written: string[
 
   const written: string[] = [];
   for (let i = 0; i < total; i++) {
-    const { destino, capa, pack, layers, variant } = tarefas[i] as Tarefa;
+    const { destino, capa, pack, layers, variant, gerar } = tarefas[i] as Tarefa;
     const tmp = destino.replace(/\.png$/i, '.parcial.png');
     try {
-      const raster = compose(pack, layers, capa.art, capa.choices, capa.back, variant, capa.ajuste);
+      const raster = gerar ? await gerar() : compose(pack as Pack, layers as Map<string, Raster>, (capa as ExportCapa).art, (capa as ExportCapa).choices, (capa as ExportCapa).back, variant, (capa as ExportCapa).ajuste);
       const bytes = await opts.encodePng(raster);
       await opts.write(tmp, bytes);
       await opts.rename(tmp, destino);

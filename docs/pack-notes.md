@@ -27,3 +27,21 @@ Erro médio por região contra os 3 gabaritos (antes → depois): lateral das p�
 Divergências **sem explicação** (pendentes):
 - Elástico: no meio da fita a cor do Photoshop difere da cor crua da camada (rosa: R 213 → 200; azul: G 219 → 208), embora a camada rosa não tenha efeito algum. Não é perfil de cor (testado: Adobe RGB → sRGB piora), nem camada extra de color-burn, nem opacidade de preenchimento.
 - Chão no gabarito do preto: a sombra é ~1,35× mais escura que a do app, com razão constante. Suspeita: camada de sombra a mais ligada ao montar o gabarito.
+
+## Agenda aberta (usa o pacote do verso)
+
+Não existe PSD da agenda aberta. `src/engine/aberta.ts` monta a cena com o pacote `pack/verso`:
+
+1. A página da esquerda sai do verso como está. A da direita é espelhada em volta do eixo da lombada (coluna 855 do mockup) e as duas são multiplicadas.
+2. As argolas são colocadas uma vez só, simétricas nos dois lados do eixo: pega-se o metal **escuro** da página da esquerda (por isso só funciona com **wire-o preto**) e cola-se espelhado. As argolas originais são tiradas das duas páginas só nas faixas delas (linhas 190–470 e 760–1020), comparando a página com e sem `wireo-*`.
+3. Recuo da lombada: o miolo desenhado até a borda ficaria debaixo dos furos. `ajustarMargemDaLombada` encolhe as duas artes (mesma escala, nunca amplia) para o conteúdo terminar em 1527/1772 da largura da arte, e centraliza na vertical. Arte que já tem folga não é mexida.
+4. As marcas de canto e a marca d'água (`marca-01..04`) entram **uma vez só**, no fim, na imagem final.
+
+Camadas extras no `pack/verso/mockup.json` (entradas com `variant: "aberta-dados"`, que o `compose` nunca desenha; existem só para o app carregá-las junto):
+
+- `aberta-luz-01.png` e `aberta-luz-02.png`: cópias de `luz-01`/`luz-02` com as falhas de transparência ao lado dos furos das argolas preenchidas (interpolação horizontal). Sem isso, quando as argolas originais são tiradas, aparecem "caixinhas" brancas nas pontas.
+- `aberta-mascara.png`: cópia de `mascara-arte.png` com os recortes ao lado dos furos fechados.
+
+**Atenção:** essas três imagens foram feitas por um script avulso que **não está versionado**. Se o PSD do verso mudar, refaça-as: compare com as originais (só ~1500–2900 pixels diferem, nas colunas 515–551 das camadas) e preencha de novo as falhas.
+
+Limites conhecidos: só wire-o preto; a luz é a mesma espelhada nas duas páginas; o ângulo da câmera é o do verso. O título e a seta (`src/app/aberta.ts`, `src/app/aberta-imagem.ts`) são desenhados no canvas depois da cena; a fonte do título vem do sistema (Segoe UI no Windows), nenhuma fonte é copiada para o programa.

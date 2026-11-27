@@ -493,6 +493,42 @@
         1103,
         1090
       ]
+    },
+    {
+      "id": "aberta-luz-01",
+      "role": "fixed",
+      "file": "aberta-luz-01.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        0,
+        0
+      ],
+      "variant": "aberta-dados"
+    },
+    {
+      "id": "aberta-luz-02",
+      "role": "fixed",
+      "file": "aberta-luz-02.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        0,
+        0
+      ],
+      "variant": "aberta-dados"
+    },
+    {
+      "id": "aberta-mascara",
+      "role": "fixed",
+      "file": "aberta-mascara.png",
+      "opacity": 1.0,
+      "blend": "normal",
+      "offset": [
+        0,
+        0
+      ],
+      "variant": "aberta-dados"
     }
   ],
   "options": {
