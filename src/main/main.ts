@@ -315,6 +315,8 @@ ipcMain.handle("converte-iniciar", async (e, caminho: unknown, pedido: unknown) 
   }
   return r;
 });
+// fechar o app no meio de uma conversão não deixa o ffmpeg rodando escondido nem um arquivo pela metade
+app.on("before-quit", () => conversaoEmAndamento?.cancelar());
 ipcMain.handle("converte-cancelar", () => {
   conversaoEmAndamento?.cancelar();
 });

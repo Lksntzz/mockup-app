@@ -1,3 +1,4 @@
+import { iniciarConverte } from './converte';
 import { ferramentaValida, visibilidade, type Ferramenta } from '../app/ferramentas';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { createPreviewScheduler } from '../app/scheduler';
@@ -2314,4 +2315,5 @@ async function iniciarAtualizacoes(): Promise<void> {
 }
 
 void iniciarAtualizacoes();
+iniciarConverte();
 void iniciar();
