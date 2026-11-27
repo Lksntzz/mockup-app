@@ -82,8 +82,9 @@ export function criarConversor(o: OpcoesDoConversor): Conversor {
         const lido = await ler(caminho);
         if (!lido.ok) return lido;
         if (cancelado) return cancelou;
-        const plano = planejar(lido.info, pedido);
-        if (!plano.ok) return plano;
+        const planoInicial = planejar(lido.info, pedido);
+        if (!planoInicial.ok) return planoInicial;
+        let plano = planoInicial;
         // com destino: usa a pasta e o nome escolhidos (a "entrada" de mentira só garante que nada é sobrescrito)
         const saida = destino
           ? nomeLivre(join(dirname(destino), `${parse(destino).name}.__destino__`), pedido.formato, existe)
@@ -95,42 +96,57 @@ export function criarConversor(o: OpcoesDoConversor): Conversor {
         if (cancelado) return cancelou;
 
         const duracao = lido.info.duracaoS;
-        const resultado = await new Promise<{ codigo: number | null; stderr: string; ausente?: boolean }>((resolve) => {
-          const p = spawn(o.ffmpeg, montarArgumentos(plano, caminho, saida), { windowsHide: true });
-          processo = p;
-          const inicio = agora();
-          let pendente = '';
-          let stderr = '';
-          p.stdout?.on('data', (d: Buffer) => {
-            const linhas = (pendente + d.toString()).split(/\r?\n/);
-            pendente = linhas.pop() ?? '';
-            for (const linha of linhas) {
-              const prog = lerProgresso(linha);
-              if (prog?.tipo === 'fim') aoProgredir({ fracao: 1, restanteS: 0 });
-              else if (prog && duracao > 0) {
-                const fracao = Math.min(1, prog.segundos / duracao);
-                const passou = (agora() - inicio) / 1000;
-                aoProgredir({ fracao, restanteS: fracao >= 0.02 ? (passou * (1 - fracao)) / fracao : null });
+        const rodar = (p: typeof plano) =>
+          new Promise<{ codigo: number | null; stderr: string; ausente?: boolean }>((resolve) => {
+            const proc = spawn(o.ffmpeg, montarArgumentos(p, caminho, saida), { windowsHide: true });
+            processo = proc;
+            const inicio = agora();
+            let pendente = '';
+            let stderr = '';
+            proc.stdout?.on('data', (d: Buffer) => {
+              const linhas = (pendente + d.toString()).split(/\r?\n/);
+              pendente = linhas.pop() ?? '';
+              for (const linha of linhas) {
+                const prog = lerProgresso(linha);
+                if (prog?.tipo === 'fim') aoProgredir({ fracao: 1, restanteS: 0 });
+                else if (prog && duracao > 0) {
+                  const fracao = Math.min(1, prog.segundos / duracao);
+                  const passou = (agora() - inicio) / 1000;
+                  aoProgredir({ fracao, restanteS: fracao >= 0.02 ? (passou * (1 - fracao)) / fracao : null });
+                }
               }
-            }
+            });
+            proc.stderr?.on('data', (d: Buffer) => (stderr += d.toString()));
+            proc.on('error', () => resolve({ codigo: -1, stderr, ausente: true }));
+            proc.on('close', (codigo: number | null) => resolve({ codigo, stderr }));
           });
-          p.stderr?.on('data', (d: Buffer) => (stderr += d.toString()));
-          p.on('error', () => resolve({ codigo: -1, stderr, ausente: true }));
-          p.on('close', (codigo: number | null) => resolve({ codigo, stderr }));
-        });
 
-        if (cancelado) {
+        // "Máximo de N MB" é uma promessa: se o resultado passar, apaga e refaz com taxa menor (o encoder de uma passagem erra para cima)
+        const limite = pedido.tamanho.tipo === 'maximo' ? pedido.tamanho.mb * MB : null;
+        for (let tentativa = 0; ; tentativa++) {
+          const resultado = await rodar(plano);
+          if (cancelado) {
+            await apagar(saida);
+            return cancelou;
+          }
+          if (resultado.ausente) return { ok: false, motivo: MENSAGEM_SEM_PROGRAMA };
+          if (resultado.codigo !== 0) {
+            await apagar(saida);
+            if (SEM_PERMISSAO.test(resultado.stderr)) return { ok: false, motivo: 'Não consigo gravar nesta pasta.', pastaSemPermissao: true };
+            const ultima = resultado.stderr.trim().split(/\r?\n/).pop()?.slice(0, 200) ?? '';
+            return { ok: false, motivo: `A conversão falhou.${ultima ? ' ' + ultima : ''}` };
+          }
+          const bytes = await tamanhoDoArquivo(saida).catch(() => 0);
+          if (limite === null || bytes <= limite) return { ok: true, saida, bytes };
           await apagar(saida);
-          return cancelou;
+          const taxa = plano.video?.kbps ?? plano.audio?.kbps;
+          if (tentativa >= 2 || !taxa) {
+            const mb = pedido.tamanho.tipo === 'maximo' ? pedido.tamanho.mb : 0;
+            return { ok: false, motivo: `Não consegui deixar o resultado abaixo de ${Math.round(mb * 10) / 10} MB. Escolha um tamanho maior ou o nível Pequeno.` };
+          }
+          const novaTaxa = Math.max(1, Math.floor((taxa * limite * 0.9) / bytes));
+          plano = plano.video?.kbps ? { ...plano, video: { ...plano.video, kbps: novaTaxa } } : { ...plano, audio: plano.audio ? { ...plano.audio, kbps: novaTaxa } : null };
         }
-        if (resultado.ausente) return { ok: false, motivo: MENSAGEM_SEM_PROGRAMA };
-        if (resultado.codigo !== 0) {
-          await apagar(saida);
-          if (SEM_PERMISSAO.test(resultado.stderr)) return { ok: false, motivo: 'Não consigo gravar nesta pasta.', pastaSemPermissao: true };
-          const ultima = resultado.stderr.trim().split(/\r?\n/).pop()?.slice(0, 200) ?? '';
-          return { ok: false, motivo: `A conversão falhou.${ultima ? ' ' + ultima : ''}` };
-        }
-        return { ok: true, saida, bytes: await tamanhoDoArquivo(saida).catch(() => 0) };
       } finally {
         emUso = false;
       }

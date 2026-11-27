@@ -1932,6 +1932,8 @@ function mostrarAlertaDeArte(nomes: string[]): void {
 }
 function irParaCliente(): void {
   $('alerta-arte').hidden = true;
+  // o aviso de arte nova (e a notificação do Windows) também aparece por cima do Converte: leva de volta ao MKP, na aba Cliente
+  mostrarFerramenta('mkp');
   mostrarAba('pasta1');
 }
 $('alerta-arte-ver').addEventListener('click', irParaCliente);

@@ -86,6 +86,25 @@ O instalador não é assinado. Por isso o Windows pode mostrar um aviso na insta
 1. Quando houver uma versão nova publicada, inicie uma conversão longa (WebM do `IMG_6040.MOV`).
    - **Resultado esperado:** o app **não reinicia sozinho** no meio; a atualização espera a conversão terminar.
 
+## 14. Fechar o app no meio da conversão
+
+1. Inicie a conversão do `IMG_6040.MOV` para WebM e, com a barra em andamento, feche a janela do app (o X, ou clique com o botão direito no ícone perto do relógio e escolha Sair).
+   - **Resultado esperado:** o app fecha em poucos segundos e **não sobra nenhum arquivo `.webm` pela metade** na pasta do vídeo.
+
+## 15. Aviso de arte nova enquanto está no Converte (Modo designer)
+
+1. Com o Modo designer ligado, fique na tela do Converte e faça chegar uma arte nova na Pasta 1.
+2. Clique em **Ver** no aviso (ou na notificação do Windows).
+   - **Resultado esperado:** o app volta para **MKP** e abre a aba **Cliente**.
+
+## 16. Tamanho máximo de verdade
+
+1. Converta um vídeo com **máximo de 8 MB** (e depois 16 MB) para MP4 e para WebM. **Resultado esperado:** o arquivo final **nunca passa** do tamanho pedido (confira em Propriedades; o Windows mostra MB de 1 048 576 bytes). Se o app precisar refazer para caber, a barra recomeça uma ou duas vezes; é normal.
+
+## 17. Vídeo de iPhone em HDR
+
+1. Se tiver um vídeo do iPhone gravado em HDR (Dolby Vision), converta para MP4 e compare as cores com o original. **Anote** se ficaram desbotadas: é uma limitação conhecida ainda não tratada.
+
 ## Se algo falhar
 
 Tire uma foto da tela com a mensagem e anote qual passo foi. Não tente consertar o arquivo no meio do teste.

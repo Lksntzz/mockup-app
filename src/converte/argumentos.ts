@@ -21,10 +21,14 @@ export function montarArgumentos(plano: Plano, entrada: string, saida: string): 
     else if (vp9) a.push('-b:v', '0');
     if (vp9) a.push('-row-mt', '1', '-deadline', 'good', '-cpu-used', '4');
     else a.push('-preset', 'veryfast', '-pix_fmt', 'yuv420p');
+    // largura e altura sempre pares: o H.264 em yuv420p (e o VP9) recusa tamanho ímpar
+    const par = 'scale=trunc(iw/2)*2:trunc(ih/2)*2';
     if (v.ladoMenorMax) {
       // só o lado menor passa a no máximo L px (em vídeo em pé é a largura); vídeo menor que isso não é ampliado
       const L = v.ladoMenorMax;
-      a.push('-vf', `scale='if(gte(iw,ih),-2,min(iw,${L}))':'if(gte(iw,ih),min(ih,${L}),-2)'`);
+      a.push('-vf', `scale='if(gte(iw,ih),-2,min(iw,${L}))':'if(gte(iw,ih),min(ih,${L}),-2)',${par}`);
+    } else {
+      a.push('-vf', par);
     }
   } else {
     a.push('-vn');

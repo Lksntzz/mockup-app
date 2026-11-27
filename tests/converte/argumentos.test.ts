@@ -63,6 +63,13 @@ describe('montarArgumentos', () => {
     expect(vf).toContain('min(iw,1080)');
     expect(vf).toContain('min(ih,1080)');
   });
+  test('largura/altura ímpar: sempre termina arredondando para par (libx264 yuv420p recusa ímpar)', () => {
+    for (const p of [nivel('mp4', 'original'), nivel('mp4', 'medio'), nivel('webm', 'pequeno'), { formato: 'mov', tamanho: { tipo: 'maximo', mb: 20 } } as Pedido]) {
+      const a = montarArgumentos(plano(IPHONE, p), 'a.mov', 'a.x');
+      const vf = a[a.indexOf('-vf') + 1]!;
+      expect(vf.endsWith('scale=trunc(iw/2)*2:trunc(ih/2)*2')).toBe(true);
+    }
+  });
   test('WebM: VP9 com -b:v 0 no modo de qualidade e Opus', () => {
     const a = montarArgumentos(plano(IPHONE, nivel('webm', 'original')), 'a.mov', 'a.webm');
     expect(a[a.indexOf('-c:v') + 1]).toBe('libvpx-vp9');

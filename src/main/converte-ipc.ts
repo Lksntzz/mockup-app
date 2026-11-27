@@ -18,3 +18,10 @@ export function pedidoValido(x: unknown): Pedido | null {
   }
   return null;
 }
+
+/** Ao fechar o app no meio de uma conversão: cancela e ESPERA a limpeza (apagar o arquivo pela metade) antes de deixar o app sair. */
+export async function aoSair(conversao: { cancelar(): void; fim: Promise<unknown> } | null): Promise<void> {
+  if (!conversao) return;
+  conversao.cancelar();
+  await conversao.fim.catch(() => undefined);
+}

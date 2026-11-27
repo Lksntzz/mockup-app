@@ -41,7 +41,7 @@ import { rascunhoValido } from "../app/rascunhos";
 import { criarRascunhos } from "./rascunhos";
 import { criarConfigDesigner, type ConfigDesigner } from "./config-designer";
 import { criarConversor, type Conversor } from "./converte";
-import { pedidoValido } from "./converte-ipc";
+import { aoSair, pedidoValido } from "./converte-ipc";
 import { linkDeLicencaPermitido } from "../converte/licencas";
 import { caminhoDoFfmpeg } from "./ffmpeg-caminho";
 import {
@@ -261,7 +261,7 @@ function conversor(): Conversor | null {
   return conversorAtual;
 }
 const SEM_CONVERSOR = "O programa de conversão (ffmpeg) não foi encontrado. Reinstale o app.";
-let conversaoEmAndamento: { cancelar(): void } | null = null;
+let conversaoEmAndamento: { cancelar(): void; fim: Promise<unknown> } | null = null;
 ipcMain.handle("converte-escolher", async () => {
   const r = await dialog.showOpenDialog({
     title: "Escolher o vídeo para converter",
@@ -317,7 +317,14 @@ ipcMain.handle("converte-iniciar", async (e, caminho: unknown, pedido: unknown) 
   return r;
 });
 // fechar o app no meio de uma conversão não deixa o ffmpeg rodando escondido nem um arquivo pela metade
-app.on("before-quit", () => conversaoEmAndamento?.cancelar());
+let saindoDaConversao = false;
+app.on("before-quit", (e) => {
+  if (!conversaoEmAndamento || saindoDaConversao) return;
+  // espera o ffmpeg parar e o arquivo pela metade ser apagado; só então o app fecha de verdade
+  e.preventDefault();
+  saindoDaConversao = true;
+  void aoSair(conversaoEmAndamento).finally(() => app.quit());
+});
 ipcMain.handle("converte-cancelar", () => {
   conversaoEmAndamento?.cancelar();
 });

@@ -166,6 +166,32 @@ describe('converter', () => {
     expect(r).toMatchObject({ ok: true, saida: '/outra/Filme (1).mp4' });
     expect(chamadas.find((a) => a.includes('-progress'))!.at(-1)).toBe('/outra/Filme (1).mp4');
   });
+  test('máximo em MB: se o resultado passar do limite, refaz com taxa menor até caber', async () => {
+    const MAX: Pedido = { formato: 'mp4', tamanho: { tipo: 'maximo', mb: 8 } };
+    const tamanhos = [20_000_000, 8_000_000]; // 1ª saída passa de 8 MB (8 388 608 bytes), a 2ª cabe
+    const { conv, chamadas, apagados } = criar(
+      { info: INFO_IPHONE, conversao: (p) => saidaOk(p, 'progress=end\n') },
+      { tamanhoDoArquivo: async (c) => (c.endsWith('.mp4') ? tamanhos.shift() ?? 8_000_000 : 37_254_613) },
+    );
+    const r = await conv.converter('/v/a.mov', MAX, () => undefined).fim;
+    expect(r).toMatchObject({ ok: true, saida: '/v/a.mp4', bytes: 8_000_000 });
+    const conversoes = chamadas.filter((a) => a.includes('-progress'));
+    expect(conversoes).toHaveLength(2);
+    const kbps = (a: string[]) => Number.parseInt(a[a.indexOf('-b:v') + 1]!, 10);
+    expect(kbps(conversoes[1]!)).toBeLessThan(kbps(conversoes[0]!) * 0.5);
+    expect(apagados).toEqual(['/v/a.mp4']); // a 1ª tentativa (grande demais) foi apagada
+  });
+  test('máximo em MB: se nem depois das tentativas couber, avisa e não entrega arquivo grande demais', async () => {
+    const MAX: Pedido = { formato: 'mp4', tamanho: { tipo: 'maximo', mb: 8 } };
+    const { conv, apagados } = criar(
+      { info: INFO_IPHONE, conversao: (p) => saidaOk(p, 'progress=end\n') },
+      { tamanhoDoArquivo: async (c) => (c.endsWith('.mp4') ? 30_000_000 : 37_254_613) },
+    );
+    const r = await conv.converter('/v/a.mov', MAX, () => undefined).fim;
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.motivo).toMatch(/8 MB/);
+    expect(apagados.length).toBeGreaterThanOrEqual(1);
+  });
   test('arquivo que não é vídeo: não cria saída e explica', async () => {
     const { conv, chamadas } = criar({ info: NAO_VIDEO });
     const r = await conv.converter('/v/falso.mov', MP4, () => undefined).fim;
@@ -197,4 +223,32 @@ describe.skipIf(!process.env.FFMPEG_PATH)('com o ffmpeg real', () => {
       rmSync(pasta, { recursive: true, force: true });
     }
   });
+
+  test('vídeo de tamanho ímpar (721×1281) converte em MP4 original', async () => {
+    const ffmpeg = process.env.FFMPEG_PATH!;
+    const pasta = mkdtempSync(join(tmpdir(), 'converte-'));
+    try {
+      const entrada = join(pasta, 'impar.mp4');
+      execFileSync(ffmpeg, ['-v', 'error', '-f', 'lavfi', '-i', 'testsrc=size=720x1280:rate=25:duration=1', '-vf', 'pad=721:1281', '-c:v', 'libx264', '-pix_fmt', 'yuv444p', entrada]);
+      const r = await criarConversor({ ffmpeg }).converter(entrada, { formato: 'mp4', tamanho: { tipo: 'nivel', nivel: 'original' } }, () => undefined).fim;
+      expect(r.ok).toBe(true);
+    } finally {
+      rmSync(pasta, { recursive: true, force: true });
+    }
+  }, 60000);
+  test('máximo em MB num vídeo com muito ruído: o resultado nunca passa do limite (MP4 e WebM)', async () => {
+    const ffmpeg = process.env.FFMPEG_PATH!;
+    const pasta = mkdtempSync(join(tmpdir(), 'converte-'));
+    try {
+      const entrada = join(pasta, 'ruido.mp4');
+      execFileSync(ffmpeg, ['-v', 'error', '-f', 'lavfi', '-i', 'testsrc2=size=1280x720:rate=25:duration=8', '-vf', 'noise=alls=100:allf=t', '-c:v', 'libx264', '-crf', '10', '-pix_fmt', 'yuv420p', entrada]);
+      for (const formato of ['mp4', 'webm'] as const) {
+        const r = await criarConversor({ ffmpeg }).converter(entrada, { formato, tamanho: { tipo: 'maximo', mb: 2 } }, () => undefined).fim;
+        if (r.ok) expect(r.bytes).toBeLessThanOrEqual(2 * 1048576);
+        else expect(r.motivo).toMatch(/abaixo de 2 MB/); // recusar com clareza também é aceitável; entregar arquivo grande não
+      }
+    } finally {
+      rmSync(pasta, { recursive: true, force: true });
+    }
+  }, 240000);
 });

@@ -17,3 +17,23 @@ describe('pedidoValido', () => {
     expect(pedidoValido('mp4')).toBeNull();
   });
 });
+
+describe('aoSair', () => {
+  test('cancela e só termina depois que a conversão acabou de limpar', async () => {
+    const { aoSair } = await import('../../src/main/converte-ipc');
+    const eventos: string[] = [];
+    let terminar!: () => void;
+    const fim = new Promise<void>((r) => (terminar = r)).then(() => void eventos.push('limpou'));
+    const h = { cancelar: () => void eventos.push('cancelou'), fim };
+    const espera = aoSair(h).then(() => eventos.push('saiu'));
+    await new Promise((r) => setTimeout(r, 10));
+    expect(eventos).toEqual(['cancelou']); // ainda esperando
+    terminar();
+    await espera;
+    expect(eventos).toEqual(['cancelou', 'limpou', 'saiu']);
+  });
+  test('sem conversão: sai na hora', async () => {
+    const { aoSair } = await import('../../src/main/converte-ipc');
+    await expect(aoSair(null)).resolves.toBeUndefined();
+  });
+});
