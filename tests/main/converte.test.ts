@@ -113,7 +113,7 @@ describe('converter', () => {
     const eventos: Array<{ fracao: number; restanteS: number | null }> = [];
     const { conv } = criar({ info: INFO_IPHONE, conversao: (p) => saidaOk(p, 'out_time_us=13085000\nprogress=continue\nout_time_us=26170000\nprogress=end\n') });
     const r = await conv.converter('/v/a.mov', MP4, (e) => eventos.push(e)).fim;
-    expect(r).toEqual({ ok: true, saida: '/v/a.mp4', bytes: 22_000_000 });
+    expect(r).toEqual({ ok: true, saida: join('/v', 'a.mp4'), bytes: 22_000_000 });
     expect(eventos[0]!.fracao).toBeCloseTo(0.5, 2);
     expect(eventos[0]!.restanteS).toBeCloseTo(10, 0);
     expect(eventos[eventos.length - 1]!.fracao).toBe(1);
@@ -122,7 +122,7 @@ describe('converter', () => {
     const { conv, apagados } = criar({ info: INFO_IPHONE, conversao: (p) => { p.stderr.emit('data', Buffer.from('algo deu errado\n')); p.emit('close', 1); } });
     const r = await conv.converter('/v/a.mov', MP4, () => undefined).fim;
     expect(r.ok).toBe(false);
-    expect(apagados).toEqual(['/v/a.mp4']);
+    expect(apagados).toEqual([join('/v', 'a.mp4')]);
   });
   test('cancelar: mata o processo, apaga a saída parcial e marca cancelado', async () => {
     const { conv, apagados, mortes } = criar({ info: INFO_IPHONE, fecharAoMatar: true, conversao: () => undefined });
@@ -132,7 +132,7 @@ describe('converter', () => {
     const r = await c.fim;
     expect(r).toMatchObject({ ok: false, cancelado: true });
     expect(mortes()).toBe(1);
-    expect(apagados).toEqual(['/v/a.mp4']);
+    expect(apagados).toEqual([join('/v', 'a.mp4')]);
     expect(conv.ocupado()).toBe(false);
   });
   test('pouco espaço no disco: recusa sem abrir o ffmpeg de conversão', async () => {
@@ -173,10 +173,10 @@ describe('converter', () => {
     expect(r).toMatchObject({ ok: false, pastaSemPermissao: true });
   });
   test('destino escolhido (pasta sem permissão): grava ali e nunca sobrescreve', async () => {
-    const { conv, chamadas } = criar({ info: INFO_IPHONE, conversao: (p) => saidaOk(p, 'progress=end\n') }, { existe: (c) => c === '/outra/Filme.mp4' });
-    const r = await conv.converter('/v/a.mov', MP4, () => undefined, '/outra/Filme.mp4').fim;
-    expect(r).toMatchObject({ ok: true, saida: '/outra/Filme (1).mp4' });
-    expect(chamadas.find((a) => a.includes('-progress'))!.at(-1)).toBe('/outra/Filme (1).mp4');
+    const { conv, chamadas } = criar({ info: INFO_IPHONE, conversao: (p) => saidaOk(p, 'progress=end\n') }, { existe: (c) => c === join('/outra', 'Filme.mp4') });
+    const r = await conv.converter('/v/a.mov', MP4, () => undefined, join('/outra', 'Filme.mp4')).fim;
+    expect(r).toMatchObject({ ok: true, saida: join('/outra', 'Filme (1).mp4') });
+    expect(chamadas.find((a) => a.includes('-progress'))!.at(-1)).toBe(join('/outra', 'Filme (1).mp4'));
   });
   test('máximo em MB: se o resultado passar do limite, refaz com taxa menor até caber', async () => {
     const MAX: Pedido = { formato: 'mp4', tamanho: { tipo: 'maximo', mb: 8 } };
@@ -186,12 +186,12 @@ describe('converter', () => {
       { tamanhoDoArquivo: async (c) => (c.endsWith('.mp4') ? tamanhos.shift() ?? 8_000_000 : 37_254_613) },
     );
     const r = await conv.converter('/v/a.mov', MAX, () => undefined).fim;
-    expect(r).toMatchObject({ ok: true, saida: '/v/a.mp4', bytes: 8_000_000 });
+    expect(r).toMatchObject({ ok: true, saida: join('/v', 'a.mp4'), bytes: 8_000_000 });
     const conversoes = chamadas.filter((a) => a.includes('-progress'));
     expect(conversoes).toHaveLength(2);
     const kbps = (a: string[]) => Number.parseInt(a[a.indexOf('-b:v') + 1]!, 10);
     expect(kbps(conversoes[1]!)).toBeLessThan(kbps(conversoes[0]!) * 0.5);
-    expect(apagados).toEqual(['/v/a.mp4']); // a 1ª tentativa (grande demais) foi apagada
+    expect(apagados).toEqual([join('/v', 'a.mp4')]); // a 1ª tentativa (grande demais) foi apagada
   });
   test('máximo em MB: se nem depois das tentativas couber, avisa e não entrega arquivo grande demais', async () => {
     const MAX: Pedido = { formato: 'mp4', tamanho: { tipo: 'maximo', mb: 8 } };

@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
 import type { InfoDoVideo } from '../../src/converte/info';
 import { lerProgresso, montarArgumentos, nomeLivre } from '../../src/converte/argumentos';
@@ -80,18 +81,19 @@ describe('montarArgumentos', () => {
 });
 
 describe('nomeLivre', () => {
+  // no Windows o separador é "\\": os caminhos esperados são montados com join, como o programa faz
   test('pasta livre: mesmo nome com a extensão nova', () => {
-    expect(nomeLivre('/v/a.mov', 'mp4', () => false)).toBe('/v/a.mp4');
+    expect(nomeLivre(join('/v', 'a.mov'), 'mp4', () => false)).toBe(join('/v', 'a.mp4'));
   });
   test('nomes ocupados: (1), (2)…', () => {
-    const ocupados = new Set(['/v/a.mp4', '/v/a (1).mp4']);
-    expect(nomeLivre('/v/a.mov', 'mp4', (c) => ocupados.has(c))).toBe('/v/a (2).mp4');
+    const ocupados = new Set([join('/v', 'a.mp4'), join('/v', 'a (1).mp4')]);
+    expect(nomeLivre(join('/v', 'a.mov'), 'mp4', (c) => ocupados.has(c))).toBe(join('/v', 'a (2).mp4'));
   });
   test('entrada sem extensão, com ponto na pasta', () => {
-    expect(nomeLivre('/v.x/a', 'mp4', () => false)).toBe('/v.x/a.mp4');
+    expect(nomeLivre(join('/v.x', 'a'), 'mp4', () => false)).toBe(join('/v.x', 'a.mp4'));
   });
   test('nunca devolve o próprio arquivo de entrada (MP4 → MP4)', () => {
-    expect(nomeLivre('/v/a.mp4', 'mp4', () => false)).toBe('/v/a (1).mp4');
+    expect(nomeLivre(join('/v', 'a.mp4'), 'mp4', () => false)).toBe(join('/v', 'a (1).mp4'));
   });
 });
 
